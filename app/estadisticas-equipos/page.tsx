@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { getTeamColor, isWhiteTeam } from '../lib/constants';
+import LoadingState from '../components/LoadingState';
+import FilterPills from '../components/FilterPills';
 
 interface JugadorEquipo {
   nombre: string;
@@ -19,7 +21,7 @@ interface Equipo {
 const EQUIPOS_CONFIG = [
   { nombre: 'Miami Heat', color: '#FFFFFF', filaInicio: 2, filaFin: 12 },
   { nombre: 'Brooklyn Nets', color: '#AAAAAA', filaInicio: 16, filaFin: 25 },
-  { nombre: 'Boston Celtics', color: '#00FF00', filaInicio: 30, filaFin: 40 },
+  { nombre: 'Boston Celtics', color: '#22c55e', filaInicio: 30, filaFin: 40 },
   { nombre: 'Oklahoma City Thunder', color: '#00BFFF', filaInicio: 44, filaFin: 53 },
   { nombre: 'Los Angeles Lakers', color: '#FFD700', filaInicio: 58, filaFin: 68 },
   { nombre: 'Toronto Raptors', color: '#FF0000', filaInicio: 72, filaFin: 81 },
@@ -56,73 +58,94 @@ export default function EstadisticasEquipos() {
   const eq = equipos[equipoActivo];
 
   return (
-    <main style={{ background: '#1a1a2e', minHeight: '100vh', fontFamily: 'sans-serif', color: '#f0ece3' }}>
-
-      {/* HEADER */}
-      <div style={{ background: '#16213e', borderBottom: '2px solid #F5B800', padding: '16px 28px', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <Link href="/" style={{ color: '#8a8a9a', textDecoration: 'none', fontSize: 13 }}>← Inicio</Link>
-        <span style={{ color: '#333' }}>|</span>
-        <span style={{ fontSize: 22, fontWeight: 700, color: '#F5B800', letterSpacing: 2 }}>📊 ESTADÍSTICAS POR EQUIPO</span>
+    <div className="animate-fade-in">
+      <div className="px-4 md:px-6 pt-4">
+        <h2 className="text-sm text-text-muted uppercase tracking-widest">
+          <span role="img" aria-label="estadísticas">📊</span> Estadísticas por equipo
+        </h2>
       </div>
 
-      {/* TABS EQUIPOS */}
-      <div style={{ padding: '16px 24px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {equipos.map((e, i) => (
-          <button key={i} onClick={() => setEquipoActivo(i)}
-            style={{ padding: '6px 14px', borderRadius: 20, border: equipoActivo === i ? `2px solid ${e.color === '#FFFFFF' ? '#CCCCCC' : e.color}` : '2px solid transparent',
-              cursor: 'pointer', fontSize: 12, fontWeight: 500,
-              background: equipoActivo === i ? (e.color === '#FFFFFF' ? '#FFFFFF' : e.color + '20') : '#16213e',
-              color: equipoActivo === i ? (e.color === '#FFFFFF' ? '#000000' : e.color) : '#8a8a9a' }}>
-            {e.nombre}
-          </button>
-        ))}
+      <div className="px-4 md:px-6 py-4">
+        <FilterPills
+          items={equipos.map((e, i) => ({
+            key: String(i),
+            label: e.nombre,
+            color: getTeamColor(e.nombre),
+          }))}
+          active={String(equipoActivo)}
+          onChange={(key) => setEquipoActivo(Number(key))}
+          variant="outline"
+        />
       </div>
 
-      {/* TABLA */}
-      <div style={{ padding: '0 24px 32px' }}>
+      <div className="px-4 md:px-6 pb-8">
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#8a8a9a', padding: 60 }}>Cargando...</div>
+          <LoadingState message="Cargando estadísticas..." variant="skeleton" />
         ) : eq ? (
-          <div style={{ background: '#16213e', borderRadius: 12, overflow: 'hidden' }}>
-
-            {/* HEADER EQUIPO */}
-            <div style={{ padding: '16px 20px', background: eq.color === '#FFFFFF' ? '#FFFFFF' : eq.color + '20', borderBottom: `2px solid ${eq.color === '#FFFFFF' ? '#CCCCCC' : eq.color}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: eq.color === '#FFFFFF' ? '#CCCCCC' : eq.color }} />
-              <span style={{ fontWeight: 700, fontSize: 16, color: eq.color === '#FFFFFF' ? '#000000' : eq.color }}>{eq.nombre}</span>
+          <div className="bg-bg-secondary rounded-xl overflow-hidden">
+            {/* Team header */}
+            <div
+              className="px-5 py-4 flex items-center gap-2.5"
+              style={{
+                background: isWhiteTeam(eq.nombre) ? '#FFFFFF' : getTeamColor(eq.nombre) + '20',
+                borderBottom: `2px solid ${getTeamColor(eq.nombre)}`,
+              }}
+            >
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ background: getTeamColor(eq.nombre) }}
+              />
+              <span
+                className="font-bold text-base"
+                style={{ color: isWhiteTeam(eq.nombre) ? '#000000' : getTeamColor(eq.nombre) }}
+              >
+                {eq.nombre}
+              </span>
             </div>
 
-            {/* ENCABEZADO */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px', padding: '10px 20px', background: '#0f3460', fontSize: 11, color: '#8a8a9a', textTransform: 'uppercase', letterSpacing: 1, gap: 8 }}>
-              <div>Jugador</div>
-              <div style={{ textAlign: 'center' }}>P. de 1</div>
-              <div style={{ textAlign: 'center' }}>P. de 2</div>
-              <div style={{ textAlign: 'center' }}>P. de 3</div>
-              <div style={{ textAlign: 'center' }}>Total</div>
-            </div>
-
-            {/* FILAS */}
-            {eq.jugadores.map((j, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px', padding: '12px 20px', borderBottom: '1px solid #ffffff08', alignItems: 'center', gap: 8, background: i % 2 === 0 ? '#16213e' : '#1a2744' }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{j.nombre}</div>
-                <div style={{ textAlign: 'center', fontSize: 13 }}>{j.p1}</div>
-                <div style={{ textAlign: 'center', fontSize: 13 }}>{j.p2}</div>
-                <div style={{ textAlign: 'center', fontSize: 13 }}>{j.p3}</div>
-                <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#F5B800' }}>{j.total}</div>
-              </div>
-            ))}
-
-            {/* TOTAL EQUIPO */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px', padding: '14px 20px', background: '#0f3460', gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#F5B800' }}>TOTAL EQUIPO</div>
-              {['p1','p2','p3','total'].map(key => (
-                <div key={key} style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#F5B800' }}>
-                  {eq.jugadores.reduce((sum, j) => sum + (parseInt(j[key as keyof JugadorEquipo]) || 0), 0)}
-                </div>
-              ))}
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[400px]">
+                <thead>
+                  <tr className="bg-bg-header text-[11px] text-text-muted uppercase tracking-wide">
+                    <th className="text-left px-5 py-2.5 font-medium">Jugador</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-20">P. de 1</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-20">P. de 2</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-20">P. de 3</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-20">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eq.jugadores.map((j, i) => (
+                    <tr
+                      key={i}
+                      className={`border-b border-border-subtle transition-colors hover:bg-white/[0.03] ${
+                        i % 2 === 0 ? 'bg-bg-secondary' : 'bg-[#1a2744]'
+                      }`}
+                    >
+                      <td className="px-5 py-3 text-[13px] font-medium">{j.nombre}</td>
+                      <td className="text-center py-3 text-[13px]">{j.p1}</td>
+                      <td className="text-center py-3 text-[13px]">{j.p2}</td>
+                      <td className="text-center py-3 text-[13px]">{j.p3}</td>
+                      <td className="text-center py-3 text-sm font-bold text-gold">{j.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-bg-header">
+                    <td className="px-5 py-3.5 text-[13px] font-bold text-gold">TOTAL EQUIPO</td>
+                    {(['p1', 'p2', 'p3', 'total'] as const).map(key => (
+                      <td key={key} className="text-center py-3.5 text-sm font-bold text-gold">
+                        {eq.jugadores.reduce((sum, j) => sum + (parseInt(j[key]) || 0), 0)}
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

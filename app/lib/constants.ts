@@ -1,0 +1,53 @@
+export interface TeamConfig {
+  id: string;
+  name: string;
+  abbr: string;
+  color: string;
+  safeColor: string; // safe for display on dark backgrounds
+}
+
+export const TEAMS: Record<string, TeamConfig> = {
+  '1': { id: '1', name: 'Miami Heat',            abbr: 'MIA', color: '#FFFFFF', safeColor: '#CCCCCC' },
+  '2': { id: '2', name: 'Brooklyn Nets',         abbr: 'BKN', color: '#AAAAAA', safeColor: '#AAAAAA' },
+  '3': { id: '3', name: 'Boston Celtics',        abbr: 'BOS', color: '#22c55e', safeColor: '#22c55e' },
+  '4': { id: '4', name: 'Oklahoma City Thunder', abbr: 'OKC', color: '#00BFFF', safeColor: '#00BFFF' },
+  '5': { id: '5', name: 'Los Angeles Lakers',    abbr: 'LAL', color: '#FFD700', safeColor: '#FFD700' },
+  '6': { id: '6', name: 'Toronto Raptors',       abbr: 'TOR', color: '#FF0000', safeColor: '#FF0000' },
+};
+
+export const TEAM_BY_NAME: Record<string, TeamConfig> = Object.fromEntries(
+  Object.values(TEAMS).map(t => [t.name, t])
+);
+
+export function getTeamColor(nameOrId: string): string {
+  const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
+  return team?.safeColor || '#888888';
+}
+
+export function getTeamColorRaw(nameOrId: string): string {
+  const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
+  return team?.color || '#888888';
+}
+
+export function isWhiteTeam(nameOrId: string): boolean {
+  const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
+  return team?.color === '#FFFFFF';
+}
+
+export const NAV_ITEMS = [
+  { label: 'Equipos',      href: '/',                    icon: '🏀' },
+  { label: 'Posiciones',   href: '/posiciones',          icon: '🏆' },
+  { label: 'Fixture',      href: '/fixture',             icon: '🗓' },
+  { label: 'Jugadores',    href: '/jugadores',           icon: '👤' },
+  { label: 'Estadísticas', href: '/estadisticas',        icon: '📊' },
+  { label: 'Est. Equipos', href: '/estadisticas-equipos', icon: '📊' },
+  { label: 'Asistencias',  href: '/asistencias',         icon: '📋' },
+  { label: 'Marcadores',   href: '/lista-equipos',       icon: '🏀' },
+  { label: 'Bracket',      href: '/bracket',             icon: '🏆' },
+];
+
+export const APP_CONFIG = {
+  title: 'CAMPEONATO BALONCESTO',
+  subtitle: 'CÚCUTA · TEMPORADA 2026',
+  year: 2026,
+};

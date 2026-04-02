@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { getTeamColor, isWhiteTeam } from '../lib/constants';
+import LoadingState from '../components/LoadingState';
+import FilterPills from '../components/FilterPills';
 
 interface Partido {
   id: string;
@@ -12,15 +14,6 @@ interface Partido {
   marcadorLocal: number;
   marcadorVisitante: number;
 }
-
-const COLORES: Record<string, string> = {
-  'Miami Heat': '#FFFFFF',
-  'Brooklyn Nets': '#C0C0C0',
-  'Boston Celtics': '#00FF00',
-  'Oklahoma City Thunder': '#00BFFF',
-  'Los Angeles Lakers': '#FFD700',
-  'Toronto Raptors': '#FF0000',
-};
 
 export default function Fixture() {
   const [partidos, setPartidos] = useState<Partido[]>([]);
@@ -48,76 +41,134 @@ export default function Fixture() {
   const filtrados = jornada === 'Todos' ? partidos : partidos.filter(p => p.jornada === jornada);
   const jugado = (p: Partido) => p.marcadorLocal > 0 || p.marcadorVisitante > 0;
 
-  const colorEquipo = (nombre: string) => COLORES[nombre] || '#888';
+  const jugados = partidos.filter(jugado).length;
+  const pendientes = partidos.filter(p => !jugado(p)).length;
 
   return (
-    <main style={{ background: '#1a1a2e', minHeight: '100vh', fontFamily: 'sans-serif', color: '#f0ece3' }}>
-
-      {/* HEADER */}
-      <div style={{ background: '#16213e', borderBottom: '2px solid #F5B800', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Link href="/" style={{ color: '#8a8a9a', textDecoration: 'none', fontSize: 13 }}>← Inicio</Link>
-          <span style={{ color: '#333' }}>|</span>
-          <span style={{ fontSize: 22, fontWeight: 700, color: '#F5B800', letterSpacing: 2 }}>🗓 FIXTURE</span>
-        </div>
-        <div style={{ fontSize: 12, color: '#8a8a9a' }}>  {loading ? 'Cargando...' : `${partidos.filter(jugado).length} jugados · ${partidos.filter(p => !jugado(p)).length} pendientes`}</div>
+    <div className="animate-fade-in">
+      {/* Info bar */}
+      <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
+        <h2 className="text-sm text-text-muted uppercase tracking-widest">
+          <span role="img" aria-label="calendario">🗓</span> Fixture
+        </h2>
+        <span className="text-xs text-text-muted">
+          {loading ? 'Cargando...' : `${jugados} jugados · ${pendientes} pendientes`}
+        </span>
       </div>
 
-      {/* FILTRO JORNADAS */}
-      <div style={{ padding: '16px 24px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {jornadas.map(j => (
-          <button key={j} onClick={() => setJornada(j)}
-            style={{ padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-              background: jornada === j ? '#F5B800' : '#16213e',
-              color: jornada === j ? '#1a1a2e' : '#8a8a9a' }}>
-            {j === 'Todos' ? 'Todos' : `Jornada ${j}`}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="px-4 md:px-6 py-4">
+        <FilterPills
+          items={jornadas.map(j => ({
+            key: j,
+            label: j === 'Todos' ? 'Todos' : `Jornada ${j}`,
+          }))}
+          active={jornada}
+          onChange={setJornada}
+        />
       </div>
 
-      {/* PARTIDOS */}
-      <div style={{ padding: '0 24px 32px' }}>
+      {/* Matches */}
+      <div className="px-4 md:px-6 pb-8">
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#8a8a9a', padding: 60 }}>Cargando fixture...</div>
+          <LoadingState message="Cargando fixture..." />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtrados.map(p => (
-              <div key={p.id} style={{ background: '#16213e', borderRadius: 12, padding: '16px 20px', border: `1px solid ${jugado(p) ? '#F5B80030' : '#ffffff08'}`, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12 }}>
-
-                {/* LOCAL */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: colorEquipo(p.local), flexShrink: 0 }} />
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{p.local}</span>
-                </div>
-
-                {/* MARCADOR / HORA */}
-                <div style={{ textAlign: 'center', minWidth: 100 }}>
-                  {jugado(p) ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-                      <span style={{ fontSize: 22, fontWeight: 700, color: p.marcadorLocal > p.marcadorVisitante ? '#F5B800' : '#f0ece3' }}>{p.marcadorLocal}</span>
-                      <span style={{ color: '#8a8a9a', fontSize: 12 }}>—</span>
-                      <span style={{ fontSize: 22, fontWeight: 700, color: p.marcadorVisitante > p.marcadorLocal ? '#F5B800' : '#f0ece3' }}>{p.marcadorVisitante}</span>
+          <div className="flex flex-col gap-3">
+            {filtrados.map(p => {
+              const played = jugado(p);
+              return (
+                <div
+                  key={p.id}
+                  className={`bg-bg-secondary rounded-xl p-4 md:px-5 border transition-all duration-150 hover:border-gold/20 hover:-translate-y-0.5 ${
+                    played ? 'border-gold-dim' : 'border-border-light'
+                  }`}
+                >
+                  {/* Mobile: stack layout */}
+                  <div className="flex flex-col sm:hidden gap-3">
+                    <div className="flex items-center justify-between">
+                      <TeamDot name={p.local} />
+                      {played && (
+                        <span className={`text-xl font-bold ${p.marcadorLocal > p.marcadorVisitante ? 'text-gold' : 'text-text-primary'}`}>
+                          {p.marcadorLocal}
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: '#F5B800' }}>{p.hora}</div>
-                      <div style={{ fontSize: 11, color: '#8a8a9a' }}>{p.fecha}</div>
+                    <div className="text-center">
+                      {played ? (
+                        <span className="text-[10px] text-text-muted">{p.fecha}</span>
+                      ) : (
+                        <div>
+                          <div className="text-sm font-semibold text-gold">{p.hora}</div>
+                          <div className="text-[11px] text-text-muted">{p.fecha}</div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {jugado(p) && <div style={{ fontSize: 10, color: '#8a8a9a', marginTop: 2 }}>{p.fecha}</div>}
-                </div>
+                    <div className="flex items-center justify-between">
+                      <TeamDot name={p.visitante} />
+                      {played && (
+                        <span className={`text-xl font-bold ${p.marcadorVisitante > p.marcadorLocal ? 'text-gold' : 'text-text-primary'}`}>
+                          {p.marcadorVisitante}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                {/* VISITANTE */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{p.visitante}</span>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: colorEquipo(p.visitante), flexShrink: 0 }} />
+                  {/* Desktop: grid layout */}
+                  <div className="hidden sm:grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                    <TeamDot name={p.local} />
+                    <div className="text-center min-w-[100px]">
+                      {played ? (
+                        <>
+                          <div className="flex items-center gap-2 justify-center">
+                            <span className={`text-xl font-bold ${p.marcadorLocal > p.marcadorVisitante ? 'text-gold' : 'text-text-primary'}`}>
+                              {p.marcadorLocal}
+                            </span>
+                            <span className="text-text-muted text-xs">—</span>
+                            <span className={`text-xl font-bold ${p.marcadorVisitante > p.marcadorLocal ? 'text-gold' : 'text-text-primary'}`}>
+                              {p.marcadorVisitante}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-text-muted mt-0.5">{p.fecha}</div>
+                        </>
+                      ) : (
+                        <div>
+                          <div className="text-[15px] font-semibold text-gold">{p.hora}</div>
+                          <div className="text-[11px] text-text-muted">{p.fecha}</div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2.5 justify-end">
+                      <span className="text-sm font-medium">{p.visitante}</span>
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{
+                          background: isWhiteTeam(p.visitante) ? '#FFFFFF' : getTeamColor(p.visitante),
+                          border: isWhiteTeam(p.visitante) ? '1px solid #ccc' : 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-    </main>
+    </div>
+  );
+}
+
+function TeamDot({ name }: { name: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className="w-2.5 h-2.5 rounded-full shrink-0"
+        style={{
+          background: isWhiteTeam(name) ? '#FFFFFF' : getTeamColor(name),
+          border: isWhiteTeam(name) ? '1px solid #ccc' : 'none',
+        }}
+      />
+      <span className="text-sm font-medium">{name}</span>
+    </div>
   );
 }
