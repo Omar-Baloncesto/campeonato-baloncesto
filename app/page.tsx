@@ -87,13 +87,27 @@ export default function Dashboard() {
       </div>
 
       {/* NAV */}
-      <div style={{ padding: '16px 24px 0', display: 'flex', gap: 4 }}>
-        {['Equipos', 'Posiciones', 'Fixture', 'Jugadores'].map((tab, i) => (
-          <div key={tab} style={{ padding: '8px 16px', fontSize: 13, color: i === 0 ? '#F5B800' : '#8a8a9a', borderBottom: i === 0 ? '2px solid #F5B800' : '2px solid transparent', cursor: 'pointer', background: i === 0 ? '#16213e' : 'none', borderRadius: '8px 8px 0 0' }}>
-            {tab}
-          </div>
-        ))}
-      </div>
+<div style={{ padding: '16px 24px 0', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+  {[
+    { label: 'Equipos',      href: '/' },
+    { label: 'Posiciones',   href: '/posiciones' },
+    { label: 'Fixture',      href: '/fixture' },
+    { label: 'Jugadores',    href: '/jugadores' },
+    { label: 'Estadísticas', href: '/estadisticas' },
+    { label: 'Est. Equipos', href: '/estadisticas-equipos' },
+    { label: 'Asistencias',  href: '/asistencias' },
+    { label: 'Marcadores',   href: '/lista-equipos' },
+    { label: 'Bracket',      href: '/bracket' },
+  ].map((item) => (
+    <a key={item.href} href={item.href} style={{
+      padding: '8px 16px', fontSize: 13, color: '#8a8a9a',
+      borderBottom: '2px solid transparent', cursor: 'pointer',
+      textDecoration: 'none', whiteSpace: 'nowrap',
+    }}>
+      {item.label}
+    </a>
+  ))}
+</div>
 
       {/* CONTENT */}
       <div style={{ background: '#16213e', margin: '0 24px', borderRadius: '0 12px 12px 12px', padding: 20 }}>
