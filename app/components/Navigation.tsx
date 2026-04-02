@@ -9,10 +9,10 @@ export default function Navigation() {
 
   return (
     <nav
-      aria-label="Navegación principal"
-      className="bg-bg-secondary/50 border-b border-border-light overflow-x-auto"
+      aria-label="Navegacion principal"
+      className="bg-bg-secondary/80 backdrop-blur-sm border-b border-border-light overflow-x-auto"
     >
-      <div className="flex gap-1 px-4 md:px-6 py-1 min-w-max">
+      <div className="flex gap-0.5 px-3 md:px-5 py-0.5 min-w-max">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -20,16 +20,21 @@ export default function Navigation() {
               key={item.href}
               href={item.href}
               className={`
-                px-3 py-2.5 text-[13px] whitespace-nowrap rounded-t-lg
-                transition-all duration-150
+                relative px-3 py-2.5 text-[13px] whitespace-nowrap rounded-t-lg
+                flex items-center gap-1.5 transition-all duration-200
                 ${isActive
-                  ? 'text-gold border-b-2 border-gold font-semibold bg-gold/5'
-                  : 'text-text-muted border-b-2 border-transparent hover:text-gold/80 hover:bg-white/[0.02]'
+                  ? 'text-gold font-semibold'
+                  : 'text-text-muted hover:text-text-primary hover:bg-white/[0.03]'
                 }
               `}
               aria-current={isActive ? 'page' : undefined}
             >
+              <span className="text-xs">{item.icon}</span>
               {item.label}
+              {/* Active indicator bar */}
+              {isActive && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-gold/0 via-gold to-gold/0 rounded-full" />
+              )}
             </Link>
           );
         })}

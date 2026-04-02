@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
-import LoadingState from '../components/LoadingState';
+import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 
 interface JugadorEquipo {
@@ -60,8 +60,9 @@ export default function EstadisticasEquipos() {
   return (
     <div className="animate-fade-in">
       <div className="px-4 md:px-6 pt-4">
-        <h2 className="text-sm text-text-muted uppercase tracking-widest">
-          <span role="img" aria-label="estadísticas">📊</span> Estadísticas por equipo
+        <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
+          <span className="w-1 h-4 bg-gold rounded-full" />
+          Estadisticas por equipo
         </h2>
       </div>
 
@@ -82,7 +83,7 @@ export default function EstadisticasEquipos() {
         {loading ? (
           <LoadingState message="Cargando estadísticas..." variant="skeleton" />
         ) : eq ? (
-          <div className="bg-bg-secondary rounded-xl overflow-hidden">
+          <div className="glass-card rounded-xl overflow-hidden">
             {/* Team header */}
             <div
               className="px-5 py-4 flex items-center gap-2.5"
@@ -119,7 +120,7 @@ export default function EstadisticasEquipos() {
                   {eq.jugadores.map((j, i) => (
                     <tr
                       key={i}
-                      className={`border-b border-border-subtle transition-colors hover:bg-white/[0.03] ${
+                      className={`border-b border-border-subtle table-row-hover ${
                         i % 2 === 0 ? 'bg-bg-secondary' : 'bg-[#1a2744]'
                       }`}
                     >

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
-import LoadingState from '../components/LoadingState';
+import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 
 interface Jugador {
@@ -75,8 +75,9 @@ export default function Asistencias() {
   return (
     <div className="animate-fade-in">
       <div className="px-4 md:px-6 pt-4">
-        <h2 className="text-sm text-text-muted uppercase tracking-widest">
-          <span role="img" aria-label="asistencias">📋</span> Asistencias
+        <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
+          <span className="w-1 h-4 bg-gold rounded-full" />
+          Asistencias
         </h2>
       </div>
 

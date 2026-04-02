@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Campeonato Baloncesto - Cúcuta 2026",
-  description: "Campeonato de Baloncesto de Cúcuta - Temporada 2026. Posiciones, fixture, estadísticas y más.",
+  title: "Campeonato Baloncesto - Cucuta 2026",
+  description: "Campeonato de Baloncesto de Cucuta - Temporada 2026. Posiciones, fixture, estadisticas y mas.",
 };
 
 export default function RootLayout({
@@ -35,8 +35,10 @@ export default function RootLayout({
         <main className="flex-1">
           {children}
         </main>
-        <footer className="py-4 text-center text-[11px] text-text-muted tracking-widest">
-          CAMPEONATO · BALONCESTO · CÚCUTA 2026
+        <footer className="py-5 text-center border-t border-border-subtle">
+          <div className="text-[11px] text-text-muted/60 tracking-[0.25em] uppercase">
+            Campeonato · Baloncesto · Cucuta 2026
+          </div>
         </footer>
       </body>
     </html>

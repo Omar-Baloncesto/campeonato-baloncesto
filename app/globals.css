@@ -5,6 +5,7 @@
   --color-bg-secondary: #16213e;
   --color-bg-header: #0f3460;
   --color-bg-darkest: #0a0a1a;
+  --color-bg-card: #1e2a4a;
   --color-gold: #F5B800;
   --color-gold-dim: rgba(245, 184, 0, 0.19);
   --color-live: #e63946;
@@ -14,6 +15,7 @@
   --color-negative: #f87171;
   --color-border-subtle: rgba(255, 255, 255, 0.03);
   --color-border-light: rgba(255, 255, 255, 0.06);
+  --color-border-glow: rgba(245, 184, 0, 0.15);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,6 +24,23 @@ body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Subtle background pattern */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 5%, rgba(245, 184, 0, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 95%, rgba(0, 100, 200, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Focus visible for accessibility */
@@ -71,8 +90,29 @@ a, button {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.35s ease-out forwards;
 }
+
+/* Staggered fade in for children */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 450ms; }
 
 /* Spinner animation */
 @keyframes spin {
@@ -86,4 +126,73 @@ a, button {
   border-top-color: var(--color-gold);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* Live pulse animation */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.5); }
+  50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(230, 57, 70, 0); }
+}
+
+.live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+/* Glassmorphism card effect */
+.glass-card {
+  background: rgba(22, 33, 62, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Glow effect on hover */
+.glow-hover {
+  transition: all 0.2s ease;
+}
+.glow-hover:hover {
+  border-color: rgba(245, 184, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(245, 184, 0, 0.06), 0 0 0 1px rgba(245, 184, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Medal badges */
+.medal-gold { color: #F5B800; text-shadow: 0 0 8px rgba(245, 184, 0, 0.3); }
+.medal-silver { color: #C0C0C0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.3); }
+.medal-bronze { color: #CD7F32; text-shadow: 0 0 8px rgba(205, 127, 50, 0.3); }
+
+/* Table row hover glow */
+.table-row-hover {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.table-row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: inset 3px 0 0 var(--color-gold);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #F5B800, #FF8C00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Error state icon bounce */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.bounce {
+  animation: bounce 2s ease-in-out infinite;
+}
+
+/* Number counter animation */
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.count-up {
+  animation: countUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
