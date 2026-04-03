@@ -125,7 +125,7 @@ export default function Posiciones() {
                                   boxShadow: isTop3 ? `0 0 8px ${color}40` : 'none',
                                 }}
                               />
-                              <span className={`text-sm font-medium ${isTop3 ? 'text-text-primary' : 'text-text-muted'}`}>
+                              <span className="text-sm font-medium text-text-primary">
                                 {eq.nombre}
                               </span>
                             </div>
