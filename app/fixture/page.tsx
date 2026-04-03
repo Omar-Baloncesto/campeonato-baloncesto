@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
+import DataFreshness from '../components/DataFreshness';
 
 interface Partido {
   id: string;
@@ -20,6 +21,7 @@ export default function Fixture() {
   const [jornada, setJornada] = useState('Todos');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -35,6 +37,7 @@ export default function Fixture() {
             marcadorLocal: parseInt(r[7]) || 0,
             marcadorVisitante: parseInt(r[8]) || 0,
           })));
+          setLastUpdated(new Date());
         } else if (!data.success) setError(true);
         setLoading(false);
       })
@@ -54,9 +57,12 @@ export default function Fixture() {
           <span className="w-1 h-4 bg-gold rounded-full" />
           Fixture
         </h2>
-        <span className="text-xs text-text-muted">
-          {loading ? '' : `${partidos.filter(jugado).length} jugados · ${partidos.filter(p => !jugado(p)).length} pendientes`}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-text-muted">
+            {loading ? '' : `${partidos.filter(jugado).length} jugados · ${partidos.filter(p => !jugado(p)).length} pendientes`}
+          </span>
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+        </div>
       </div>
 
       <div className="px-4 md:px-6 py-4">
@@ -125,11 +131,11 @@ export default function Fixture() {
                       {played ? (
                         <>
                           <div className="flex items-center gap-3 justify-center">
-                            <span className={`text-2xl font-bold ${localWin ? 'gradient-text' : 'text-text-muted'}`}>
+                            <span className={`text-2xl font-bold ${localWin ? 'gradient-text score-glow' : 'text-text-muted'}`}>
                               {p.marcadorLocal}
                             </span>
                             <span className="text-text-muted/40 text-lg font-light">:</span>
-                            <span className={`text-2xl font-bold ${visitWin ? 'gradient-text' : 'text-text-muted'}`}>
+                            <span className={`text-2xl font-bold ${visitWin ? 'gradient-text score-glow' : 'text-text-muted'}`}>
                               {p.marcadorVisitante}
                             </span>
                           </div>

@@ -58,7 +58,7 @@ function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
       <StatCell val={q4} />
       <StatCell val={ta} width={42} />
       <div
-        className="w-14 flex items-center justify-center text-[22px] font-black shrink-0 border-l border-white/[0.12] font-mono"
+        className={`w-14 flex items-center justify-center text-[22px] font-black shrink-0 border-l border-white/[0.12] font-mono ${isWinner ? 'score-glow' : ''}`}
         style={{ color: isWinner ? rawColor : '#aabbcc' }}
       >
         {total}

@@ -10,7 +10,7 @@ export default function Navigation() {
   return (
     <nav
       aria-label="Navegacion principal"
-      className="bg-bg-secondary/80 backdrop-blur-sm border-b border-border-light overflow-x-auto"
+      className="hidden md:block bg-bg-secondary/80 backdrop-blur-sm border-b border-border-light overflow-x-auto"
     >
       <div className="flex gap-0.5 px-3 md:px-5 py-0.5 min-w-max">
         {NAV_ITEMS.map((item) => {

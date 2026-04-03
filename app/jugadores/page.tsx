@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { TEAMS } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
+import DataFreshness from '../components/DataFreshness';
 
 interface Jugador {
   id: string;
@@ -17,6 +18,7 @@ export default function Jugadores() {
   const [equipoFiltro, setEquipoFiltro] = useState('Todos');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -30,6 +32,7 @@ export default function Jugadores() {
             id: r[0], nombre: r[1], equipoId: r[2],
             numero: r[3], posicion: r[4],
           })));
+          setLastUpdated(new Date());
         } else if (!data.success) setError(true);
         setLoading(false);
       })
@@ -56,7 +59,10 @@ export default function Jugadores() {
           <span className="w-1 h-4 bg-gold rounded-full" />
           Jugadores
         </h2>
-        <span className="text-xs text-text-muted">{filtrados.length} jugadores</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-text-muted">{filtrados.length} jugadores</span>
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+        </div>
       </div>
 
       <div className="px-4 md:px-6 py-4">

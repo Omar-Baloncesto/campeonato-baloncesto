@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
+import DataFreshness from '../components/DataFreshness';
 
 interface Jugador {
   nombre: string;
@@ -16,6 +17,7 @@ export default function Estadisticas() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [orden, setOrden] = useState<'totalPuntos' | 'asistencias' | 'promedio'>('totalPuntos');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -30,6 +32,7 @@ export default function Estadisticas() {
           })));
           const maxRows = data.data.filter((r: string[]) => r[0] && r[0].toString().includes('Jugador'));
           setMaximos(maxRows.map((r: string[]) => [r[0], r[1], r[4]]));
+          setLastUpdated(new Date());
         } else if (!data.success) setError(true);
         setLoading(false);
       })
@@ -50,7 +53,10 @@ export default function Estadisticas() {
           <span className="w-1 h-4 bg-gold rounded-full" />
           Estadisticas
         </h2>
-        <span className="text-xs text-text-muted">{jugadores.length} jugadores</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-text-muted">{jugadores.length} jugadores</span>
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+        </div>
       </div>
 
       <div className="px-4 md:px-6 py-4">

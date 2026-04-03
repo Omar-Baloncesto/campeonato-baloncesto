@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { TEAMS } from './lib/constants';
 import { ErrorState } from './components/LoadingState';
+import DataFreshness from './components/DataFreshness';
 
 interface Equipo {
   id: string;
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [totalJugadores, setTotalJugadores] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -34,6 +36,7 @@ export default function Dashboard() {
           setTotalJugadores(jugData.data.slice(1).filter((r: string[]) => r[1]).length);
         }
         if (!eqData.success && !jugData.success) setError(true);
+        else setLastUpdated(new Date());
         setLoading(false);
       })
       .catch(() => { setError(true); setLoading(false); });
@@ -78,10 +81,13 @@ export default function Dashboard() {
       {/* Team cards */}
       <section className="p-4 md:p-6" aria-label="Equipos participantes">
         <div className="glass-card rounded-xl p-4 md:p-6">
-          <h2 className="text-sm text-text-muted uppercase tracking-widest mb-5 flex items-center gap-2">
-            <span className="w-1 h-4 bg-gold rounded-full" />
-            Equipos participantes
-          </h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
+              <span className="w-1 h-4 bg-gold rounded-full" />
+              Equipos participantes
+            </h2>
+            <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+          </div>
 
           {loading ? (
             <div className="text-text-muted text-center py-12">

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
+import DataFreshness from '../components/DataFreshness';
 
 interface Equipo {
   nombre: string;
@@ -19,6 +20,7 @@ export default function Posiciones() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -33,6 +35,7 @@ export default function Posiciones() {
             puntosAnotados: r[4], puntosRecibidos: r[5],
             diferencia: r[6], puntos: r[7], puesto: r[8],
           })));
+          setLastUpdated(new Date());
         } else if (!data.success) {
           setError(true);
         }
@@ -55,6 +58,9 @@ export default function Posiciones() {
       <div className="flex items-center gap-2 mb-4">
         <span className="w-1 h-5 bg-gold rounded-full" />
         <h2 className="text-sm text-text-muted uppercase tracking-widest">Tabla de posiciones</h2>
+        <div className="ml-auto">
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+        </div>
       </div>
 
       {loading ? (
