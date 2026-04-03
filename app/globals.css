@@ -247,35 +247,36 @@ a, button {
 
 /* ===== LIGHT MODE ===== */
 html.light {
-  --color-bg-primary: #f0f2f5;
-  --color-bg-secondary: #ffffff;
-  --color-bg-header: #1a365d;
-  --color-bg-darkest: #e2e5ea;
-  --color-bg-card: #ffffff;
-  --color-gold: #c99a00;
-  --color-gold-dim: rgba(201, 154, 0, 0.12);
-  --color-text-primary: #1a1a2e;
-  --color-text-muted: #5a5a6e;
-  --color-positive: #16a34a;
-  --color-negative: #dc2626;
-  --color-border-subtle: rgba(0, 0, 0, 0.04);
-  --color-border-light: rgba(0, 0, 0, 0.08);
-  --color-border-glow: rgba(201, 154, 0, 0.2);
+  --color-bg-primary: #e8ecf1;
+  --color-bg-secondary: #f5f7fa;
+  --color-bg-header: #0f2440;
+  --color-bg-darkest: #d5dbe3;
+  --color-bg-card: #f0f3f7;
+  --color-gold: #b58900;
+  --color-gold-dim: rgba(181, 137, 0, 0.15);
+  --color-text-primary: #0d1117;
+  --color-text-muted: #424a56;
+  --color-positive: #0d7a2e;
+  --color-negative: #c41919;
+  --color-border-subtle: rgba(0, 0, 0, 0.08);
+  --color-border-light: rgba(0, 0, 0, 0.14);
+  --color-border-glow: rgba(181, 137, 0, 0.25);
 }
 
 html.light body::before {
   background:
-    radial-gradient(ellipse at 15% 5%, rgba(201, 154, 0, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 95%, rgba(0, 80, 160, 0.04) 0%, transparent 50%);
+    radial-gradient(ellipse at 15% 5%, rgba(181, 137, 0, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 95%, rgba(0, 60, 130, 0.05) 0%, transparent 50%);
 }
 
 html.light .glass-card {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(240, 243, 247, 0.9);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 html.light .skeleton {
-  background: linear-gradient(90deg, #e2e5ea 25%, #f0f2f5 50%, #e2e5ea 75%);
+  background: linear-gradient(90deg, #d5dbe3 25%, #e8ecf1 50%, #d5dbe3 75%);
   background-size: 200% 100%;
 }
 
@@ -288,14 +289,21 @@ html.light .table-row-hover:hover {
   background-color: rgba(0, 0, 0, 0.03) !important;
 }
 
+html.light .gradient-text {
+  background: linear-gradient(135deg, #b58900, #d46a00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 html.light ::-webkit-scrollbar-track {
-  background: #f0f2f5;
+  background: #e8ecf1;
 }
 html.light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.2);
 }
 html.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* ===== TOAST ANIMATIONS ===== */
