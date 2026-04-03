@@ -79,14 +79,14 @@ export default function Estadisticas() {
         ) : (
           <div className="glass-card rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[450px]">
+              <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="bg-bg-header/80 text-[11px] text-text-muted uppercase tracking-wider">
                     <th className="text-left px-4 md:px-5 py-3.5 font-medium w-12">#</th>
                     <th className="text-left px-4 md:px-5 py-3.5 font-medium">Jugador</th>
                     <th className="text-center px-3 py-3.5 font-medium">Puntos</th>
-                    <th className="text-center px-3 py-3.5 font-medium hidden sm:table-cell">Asistencias</th>
-                    <th className="text-center px-3 py-3.5 font-medium hidden sm:table-cell">Promedio</th>
+                    <th className="text-center px-3 py-3.5 font-medium">Asistencias</th>
+                    <th className="text-center px-3 py-3.5 font-medium">Promedio</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -104,10 +104,10 @@ export default function Estadisticas() {
                       <td className={`text-center py-3.5 text-sm font-bold ${orden === 'totalPuntos' ? 'gradient-text' : 'text-text-primary'}`}>
                         {j.totalPuntos}
                       </td>
-                      <td className={`text-center py-3.5 text-sm hidden sm:table-cell ${orden === 'asistencias' ? 'font-bold gradient-text' : ''}`}>
+                      <td className={`text-center px-3 py-3.5 text-sm ${orden === 'asistencias' ? 'font-bold gradient-text' : ''}`}>
                         {j.asistencias}
                       </td>
-                      <td className={`text-center py-3.5 text-sm hidden sm:table-cell ${orden === 'promedio' ? 'font-bold gradient-text' : ''}`}>
+                      <td className={`text-center px-3 py-3.5 text-sm ${orden === 'promedio' ? 'font-bold gradient-text' : ''}`}>
                         {j.promedio}
                       </td>
                     </tr>
