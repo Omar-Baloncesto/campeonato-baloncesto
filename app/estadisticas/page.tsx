@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
+import SearchInput from '../components/SearchInput';
+import { normalizeText } from '../lib/utils';
 
 interface Jugador {
   nombre: string;
@@ -18,6 +20,7 @@ export default function Estadisticas() {
   const [error, setError] = useState(false);
   const [orden, setOrden] = useState<'totalPuntos' | 'asistencias' | 'promedio'>('totalPuntos');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = () => {
     setLoading(true);
@@ -41,7 +44,9 @@ export default function Estadisticas() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const ordenados = [...jugadores].sort((a, b) => parseFloat(b[orden]) - parseFloat(a[orden]));
+  const ordenados = [...jugadores]
+    .filter(j => !searchTerm || normalizeText(j.nombre).includes(normalizeText(searchTerm)))
+    .sort((a, b) => parseFloat(b[orden]) - parseFloat(a[orden]));
 
   const medalClass = (i: number) =>
     i === 0 ? 'medal-gold' : i === 1 ? 'medal-silver' : i === 2 ? 'medal-bronze' : 'text-text-muted';
@@ -69,6 +74,10 @@ export default function Estadisticas() {
           active={orden}
           onChange={(key) => setOrden(key as typeof orden)}
         />
+      </div>
+
+      <div className="px-4 md:px-6 pb-2">
+        <SearchInput value={searchTerm} onChange={setSearchTerm} />
       </div>
 
       <div className="px-4 md:px-6 pb-8">

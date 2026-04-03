@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useToast } from './ToastProvider';
 
 interface DataFreshnessProps {
   lastUpdated: Date | null;
@@ -21,6 +22,8 @@ function timeAgo(date: Date): string {
 
 export default function DataFreshness({ lastUpdated, onRefresh, loading }: DataFreshnessProps) {
   const [, setTick] = useState(0);
+  const manualRefresh = useRef(false);
+  const { showToast } = useToast();
 
   // Re-render every 30s to update the "ago" text
   useEffect(() => {
@@ -29,13 +32,26 @@ export default function DataFreshness({ lastUpdated, onRefresh, loading }: DataF
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
+  // Show toast after manual refresh completes
+  useEffect(() => {
+    if (!loading && manualRefresh.current) {
+      showToast('Datos actualizados');
+      manualRefresh.current = false;
+    }
+  }, [loading, showToast]);
+
+  const handleRefresh = () => {
+    manualRefresh.current = true;
+    onRefresh();
+  };
+
   return (
     <div className="flex items-center gap-2 text-[11px] text-text-muted/70">
       {lastUpdated && (
         <span>Actualizado {timeAgo(lastUpdated)}</span>
       )}
       <button
-        onClick={onRefresh}
+        onClick={handleRefresh}
         disabled={loading}
         className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/[0.06] transition-colors disabled:opacity-50"
         aria-label="Actualizar datos"

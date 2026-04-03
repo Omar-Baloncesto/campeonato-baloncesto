@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { APP_CONFIG } from '../lib/constants';
+import ThemeToggle from './ThemeToggle';
+
 export default function Header() {
   const [compact, setCompact] = useState(false);
 
@@ -42,6 +44,9 @@ export default function Header() {
           </div>
         </Link>
 
+        <div className="hidden md:flex items-center">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

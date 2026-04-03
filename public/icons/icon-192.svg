@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="ball" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <circle cx="96" cy="96" r="56" fill="url(#ball)"/>
+  <g stroke="#fff" stroke-width="2.5" fill="none" opacity="0.85">
+    <circle cx="96" cy="96" r="56"/>
+    <path d="M96 40 v112"/>
+    <path d="M40 96 h112"/>
+    <path d="M54 54 c16 16 26 26 26 42s-10 26-26 42"/>
+    <path d="M138 54 c-16 16-26 26-26 42s10 26 26 42"/>
+  </g>
+  <text x="96" y="176" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="bold" fill="#F5B800" letter-spacing="2">BALONCESTO</text>
+</svg>

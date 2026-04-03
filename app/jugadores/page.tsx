@@ -4,6 +4,8 @@ import { TEAMS } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
+import SearchInput from '../components/SearchInput';
+import { normalizeText } from '../lib/utils';
 
 interface Jugador {
   id: string;
@@ -19,6 +21,7 @@ export default function Jugadores() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = () => {
     setLoading(true);
@@ -41,9 +44,10 @@ export default function Jugadores() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtrados = equipoFiltro === 'Todos'
+  const filtrados = (equipoFiltro === 'Todos'
     ? [...jugadores].sort((a, b) => Number(a.equipoId) - Number(b.equipoId))
-    : jugadores.filter(j => j.equipoId === equipoFiltro);
+    : jugadores.filter(j => j.equipoId === equipoFiltro)
+  ).filter(j => !searchTerm || normalizeText(j.nombre).includes(normalizeText(searchTerm)));
 
   const filterItems = [
     { key: 'Todos', label: 'Todos', color: '#F5B800' },
@@ -72,6 +76,10 @@ export default function Jugadores() {
           onChange={setEquipoFiltro}
           variant="outline"
         />
+      </div>
+
+      <div className="px-4 md:px-6 pb-2">
+        <SearchInput value={searchTerm} onChange={setSearchTerm} />
       </div>
 
       <div className="px-4 md:px-6 pb-8">

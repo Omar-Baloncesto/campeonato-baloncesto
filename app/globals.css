@@ -244,3 +244,91 @@ a, button {
 .animate-spin {
   animation: spin 0.8s linear infinite;
 }
+
+/* ===== LIGHT MODE ===== */
+html.light {
+  --color-bg-primary: #f0f2f5;
+  --color-bg-secondary: #ffffff;
+  --color-bg-header: #1a365d;
+  --color-bg-darkest: #e2e5ea;
+  --color-bg-card: #ffffff;
+  --color-gold: #c99a00;
+  --color-gold-dim: rgba(201, 154, 0, 0.12);
+  --color-text-primary: #1a1a2e;
+  --color-text-muted: #5a5a6e;
+  --color-positive: #16a34a;
+  --color-negative: #dc2626;
+  --color-border-subtle: rgba(0, 0, 0, 0.04);
+  --color-border-light: rgba(0, 0, 0, 0.08);
+  --color-border-glow: rgba(201, 154, 0, 0.2);
+}
+
+html.light body::before {
+  background:
+    radial-gradient(ellipse at 15% 5%, rgba(201, 154, 0, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 95%, rgba(0, 80, 160, 0.04) 0%, transparent 50%);
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+html.light .skeleton {
+  background: linear-gradient(90deg, #e2e5ea 25%, #f0f2f5 50%, #e2e5ea 75%);
+  background-size: 200% 100%;
+}
+
+html.light .spinner {
+  border-color: rgba(0, 0, 0, 0.08);
+  border-top-color: var(--color-gold);
+}
+
+html.light .table-row-hover:hover {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: #f0f2f5;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ===== TOAST ANIMATIONS ===== */
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-slide-in {
+  animation: slideInUp 0.3s ease-out forwards;
+}
+
+/* ===== CONNECTION STATUS ===== */
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+/* ===== EXPANDABLE ROW ===== */
+.expand-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.expand-content.open {
+  grid-template-rows: 1fr;
+}
+
+.expand-content > div {
+  overflow: hidden;
+}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_ITEMS, APP_CONFIG } from '../lib/constants';
+import ThemeToggle from './ThemeToggle';
 
 export default function MobileNav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -108,10 +109,11 @@ export default function MobileNav() {
             </div>
 
             {/* Panel footer */}
-            <div className="px-5 py-4 border-t border-border-light">
-              <div className="text-[10px] text-text-muted/50 tracking-[0.2em] uppercase text-center">
+            <div className="px-5 py-4 border-t border-border-light flex items-center justify-between">
+              <div className="text-[10px] text-text-muted/50 tracking-[0.2em] uppercase">
                 {APP_CONFIG.title}
               </div>
+              <ThemeToggle />
             </div>
           </nav>
         </div>
