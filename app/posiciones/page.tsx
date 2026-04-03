@@ -161,8 +161,8 @@ export default function Posiciones() {
                           <div>
                             <div className="px-6 py-4 bg-bg-darkest/50 border-t border-border-subtle">
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <StatBox label="PPG Ofensivo" value={ppgOff} color="text-positive" />
-                                <StatBox label="PPG Defensivo" value={ppgDef} color="text-negative" />
+                                <StatBox label="Prom. Pts/Part." value={ppgOff} color="text-positive" />
+                                <StatBox label="Prom. Pts Rec./Part." value={ppgDef} color="text-negative" />
                                 <StatBox label="Ratio PF/PC" value={ratio} color="text-gold" />
                                 <StatBox label="% Victorias" value={`${winPct}%`} color="text-text-primary" />
                               </div>
