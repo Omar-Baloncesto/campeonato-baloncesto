@@ -92,7 +92,7 @@ export default function MobileNav() {
                     key={item.href}
                     href={item.href}
                     className={`
-                      flex items-center gap-3 px-5 py-4 text-lg transition-all duration-200
+                      flex items-center gap-3 px-5 py-4 text-xl transition-all duration-200
                       ${isActive
                         ? 'text-gold font-semibold border-l-2 border-gold bg-gold/[0.06]'
                         : 'text-text-muted hover:text-text-primary hover:bg-white/[0.04] border-l-2 border-transparent'
