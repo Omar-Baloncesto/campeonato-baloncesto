@@ -39,10 +39,10 @@ export default function MobileNav() {
 
   return (
     <>
-      {/* Hamburger button */}
+      {/* Floating hamburger button - fixed top right, only on mobile */}
       <button
         onClick={toggle}
-        className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/[0.06] transition-colors"
+        className="md:hidden fixed top-3 right-3 z-50 w-10 h-10 flex items-center justify-center rounded-lg bg-bg-secondary/80 backdrop-blur-sm border border-border-light hover:bg-white/[0.06] transition-colors"
         aria-expanded={isOpen}
         aria-label="Abrir menú de navegación"
       >

@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { APP_CONFIG } from '../lib/constants';
-import MobileNav from './MobileNav';
-
 export default function Header() {
   const [compact, setCompact] = useState(false);
 
@@ -54,7 +52,6 @@ export default function Header() {
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             EN VIVO
           </div>
-          <MobileNav />
         </div>
       </div>
     </header>

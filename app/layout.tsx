@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./components/Header";
 import Navigation from "./components/Navigation";
+import MobileNav from "./components/MobileNav";
 import ScrollToTop from "./components/ScrollToTop";
 
 const geistSans = Geist({
@@ -41,6 +42,7 @@ export default function RootLayout({
             Campeonato · Baloncesto · Cucuta 2026
           </div>
         </footer>
+        <MobileNav />
         <ScrollToTop />
       </body>
     </html>
