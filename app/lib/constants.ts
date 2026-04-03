@@ -48,6 +48,6 @@ export const NAV_ITEMS = [
 
 export const APP_CONFIG = {
   title: 'CAMPEONATO BALONCESTO',
-  subtitle: 'CÚCUTA · TEMPORADA 2026',
+  subtitle: 'CÚCUTA · PRIMER SEMESTRE 2026',
   year: 2026,
 };

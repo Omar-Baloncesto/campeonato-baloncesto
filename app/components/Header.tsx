@@ -42,17 +42,6 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* Right side: Live badge + Hamburger */}
-        <div className="flex items-center gap-2">
-          <div
-            className="live-pulse bg-live text-white text-[10px] md:text-[11px] font-bold px-3 py-1 rounded-full tracking-wider flex items-center gap-1.5"
-            role="status"
-            aria-label="Transmision en vivo"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            EN VIVO
-          </div>
-        </div>
       </div>
     </header>
   );
