@@ -39,11 +39,12 @@ export default function MobileNav() {
   const close = useCallback(() => setIsOpen(false), []);
 
   return (
-    <div className="md:hidden" style={{ position: 'fixed', top: 12, right: 12, zIndex: 9999 }}>
+    <div className="md:hidden">
       {/* Floating hamburger button - fixed top right, only on mobile */}
       <button
         onClick={toggle}
-        className="w-10 h-10 flex items-center justify-center rounded-lg bg-bg-secondary/80 backdrop-blur-sm border border-border-light hover:bg-white/[0.06] transition-colors"
+        style={{ position: 'fixed', top: 12, right: 12, zIndex: 9999 }}
+        className="w-10 h-10 flex items-center justify-center rounded-lg bg-bg-secondary/90 border border-border-light hover:bg-white/[0.06] transition-colors shadow-lg"
         aria-expanded={isOpen}
         aria-label="Abrir menú de navegación"
       >
