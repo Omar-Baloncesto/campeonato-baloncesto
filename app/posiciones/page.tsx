@@ -74,7 +74,7 @@ export default function Posiciones() {
       ) : (
         <div className="glass-card rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="bg-bg-header/80 text-[11px] text-text-muted uppercase tracking-wider">
                   <th className="text-left px-4 md:px-5 py-3.5 font-medium w-12">#</th>
@@ -82,9 +82,9 @@ export default function Posiciones() {
                   <th className="text-center px-2 py-3.5 font-medium w-12">PJ</th>
                   <th className="text-center px-2 py-3.5 font-medium w-12">PG</th>
                   <th className="text-center px-2 py-3.5 font-medium w-12">PP</th>
-                  <th className="text-center px-2 py-3.5 font-medium hidden md:table-cell">P. Ano.</th>
-                  <th className="text-center px-2 py-3.5 font-medium hidden md:table-cell">P. Rec.</th>
-                  <th className="text-center px-2 py-3.5 font-medium hidden sm:table-cell">Dif.</th>
+                  <th className="text-center px-2 py-3.5 font-medium">P. Ano.</th>
+                  <th className="text-center px-2 py-3.5 font-medium">P. Rec.</th>
+                  <th className="text-center px-2 py-3.5 font-medium">Dif.</th>
                   <th className="text-center px-3 py-3.5 font-medium w-14">Pts</th>
                   <th className="w-8"></th>
                 </tr>
@@ -103,75 +103,71 @@ export default function Posiciones() {
                   const ratio = pr > 0 ? (pa / pr).toFixed(2) : '—';
                   const winPct = ((Number(eq.pg) / pj) * 100).toFixed(0);
 
-                  return (
-                    <tr key={i} className="border-b border-border-subtle">
-                      <td colSpan={10} className="p-0">
-                        {/* Main row */}
-                        <div
-                          className={`flex items-center cursor-pointer table-row-hover transition-colors ${
-                            i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-bg-card/30'
-                          }`}
-                          onClick={() => toggleExpand(eq.nombre)}
-                          role="button"
-                          aria-expanded={isExpanded}
-                        >
-                          <div className="px-4 md:px-5 py-4 w-12">{medallon(eq.puesto, i)}</div>
-                          <div className="px-4 md:px-5 py-4 flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-1 h-8 rounded-full shrink-0"
-                                style={{
-                                  background: white ? '#FFFFFF' : color,
-                                  boxShadow: isTop3 ? `0 0 8px ${color}40` : 'none',
-                                }}
-                              />
-                              <span className="text-sm font-medium text-text-primary">
-                                {eq.nombre}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-center text-[13px] py-4 w-12">{eq.pj}</div>
-                          <div className="text-center text-[13px] py-4 w-12 text-positive font-medium">{eq.pg}</div>
-                          <div className="text-center text-[13px] py-4 w-12 text-negative font-medium">{eq.pp}</div>
-                          <div className="text-center text-[13px] py-4 hidden md:block w-16">{eq.puntosAnotados}</div>
-                          <div className="text-center text-[13px] py-4 hidden md:block w-16">{eq.puntosRecibidos}</div>
-                          <div className={`text-center text-[13px] py-4 hidden sm:block w-14 font-medium ${Number(eq.diferencia) >= 0 ? 'text-positive' : 'text-negative'}`}>
-                            {Number(eq.diferencia) > 0 ? '+' : ''}{eq.diferencia}
-                          </div>
-                          <div className="text-center py-4 w-14">
-                            <span className={`text-[15px] font-bold ${isTop3 ? 'gradient-text' : 'text-gold'}`}>
-                              {eq.puntos}
-                            </span>
-                          </div>
-                          <div className="w-8 flex items-center justify-center">
-                            <svg
-                              className={`w-4 h-4 text-text-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                        </div>
-
-                        {/* Expandable detail */}
-                        <div className={`expand-content ${isExpanded ? 'open' : ''}`}>
-                          <div>
-                            <div className="px-6 py-4 bg-bg-darkest/50 border-t border-border-subtle">
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <StatBox label="Prom. Pts/Part." value={ppgOff} color="text-positive" />
-                                <StatBox label="Prom. Pts Rec./Part." value={ppgDef} color="text-negative" />
-                                <StatBox label="Ratio PF/PC" value={ratio} color="text-gold" />
-                                <StatBox label="% Victorias" value={`${winPct}%`} color="text-text-primary" />
-                              </div>
-                            </div>
-                          </div>
+                  return [
+                    <tr
+                      key={`row-${i}`}
+                      className={`border-b border-border-subtle table-row-hover cursor-pointer transition-colors ${
+                        i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-bg-card/30'
+                      }`}
+                      onClick={() => toggleExpand(eq.nombre)}
+                      role="button"
+                      aria-expanded={isExpanded}
+                    >
+                      <td className="px-4 md:px-5 py-4 w-12">{medallon(eq.puesto, i)}</td>
+                      <td className="px-4 md:px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-1 h-8 rounded-full shrink-0"
+                            style={{
+                              background: white ? '#FFFFFF' : color,
+                              boxShadow: isTop3 ? `0 0 8px ${color}40` : 'none',
+                            }}
+                          />
+                          <span className="text-sm font-medium text-text-primary">
+                            {eq.nombre}
+                          </span>
                         </div>
                       </td>
-                    </tr>
-                  );
+                      <td className="text-center text-[13px] py-4 w-12">{eq.pj}</td>
+                      <td className="text-center text-[13px] py-4 w-12 text-positive font-medium">{eq.pg}</td>
+                      <td className="text-center text-[13px] py-4 w-12 text-negative font-medium">{eq.pp}</td>
+                      <td className="text-center text-[13px] py-4">{eq.puntosAnotados}</td>
+                      <td className="text-center text-[13px] py-4">{eq.puntosRecibidos}</td>
+                      <td className={`text-center text-[13px] py-4 font-medium ${Number(eq.diferencia) >= 0 ? 'text-positive' : 'text-negative'}`}>
+                        {Number(eq.diferencia) > 0 ? '+' : ''}{eq.diferencia}
+                      </td>
+                      <td className="text-center py-4 w-14">
+                        <span className={`text-[15px] font-bold ${isTop3 ? 'gradient-text' : 'text-gold'}`}>
+                          {eq.puntos}
+                        </span>
+                      </td>
+                      <td className="w-8 text-center">
+                        <svg
+                          className={`w-4 h-4 text-text-muted transition-transform duration-200 inline-block ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </td>
+                    </tr>,
+                    isExpanded && (
+                      <tr key={`detail-${i}`} className={i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-bg-card/30'}>
+                        <td colSpan={10} className="p-0">
+                          <div className="px-6 py-4 bg-bg-darkest/50 border-t border-border-subtle">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                              <StatBox label="Prom. Pts/Part." value={ppgOff} color="text-positive" />
+                              <StatBox label="Prom. Pts Rec./Part." value={ppgDef} color="text-negative" />
+                              <StatBox label="Ratio PF/PC" value={ratio} color="text-gold" />
+                              <StatBox label="% Victorias" value={`${winPct}%`} color="text-text-primary" />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ),
+                  ];
                 })}
               </tbody>
             </table>
