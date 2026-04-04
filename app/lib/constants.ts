@@ -4,15 +4,16 @@ export interface TeamConfig {
   abbr: string;
   color: string;
   safeColor: string; // safe for display on dark backgrounds
+  photo: string;
 }
 
 export const TEAMS: Record<string, TeamConfig> = {
-  '1': { id: '1', name: 'Miami Heat',            abbr: 'MIA', color: '#FFFFFF', safeColor: '#CCCCCC' },
-  '2': { id: '2', name: 'Brooklyn Nets',         abbr: 'BKN', color: '#AAAAAA', safeColor: '#AAAAAA' },
-  '3': { id: '3', name: 'Boston Celtics',        abbr: 'BOS', color: '#22c55e', safeColor: '#22c55e' },
-  '4': { id: '4', name: 'Oklahoma City Thunder', abbr: 'OKC', color: '#00BFFF', safeColor: '#00BFFF' },
-  '5': { id: '5', name: 'Los Angeles Lakers',    abbr: 'LAL', color: '#FFD700', safeColor: '#FFD700' },
-  '6': { id: '6', name: 'Toronto Raptors',       abbr: 'TOR', color: '#FF0000', safeColor: '#FF0000' },
+  '1': { id: '1', name: 'Miami Heat',            abbr: 'MIA', color: '#FFFFFF', safeColor: '#CCCCCC', photo: '/teams/miami-heat.jpg' },
+  '2': { id: '2', name: 'Brooklyn Nets',         abbr: 'BKN', color: '#AAAAAA', safeColor: '#AAAAAA', photo: '/teams/brooklyn-nets.jpg' },
+  '3': { id: '3', name: 'Boston Celtics',        abbr: 'BOS', color: '#22c55e', safeColor: '#22c55e', photo: '/teams/boston-celtics.jpg' },
+  '4': { id: '4', name: 'Oklahoma City Thunder', abbr: 'OKC', color: '#00BFFF', safeColor: '#00BFFF', photo: '/teams/oklahoma-city-thunder.jpg' },
+  '5': { id: '5', name: 'Los Angeles Lakers',    abbr: 'LAL', color: '#FFD700', safeColor: '#FFD700', photo: '/teams/los-angeles-lakers.jpg' },
+  '6': { id: '6', name: 'Toronto Raptors',       abbr: 'TOR', color: '#FF0000', safeColor: '#FF0000', photo: '/teams/toronto-raptors.jpg' },
 };
 
 export const TEAM_BY_NAME: Record<string, TeamConfig> = Object.fromEntries(

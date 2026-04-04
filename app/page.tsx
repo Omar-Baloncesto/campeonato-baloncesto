@@ -44,9 +44,6 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const initiales = (nombre: string) =>
-    nombre.split(' ').slice(0, 2).map(w => w[0]).join('');
-
   const badgeColor = (eq: Equipo) => TEAMS[eq.id]?.safeColor || eq.hexColor;
 
   const stats = [
@@ -100,34 +97,38 @@ export default function Dashboard() {
               onRetry={fetchData}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-children">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
               {equipos.map(eq => {
                 const color = badgeColor(eq);
-                const isWhite = eq.hexColor === '#FFFFFF' || eq.hexColor === '#ffffff';
+                const team = TEAMS[eq.id];
                 return (
                   <div
                     key={eq.id}
-                    className="bg-bg-primary/80 rounded-xl p-4 flex items-center gap-3.5 border border-border-light glow-hover cursor-pointer group"
+                    className="bg-bg-primary/80 rounded-xl overflow-hidden border border-border-light glow-hover cursor-pointer group"
                   >
-                    <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-hover:scale-105"
-                      style={{
-                        background: isWhite ? '#FFFFFF' : `linear-gradient(135deg, ${color}30, ${color}10)`,
-                        color: isWhite ? '#000000' : color,
-                        border: `1.5px solid ${color}50`,
-                        boxShadow: `0 2px 8px ${color}15`,
-                      }}
-                    >
-                      {initiales(eq.nombre)}
+                    {team?.photo && (
+                      <div className="relative w-full aspect-[4/3] overflow-hidden">
+                        <img
+                          src={team.photo}
+                          alt={`Equipo ${eq.nombre}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      </div>
+                    )}
+                    <div className="p-4 flex items-center gap-3">
+                      <div
+                        className="w-3 h-8 rounded-full shrink-0"
+                        style={{
+                          background: color,
+                          boxShadow: `0 0 8px ${color}40`,
+                        }}
+                      />
+                      <div>
+                        <div className="text-sm font-semibold group-hover:text-text-primary transition-colors">{eq.nombre}</div>
+                        <div className="text-[11px] text-text-muted mt-0.5">Cúcuta</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-medium group-hover:text-text-primary transition-colors">{eq.nombre}</div>
-                      <div className="text-[11px] text-text-muted mt-0.5">Cucuta</div>
-                    </div>
-                    {/* Chevron on hover */}
-                    <svg className="w-4 h-4 text-text-muted/0 group-hover:text-text-muted/50 ml-auto transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
                   </div>
                 );
               })}
