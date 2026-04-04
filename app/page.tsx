@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [statsMap, setStatsMap] = useState<Record<string, TeamStats>>({});
+  const [topScorers, setTopScorers] = useState<Record<string, { nombre: string; puntos: number }>>({});
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
 
   const fetchData = () => {
@@ -39,16 +40,27 @@ export default function Dashboard() {
       fetch('/api/sheets?sheet=EQUIPOS').then(r => r.json()),
       fetch('/api/sheets?sheet=JUGADORES').then(r => r.json()),
       fetch('/api/sheets?sheet=TablaPosiciones').then(r => r.json()),
+      fetch('/api/sheets?sheet=PuntosJugadores').then(r => r.json()),
     ])
-      .then(([eqData, jugData, posData]) => {
+      .then(([eqData, jugData, posData, ptsData]) => {
+        let teamNames: Record<string, string> = {};
         if (eqData.success && eqData.data.length > 1) {
           const rows = eqData.data.slice(1).filter((r: string[]) => r[1]);
           setEquipos(rows.map((r: string[]) => ({
             id: r[0], nombre: r[1], hexColor: r[5] || '#888888',
           })));
+          rows.forEach((r: string[]) => { teamNames[r[0]] = r[1]; });
         }
+        // Build player->team map from JUGADORES
+        const playerTeam: Record<string, string> = {};
         if (jugData.success && jugData.data.length > 1) {
-          setTotalJugadores(jugData.data.slice(1).filter((r: string[]) => r[1]).length);
+          const jugRows = jugData.data.slice(1).filter((r: string[]) => r[1]);
+          setTotalJugadores(jugRows.length);
+          jugRows.forEach((r: string[]) => {
+            if (r[1] && r[2]) {
+              playerTeam[r[1].trim()] = teamNames[r[2]] || '';
+            }
+          });
         }
         if (posData.success && posData.data.length > 1) {
           const map: Record<string, TeamStats> = {};
@@ -66,6 +78,21 @@ export default function Dashboard() {
             };
           });
           setStatsMap(map);
+        }
+        // Find top scorer per team
+        if (ptsData.success && ptsData.data.length > 1) {
+          const scorers: Record<string, { nombre: string; puntos: number }> = {};
+          ptsData.data.slice(1)
+            .filter((r: string[]) => r[7] && r[7] !== 'NOMBRE JUGADOR')
+            .forEach((r: string[]) => {
+              const playerName = r[7].trim();
+              const pts = parseFloat(r[8]) || 0;
+              const teamName = playerTeam[playerName];
+              if (teamName && (!scorers[teamName] || pts > scorers[teamName].puntos)) {
+                scorers[teamName] = { nombre: playerName, puntos: pts };
+              }
+            });
+          setTopScorers(scorers);
         }
         if (!eqData.success && !jugData.success) setError(true);
         else setLastUpdated(new Date());
@@ -135,6 +162,7 @@ export default function Dashboard() {
                 const team = TEAMS[eq.id];
                 const isExpanded = expandedTeam === eq.nombre;
                 const st = statsMap[eq.nombre];
+                const scorer = topScorers[eq.nombre];
                 const pj = st?.pj || 1;
                 const ppgOff = st ? (st.puntosAnotados / pj).toFixed(1) : '—';
                 const ppgDef = st ? (st.puntosRecibidos / pj).toFixed(1) : '—';
@@ -182,10 +210,14 @@ export default function Dashboard() {
                       <div>
                         {st ? (
                           <div className="px-4 pb-4 border-t border-border-subtle">
-                            {/* Record row */}
+                            {/* Puesto + Pts */}
                             <div className="flex items-center justify-between py-3 border-b border-border-subtle">
                               <span className="text-[11px] text-text-muted uppercase tracking-wider">Puesto</span>
                               <span className="text-lg font-bold gradient-text">{st.puesto}°</span>
+                            </div>
+                            <div className="flex items-center justify-between py-3 border-b border-border-subtle">
+                              <span className="text-[11px] text-text-muted uppercase tracking-wider">Puntos</span>
+                              <span className="text-lg font-bold text-gold">{st.puntos}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2 py-3 border-b border-border-subtle">
                               <div className="text-center">
@@ -235,6 +267,19 @@ export default function Dashboard() {
                                 <div className="text-lg font-bold text-text-primary">{winPct}%</div>
                               </div>
                             </div>
+                            {/* Top scorer */}
+                            {scorer && (
+                              <div className="flex items-center justify-between pt-3 mt-3 border-t border-border-subtle">
+                                <div>
+                                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Máx. Anotador</div>
+                                  <div className="text-sm font-medium text-text-primary mt-0.5">{scorer.nombre}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-lg font-bold gradient-text">{scorer.puntos}</div>
+                                  <div className="text-[10px] text-text-muted">pts</div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="px-4 py-6 text-center text-text-muted text-xs">
