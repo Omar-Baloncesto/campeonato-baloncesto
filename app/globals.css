@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme {
+@theme inline {
   --color-bg-primary: #1a1a2e;
   --color-bg-secondary: #16213e;
   --color-bg-header: #0f3460;
@@ -246,6 +246,7 @@ a, button {
 }
 
 /* ===== LIGHT MODE ===== */
+/* CSS variables for inline styles and non-Tailwind usage */
 html.light {
   --color-bg-primary: #e8ecf1;
   --color-bg-secondary: #f5f7fa;
@@ -263,34 +264,45 @@ html.light {
   --color-border-glow: rgba(181, 137, 0, 0.25);
 }
 
-/* Force bold text in light mode */
+/* Override Tailwind text color utilities (inline compiles to literals) */
 html.light body {
-  color: var(--color-text-primary);
+  color: #000000 !important;
   font-weight: 600;
 }
 
-html.light .font-medium {
-  font-weight: 700 !important;
-}
+html.light .text-text-primary { color: #000000 !important; }
+html.light .text-text-muted { color: #222222 !important; }
+html.light .text-gold { color: #9a7400 !important; }
+html.light .text-positive { color: #0a6b25 !important; }
+html.light .text-negative { color: #b01515 !important; }
+html.light .text-live { color: #c41919 !important; }
 
-html.light .font-semibold {
-  font-weight: 800 !important;
-}
+/* Override Tailwind bg utilities */
+html.light .bg-bg-primary { background-color: #e8ecf1 !important; }
+html.light .bg-bg-secondary { background-color: #f5f7fa !important; }
+html.light .bg-bg-card { background-color: #edf0f5 !important; }
+html.light .bg-bg-darkest { background-color: #d5dbe3 !important; }
+html.light .bg-bg-header { background-color: #0f2440 !important; }
+html.light .bg-gold { background-color: #9a7400 !important; }
 
+/* Override Tailwind border utilities */
+html.light .border-border-subtle { border-color: rgba(0, 0, 0, 0.10) !important; }
+html.light .border-border-light { border-color: rgba(0, 0, 0, 0.18) !important; }
+html.light .border-gold { border-color: #9a7400 !important; }
+
+/* Bold text in light mode */
+html.light .font-medium { font-weight: 700 !important; }
+html.light .font-semibold { font-weight: 800 !important; }
 html.light .font-bold,
-html.light .font-black {
-  font-weight: 900 !important;
-}
+html.light .font-black { font-weight: 900 !important; }
+html.light main table td { font-weight: 700; }
 
-html.light main table td {
-  font-weight: 700;
-}
-
-/* Medal badges in light mode */
+/* Medal badges */
 html.light .medal-gold { color: #9a7400 !important; text-shadow: none; }
 html.light .medal-silver { color: #606060 !important; text-shadow: none; }
 html.light .medal-bronze { color: #8B5E34 !important; text-shadow: none; }
 
+/* Background & card overrides */
 html.light body::before {
   background:
     radial-gradient(ellipse at 15% 5%, rgba(181, 137, 0, 0.05) 0%, transparent 50%),
@@ -298,8 +310,8 @@ html.light body::before {
 }
 
 html.light .glass-card {
-  background: rgba(240, 243, 247, 0.95);
-  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(240, 243, 247, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
 }
 
@@ -310,7 +322,7 @@ html.light .skeleton {
 
 html.light .spinner {
   border-color: rgba(0, 0, 0, 0.08);
-  border-top-color: var(--color-gold);
+  border-top-color: #9a7400;
 }
 
 html.light .table-row-hover:hover {
@@ -318,22 +330,16 @@ html.light .table-row-hover:hover {
 }
 
 html.light .gradient-text {
-  background: linear-gradient(135deg, #7a5c00, #a04800);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  background: linear-gradient(135deg, #7a5c00, #a04800) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
   font-weight: 900;
 }
 
-html.light ::-webkit-scrollbar-track {
-  background: #e8ecf1;
-}
-html.light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-}
-html.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
+html.light ::-webkit-scrollbar-track { background: #e8ecf1; }
+html.light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); }
+html.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
 
 /* ===== TOAST ANIMATIONS ===== */
 @keyframes slideInUp {
