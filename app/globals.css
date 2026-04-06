@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme inline {
+@theme {
   --color-bg-primary: #1a1a2e;
   --color-bg-secondary: #16213e;
   --color-bg-header: #0f3460;
@@ -263,60 +263,33 @@ html.light {
   --color-border-glow: rgba(181, 137, 0, 0.25);
 }
 
-/* Force text in main content to be black and bold in light mode */
+/* Force bold text in light mode */
 html.light body {
-  color: #000000;
+  color: var(--color-text-primary);
   font-weight: 600;
 }
 
-html.light main,
-html.light main *,
-html.light footer,
-html.light footer * {
-  color: #000000 !important;
-}
-
-/* Preserve special colors inside main */
-html.light main .text-positive,
-html.light main .text-positive * { color: #0a6b25 !important; }
-html.light main .text-negative,
-html.light main .text-negative * { color: #b01515 !important; }
-html.light main .text-gold,
-html.light main .text-gold * { color: #9a7400 !important; }
-html.light main .medal-gold { color: #9a7400 !important; }
-html.light main .medal-silver { color: #606060 !important; }
-html.light main .medal-bronze { color: #8B5E34 !important; }
-
-/* Table headers keep light text on dark bg */
-html.light main thead,
-html.light main thead * {
-  color: #cccccc !important;
-}
-html.light main tfoot,
-html.light main tfoot * {
-  color: #cccccc !important;
-}
-html.light main tfoot .text-gold {
-  color: #F5B800 !important;
-}
-
-/* Bold everything in light mode */
-html.light main .font-medium {
+html.light .font-medium {
   font-weight: 700 !important;
 }
 
-html.light main .font-bold,
-html.light main .font-black {
-  font-weight: 900 !important;
+html.light .font-semibold {
+  font-weight: 800 !important;
 }
 
-html.light main .font-semibold {
-  font-weight: 800 !important;
+html.light .font-bold,
+html.light .font-black {
+  font-weight: 900 !important;
 }
 
 html.light main table td {
   font-weight: 700;
 }
+
+/* Medal badges in light mode */
+html.light .medal-gold { color: #9a7400 !important; text-shadow: none; }
+html.light .medal-silver { color: #606060 !important; text-shadow: none; }
+html.light .medal-bronze { color: #8B5E34 !important; text-shadow: none; }
 
 html.light body::before {
   background:
