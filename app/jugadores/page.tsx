@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { TEAMS } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
 import SearchInput from '../components/SearchInput';
+import PlayerProfile from '../components/PlayerProfile';
 import { normalizeText } from '../lib/utils';
 
 interface Jugador {
@@ -22,6 +23,7 @@ export default function Jugadores() {
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPlayer, setSelectedPlayer] = useState<Jugador | null>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -43,6 +45,8 @@ export default function Jugadores() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const closeProfile = useCallback(() => setSelectedPlayer(null), []);
 
   const filtrados = (equipoFiltro === 'Todos'
     ? [...jugadores].sort((a, b) => Number(a.equipoId) - Number(b.equipoId))
@@ -96,8 +100,9 @@ export default function Jugadores() {
               return (
                 <div
                   key={j.id}
-                  className="glass-card rounded-xl p-4 flex items-center gap-3.5 glow-hover group"
+                  className="glass-card rounded-xl p-4 flex items-center gap-3.5 glow-hover group cursor-pointer"
                   style={{ borderColor: color + '15' }}
+                  onClick={() => setSelectedPlayer(j)}
                 >
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0 transition-transform group-hover:scale-105"
@@ -121,6 +126,15 @@ export default function Jugadores() {
           </div>
         )}
       </div>
+
+      {/* Player profile modal */}
+      {selectedPlayer && TEAMS[selectedPlayer.equipoId] && (
+        <PlayerProfile
+          player={selectedPlayer}
+          team={TEAMS[selectedPlayer.equipoId]}
+          onClose={closeProfile}
+        />
+      )}
     </div>
   );
 }
