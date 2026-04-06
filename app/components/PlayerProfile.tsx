@@ -156,7 +156,15 @@ export default function PlayerProfile({ player, team, onClose }: Props) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm menu-overlay" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-bg-primary border border-border-light rounded-t-2xl sm:rounded-2xl menu-panel">
+      <div
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl menu-panel"
+        style={{
+          background: 'var(--color-bg-primary)',
+          borderColor: 'var(--color-border-light)',
+          borderWidth: 1,
+          borderStyle: 'solid',
+        }}
+      >
         {/* Header with team color accent */}
         <div
           className="sticky top-0 z-10 px-5 pt-5 pb-4 rounded-t-2xl"
@@ -247,7 +255,7 @@ export default function PlayerProfile({ player, team, onClose }: Props) {
                       <span className={`text-lg font-bold ${pctColor}`}>{attendance.porcentaje}</span>
                     </div>
                     {/* Progress bar */}
-                    <div className="h-2.5 bg-bg-darkest rounded-full overflow-hidden mb-4">
+                    <div className="h-2.5 rounded-full overflow-hidden mb-4" style={{ background: 'var(--color-bg-darkest)' }}>
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{
@@ -314,7 +322,7 @@ function BarRow({ label, value, max, color }: { label: string; value: number; ma
         <span className="text-xs text-text-muted">{label}</span>
         <span className="text-sm font-bold text-text-primary">{value}</span>
       </div>
-      <div className="h-3 bg-bg-darkest rounded-full overflow-hidden">
+      <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-darkest)' }}>
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${color}bb)` }}
