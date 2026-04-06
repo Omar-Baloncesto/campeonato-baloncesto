@@ -103,7 +103,7 @@ export default function Estadisticas() {
                     <tr
                       key={i}
                       className={`border-b border-border-subtle table-row-hover ${
-                        i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-[#1a2744]/50'
+                        i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-bg-card/50'
                       }`}
                     >
                       <td className={`px-4 md:px-5 py-3.5 text-sm font-bold ${medalClass(i)}`}>

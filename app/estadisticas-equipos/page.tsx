@@ -121,7 +121,7 @@ export default function EstadisticasEquipos() {
                     <tr
                       key={i}
                       className={`border-b border-border-subtle table-row-hover ${
-                        i % 2 === 0 ? 'bg-bg-secondary' : 'bg-[#1a2744]'
+                        i % 2 === 0 ? 'bg-bg-secondary' : 'bg-bg-card'
                       }`}
                     >
                       <td className="px-5 py-3 text-[13px] font-medium">{j.nombre}</td>

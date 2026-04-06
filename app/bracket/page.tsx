@@ -23,8 +23,8 @@ function parseMatch(rows: string[][], date: string): Match {
 function StatCell({ val, width = 38 }: { val: string; width?: number }) {
   return (
     <div
-      className="flex items-center justify-center text-[15px] font-bold shrink-0 border-l border-white/10 font-mono"
-      style={{ width, color: val ? '#ffffff' : '#8899aa' }}
+      className="flex items-center justify-center text-[15px] font-bold shrink-0 border-l border-border-light font-mono text-text-primary"
+      style={{ width, opacity: val ? 1 : 0.5 }}
     >
       {val || '—'}
     </div>
@@ -39,17 +39,16 @@ function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
   const empty = !name;
   return (
     <div
-      className="flex items-stretch rounded-lg overflow-hidden"
+      className="flex items-stretch rounded-lg overflow-hidden bg-bg-secondary"
       style={{
-        border: isWinner ? `2px solid ${rawColor}` : '2px solid rgba(255,255,255,0.09)',
+        border: isWinner ? `2px solid ${rawColor}` : '2px solid var(--color-border-light)',
         boxShadow: isWinner ? `0 0 20px ${rawColor}66` : 'none',
-        background: 'rgba(10,10,22,0.98)',
         opacity: empty ? 0.3 : 1,
         minHeight: 52,
       }}
     >
-      <div className="w-[7px] shrink-0" style={{ background: empty ? '#1c1c2e' : rawColor }} />
-      <div className="flex-1 px-3.5 flex items-center text-base font-bold tracking-wider uppercase text-white/95 truncate min-w-0">
+      <div className="w-[7px] shrink-0" style={{ background: empty ? 'var(--color-border-light)' : rawColor }} />
+      <div className="flex-1 px-3.5 flex items-center text-base font-bold tracking-wider uppercase text-text-primary truncate min-w-0">
         {name || 'POR DEFINIR'}
       </div>
       <StatCell val={q1} />
@@ -58,8 +57,8 @@ function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
       <StatCell val={q4} />
       <StatCell val={ta} width={42} />
       <div
-        className={`w-14 flex items-center justify-center text-[22px] font-black shrink-0 border-l border-white/[0.12] font-mono ${isWinner ? 'score-glow' : ''}`}
-        style={{ color: isWinner ? rawColor : '#aabbcc' }}
+        className={`w-14 flex items-center justify-center text-[22px] font-black shrink-0 border-l border-border-light font-mono ${isWinner ? 'score-glow' : 'text-text-muted'}`}
+        style={{ color: isWinner ? rawColor : undefined }}
       >
         {total}
       </div>
@@ -71,15 +70,15 @@ function MatchCard({ match }: { match: Match }) {
   const w1 = match.total1 > match.total2;
   const w2 = match.total2 > match.total1;
   return (
-    <div className="bg-[rgba(14,14,28,0.96)] border border-white/10 rounded-[14px] p-3.5 w-full max-w-[460px]">
-      <div className="text-center mb-2.5 text-[13px] tracking-widest text-[#aabbcc] uppercase font-semibold">
+    <div className="bg-bg-card border border-border-light rounded-[14px] p-3.5 w-full max-w-[460px]">
+      <div className="text-center mb-2.5 text-[13px] tracking-widest text-text-muted uppercase font-semibold">
         {match.date}
       </div>
       <div className="flex pl-[140px] md:pl-[188px] mb-1.5">
         {['Q1', 'Q2', 'Q3', 'Q4', 'TA', 'TOT'].map((h, i) => (
           <div
             key={h}
-            className="text-center text-[11px] tracking-wider text-[#aabbcc] font-bold"
+            className="text-center text-[11px] tracking-wider text-text-muted font-bold"
             style={{ width: i === 4 ? 42 : i === 5 ? 56 : 38 }}
           >
             {h}
@@ -110,10 +109,10 @@ function ForkSVG({ topY, bottomY, totalH }: { topY: number; bottomY: number; tot
   const W = 60;
   return (
     <svg width={W} height={totalH} style={{ overflow: 'visible' }} className="shrink-0 block">
-      <line x1={0} y1={topY} x2={W / 2} y2={topY} stroke="#2a5070" strokeWidth={2} />
-      <line x1={0} y1={bottomY} x2={W / 2} y2={bottomY} stroke="#2a5070" strokeWidth={2} />
-      <line x1={W / 2} y1={topY} x2={W / 2} y2={bottomY} stroke="#2a5070" strokeWidth={2} />
-      <line x1={W / 2} y1={midY} x2={W} y2={midY} stroke="#2a5070" strokeWidth={2} />
+      <line x1={0} y1={topY} x2={W / 2} y2={topY} stroke="var(--color-text-muted)" strokeWidth={2} />
+      <line x1={0} y1={bottomY} x2={W / 2} y2={bottomY} stroke="var(--color-text-muted)" strokeWidth={2} />
+      <line x1={W / 2} y1={topY} x2={W / 2} y2={bottomY} stroke="var(--color-text-muted)" strokeWidth={2} />
+      <line x1={W / 2} y1={midY} x2={W} y2={midY} stroke="var(--color-text-muted)" strokeWidth={2} />
     </svg>
   );
 }
@@ -121,7 +120,7 @@ function ForkSVG({ topY, bottomY, totalH }: { topY: number; bottomY: number; tot
 function LineSVG({ h }: { h: number }) {
   return (
     <svg width={60} height={h} style={{ overflow: 'visible' }} className="shrink-0 block">
-      <line x1={0} y1={h / 2} x2={60} y2={h / 2} stroke="#2a5070" strokeWidth={2} />
+      <line x1={0} y1={h / 2} x2={60} y2={h / 2} stroke="var(--color-text-muted)" strokeWidth={2} />
     </svg>
   );
 }
@@ -139,7 +138,7 @@ function ChampionBox({ name }: { name: string | null }) {
         style={{ background: 'radial-gradient(circle at 50% 0%,rgba(255,215,0,0.16) 0%,transparent 70%)' }}
       />
       <div className="text-4xl mb-2.5" role="img" aria-label="trofeo">🏆</div>
-      <div className="text-[10px] tracking-[0.24em] text-[#aabbcc] uppercase mb-3 font-bold">
+      <div className="text-[10px] tracking-[0.24em] text-text-muted uppercase mb-3 font-bold">
         Campeón
       </div>
       {name ? (
@@ -147,7 +146,7 @@ function ChampionBox({ name }: { name: string | null }) {
           {name}
         </div>
       ) : (
-        <div className="text-sm text-[#aabbcc] tracking-wider">Por Definir</div>
+        <div className="text-sm text-text-muted tracking-wider">Por Definir</div>
       )}
     </div>
   );
@@ -217,10 +216,10 @@ export default function BracketPage() {
   return (
     <div className="animate-fade-in">
       <div className="text-center py-8 md:py-12">
-        <h2 className="text-2xl md:text-3xl font-black text-white tracking-[0.14em] uppercase mb-2">
+        <h2 className="text-2xl md:text-3xl font-black text-text-primary tracking-[0.14em] uppercase mb-2">
           <span role="img" aria-label="trofeo">🏆</span> Fase Eliminatoria
         </h2>
-        <p className="text-[13px] tracking-[0.25em] text-[#aabbcc] uppercase">
+        <p className="text-[13px] tracking-[0.25em] text-text-muted uppercase">
           Campeonato de Baloncesto · 2026
         </p>
       </div>
@@ -305,7 +304,7 @@ export default function BracketPage() {
           {/* Legend */}
           <div className="flex flex-wrap justify-center gap-5 py-8 md:py-14">
             {Object.entries(TEAM_BY_NAME).map(([name, team]) => (
-              <div key={name} className="flex items-center gap-2 text-[13px] text-[#aabbcc] tracking-wider">
+              <div key={name} className="flex items-center gap-2 text-[13px] text-text-muted tracking-wider">
                 <div
                   className="w-3 h-3 rounded-sm shrink-0"
                   style={{

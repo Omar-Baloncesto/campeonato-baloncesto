@@ -251,16 +251,38 @@ html.light {
   --color-bg-secondary: #f5f7fa;
   --color-bg-header: #0f2440;
   --color-bg-darkest: #d5dbe3;
-  --color-bg-card: #f0f3f7;
+  --color-bg-card: #edf0f5;
   --color-gold: #b58900;
   --color-gold-dim: rgba(181, 137, 0, 0.15);
-  --color-text-primary: #0d1117;
-  --color-text-muted: #424a56;
-  --color-positive: #0d7a2e;
-  --color-negative: #c41919;
-  --color-border-subtle: rgba(0, 0, 0, 0.08);
-  --color-border-light: rgba(0, 0, 0, 0.14);
+  --color-text-primary: #000000;
+  --color-text-muted: #1a1a1a;
+  --color-positive: #0a6b25;
+  --color-negative: #b01515;
+  --color-border-subtle: rgba(0, 0, 0, 0.10);
+  --color-border-light: rgba(0, 0, 0, 0.18);
   --color-border-glow: rgba(181, 137, 0, 0.25);
+}
+
+html.light body {
+  font-weight: 500;
+}
+
+html.light th,
+html.light td,
+html.light span,
+html.light div,
+html.light p {
+  color: inherit;
+}
+
+html.light .text-text-primary {
+  color: #000000 !important;
+  font-weight: 700;
+}
+
+html.light .text-text-muted {
+  color: #1a1a1a !important;
+  font-weight: 600;
 }
 
 html.light body::before {
@@ -290,10 +312,26 @@ html.light .table-row-hover:hover {
 }
 
 html.light .gradient-text {
-  background: linear-gradient(135deg, #b58900, #d46a00);
+  background: linear-gradient(135deg, #8a6800, #b05500);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-weight: 800;
+}
+
+html.light table td,
+html.light table th {
+  font-weight: 600;
+}
+
+html.light table td.font-bold,
+html.light table th.font-bold,
+html.light .font-bold {
+  font-weight: 800;
+}
+
+html.light .font-medium {
+  font-weight: 600;
 }
 
 html.light ::-webkit-scrollbar-track {
