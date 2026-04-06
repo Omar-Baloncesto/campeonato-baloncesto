@@ -252,10 +252,10 @@ html.light {
   --color-bg-header: #0f2440;
   --color-bg-darkest: #d5dbe3;
   --color-bg-card: #edf0f5;
-  --color-gold: #b58900;
+  --color-gold: #9a7400;
   --color-gold-dim: rgba(181, 137, 0, 0.15);
   --color-text-primary: #000000;
-  --color-text-muted: #1a1a1a;
+  --color-text-muted: #111111;
   --color-positive: #0a6b25;
   --color-negative: #b01515;
   --color-border-subtle: rgba(0, 0, 0, 0.10);
@@ -263,26 +263,59 @@ html.light {
   --color-border-glow: rgba(181, 137, 0, 0.25);
 }
 
+/* Force text in main content to be black and bold in light mode */
 html.light body {
-  font-weight: 500;
-}
-
-html.light th,
-html.light td,
-html.light span,
-html.light div,
-html.light p {
-  color: inherit;
-}
-
-html.light .text-text-primary {
-  color: #000000 !important;
-  font-weight: 700;
-}
-
-html.light .text-text-muted {
-  color: #1a1a1a !important;
+  color: #000000;
   font-weight: 600;
+}
+
+html.light main,
+html.light main *,
+html.light footer,
+html.light footer * {
+  color: #000000 !important;
+}
+
+/* Preserve special colors inside main */
+html.light main .text-positive,
+html.light main .text-positive * { color: #0a6b25 !important; }
+html.light main .text-negative,
+html.light main .text-negative * { color: #b01515 !important; }
+html.light main .text-gold,
+html.light main .text-gold * { color: #9a7400 !important; }
+html.light main .medal-gold { color: #9a7400 !important; }
+html.light main .medal-silver { color: #606060 !important; }
+html.light main .medal-bronze { color: #8B5E34 !important; }
+
+/* Table headers keep light text on dark bg */
+html.light main thead,
+html.light main thead * {
+  color: #cccccc !important;
+}
+html.light main tfoot,
+html.light main tfoot * {
+  color: #cccccc !important;
+}
+html.light main tfoot .text-gold {
+  color: #F5B800 !important;
+}
+
+/* Bold everything in light mode */
+html.light main .font-medium {
+  font-weight: 700 !important;
+}
+
+html.light main .font-bold,
+html.light main .font-black {
+  font-weight: 900 !important;
+}
+
+html.light main .font-semibold {
+  font-weight: 800 !important;
+}
+
+html.light main table td {
+  font-weight: 700;
 }
 
 html.light body::before {
@@ -292,9 +325,9 @@ html.light body::before {
 }
 
 html.light .glass-card {
-  background: rgba(240, 243, 247, 0.9);
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: rgba(240, 243, 247, 0.95);
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
 }
 
 html.light .skeleton {
@@ -308,30 +341,15 @@ html.light .spinner {
 }
 
 html.light .table-row-hover:hover {
-  background-color: rgba(0, 0, 0, 0.03) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
 html.light .gradient-text {
-  background: linear-gradient(135deg, #8a6800, #b05500);
+  background: linear-gradient(135deg, #7a5c00, #a04800);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-weight: 800;
-}
-
-html.light table td,
-html.light table th {
-  font-weight: 600;
-}
-
-html.light table td.font-bold,
-html.light table th.font-bold,
-html.light .font-bold {
-  font-weight: 800;
-}
-
-html.light .font-medium {
-  font-weight: 600;
+  font-weight: 900;
 }
 
 html.light ::-webkit-scrollbar-track {
