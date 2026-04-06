@@ -10,7 +10,7 @@ export default function Navigation() {
   return (
     <nav
       aria-label="Navegacion principal"
-      className="hidden md:block bg-bg-secondary/80 backdrop-blur-sm border-b border-border-light overflow-x-auto"
+      className="hidden md:block nav-bg backdrop-blur-sm border-b border-border-light overflow-x-auto"
     >
       <div className="flex gap-0.5 px-3 md:px-5 py-0.5 min-w-max">
         {NAV_ITEMS.map((item) => {
@@ -24,7 +24,7 @@ export default function Navigation() {
                 flex items-center gap-1.5 transition-all duration-200
                 ${isActive
                   ? 'text-gold font-semibold'
-                  : 'text-text-muted hover:text-text-primary hover:bg-white/[0.03]'
+                  : 'text-text-muted hover:text-text-primary hover:bg-black/[0.04]'
                 }
               `}
               aria-current={isActive ? 'page' : undefined}

@@ -138,6 +138,20 @@ a, button {
   animation: livePulse 2s ease-in-out infinite;
 }
 
+/* Header & Nav backgrounds */
+.header-bg {
+  background: linear-gradient(to right, #16213e, #16213e, #1a2848);
+}
+.nav-bg {
+  background: rgba(22, 33, 62, 0.8);
+}
+.mobile-btn-bg {
+  background: rgba(22, 33, 62, 0.9);
+}
+.mobile-panel-bg {
+  background: rgba(22, 33, 62, 0.95);
+}
+
 /* Glassmorphism card effect */
 .glass-card {
   background: rgba(22, 33, 62, 0.7);
@@ -313,6 +327,19 @@ html.light .glass-card {
   background: rgba(240, 243, 247, 0.95) !important;
   border-color: rgba(0, 0, 0, 0.15) !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+}
+
+html.light .header-bg {
+  background: linear-gradient(to right, #f0f3f7, #e8ecf1, #dfe4ec) !important;
+}
+html.light .nav-bg {
+  background: rgba(240, 243, 247, 0.9) !important;
+}
+html.light .mobile-btn-bg {
+  background: rgba(240, 243, 247, 0.95) !important;
+}
+html.light .mobile-panel-bg {
+  background: rgba(245, 247, 250, 0.98) !important;
 }
 
 html.light .skeleton {
