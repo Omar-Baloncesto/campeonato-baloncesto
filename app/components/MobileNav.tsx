@@ -49,9 +49,9 @@ export default function MobileNav() {
         aria-label="Abrir menú de navegación"
       >
         <div className="w-5 h-4 flex flex-col justify-between">
-          <span className={`block h-0.5 bg-text-primary rounded-full transition-all duration-300 origin-center ${isOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
-          <span className={`block h-0.5 bg-text-primary rounded-full transition-all duration-300 ${isOpen ? 'opacity-0 scale-x-0' : ''}`} />
-          <span className={`block h-0.5 bg-text-primary rounded-full transition-all duration-300 origin-center ${isOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+          <span className={`block h-0.5 hamburger-line rounded-full transition-all duration-300 origin-center ${isOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+          <span className={`block h-0.5 hamburger-line rounded-full transition-all duration-300 ${isOpen ? 'opacity-0 scale-x-0' : ''}`} />
+          <span className={`block h-0.5 hamburger-line rounded-full transition-all duration-300 origin-center ${isOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
         </div>
       </button>
 
