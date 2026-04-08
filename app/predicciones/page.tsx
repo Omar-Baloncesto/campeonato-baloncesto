@@ -17,7 +17,7 @@ interface Partido {
   marcadorVisitante: number;
 }
 
-type Predictions = Record<string, string>; // matchId -> teamName
+type Predictions = Record<string, string>;
 
 function loadPredictions(): Predictions {
   try {
@@ -66,34 +66,32 @@ export default function Predicciones() {
   const ganador = (p: Partido) => p.marcadorLocal > p.marcadorVisitante ? p.local : p.visitante;
 
   const predict = (matchId: string, team: string) => {
-    const match = partidos.find(p => p.id === matchId);
-    if (match && jugado(match)) return; // no permitir en partidos jugados
-    const updated = { ...predictions, [matchId]: team };
-    setPredictions(updated);
-    savePredictions(updated);
-    showToast(`Prediccion: ${team}`, 'success');
-  };
-
-  const removePrediction = (matchId: string) => {
-    const match = partidos.find(p => p.id === matchId);
-    if (match && jugado(match)) return;
-    const updated = { ...predictions };
-    delete updated[matchId];
-    setPredictions(updated);
-    savePredictions(updated);
-    showToast('Prediccion eliminada', 'info');
+    if (predictions[matchId] === team) {
+      // Toggle off
+      const updated = { ...predictions };
+      delete updated[matchId];
+      setPredictions(updated);
+      savePredictions(updated);
+      showToast('Prediccion eliminada', 'info');
+    } else {
+      const updated = { ...predictions, [matchId]: team };
+      setPredictions(updated);
+      savePredictions(updated);
+      showToast(`Prediccion: ${team}`, 'success');
+    }
   };
 
   const jornadas = ['Todos', ...Array.from(new Set(partidos.map(p => p.jornada)))];
   const filtrados = jornada === 'Todos' ? partidos : partidos.filter(p => p.jornada === jornada);
 
   // Stats
+  const totalPredicted = Object.keys(predictions).length;
   const played = partidos.filter(jugado);
-  const predicted = played.filter(p => predictions[p.id]);
-  const correct = predicted.filter(p => predictions[p.id] === ganador(p));
-  const wrong = predicted.filter(p => predictions[p.id] !== ganador(p));
+  const resolved = played.filter(p => predictions[p.id]);
+  const correct = resolved.filter(p => predictions[p.id] === ganador(p));
+  const wrong = resolved.filter(p => predictions[p.id] !== ganador(p));
   const pending = partidos.filter(p => !jugado(p) && predictions[p.id]);
-  const pct = predicted.length > 0 ? Math.round((correct.length / predicted.length) * 100) : 0;
+  const pct = resolved.length > 0 ? Math.round((correct.length / resolved.length) * 100) : 0;
 
   return (
     <div className="animate-fade-in">
@@ -105,32 +103,35 @@ export default function Predicciones() {
         <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
       </div>
 
-      {/* Stats bar */}
-      {predicted.length > 0 && (
-        <div className="px-4 md:px-6 pt-4">
-          <div className="glass-card rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-text-muted uppercase tracking-widest font-semibold">Tu ranking</span>
-              <span className="text-2xl font-black gradient-text">{pct}%</span>
-            </div>
-            <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-darkest)' }}>
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${pct}%`,
-                  background: pct >= 70 ? 'var(--color-positive)' : pct >= 40 ? 'var(--color-gold)' : 'var(--color-negative)',
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              <MiniStat label="Aciertos" value={correct.length} color="var(--color-positive)" />
-              <MiniStat label="Fallos" value={wrong.length} color="var(--color-negative)" />
-              <MiniStat label="Pendientes" value={pending.length} color="var(--color-gold)" />
-              <MiniStat label="Total" value={predicted.length} color="var(--color-text-muted)" />
-            </div>
+      {/* Stats bar - always visible */}
+      <div className="px-4 md:px-6 pt-4">
+        <div className="glass-card rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] text-text-muted uppercase tracking-widest font-semibold">Tu ranking de aciertos</span>
+            <span className="text-2xl font-black gradient-text">{totalPredicted > 0 ? `${pct}%` : '—'}</span>
           </div>
+          <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-darkest)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: resolved.length > 0 ? `${pct}%` : '0%',
+                background: pct >= 70 ? 'var(--color-positive)' : pct >= 40 ? 'var(--color-gold)' : 'var(--color-negative)',
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-4 gap-2 mt-3">
+            <MiniStat label="Aciertos" value={correct.length} color="var(--color-positive)" />
+            <MiniStat label="Fallos" value={wrong.length} color="var(--color-negative)" />
+            <MiniStat label="Pendientes" value={pending.length} color="var(--color-gold)" />
+            <MiniStat label="Predicciones" value={totalPredicted} color="var(--color-text-primary)" />
+          </div>
+          {totalPredicted === 0 && (
+            <div className="text-center mt-3 text-xs text-text-muted">
+              Toca un equipo en cualquier partido para hacer tu prediccion
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="px-4 md:px-6 py-4">
         <FilterPills
@@ -155,7 +156,7 @@ export default function Predicciones() {
               const winner = played ? ganador(p) : null;
               const pred = predictions[p.id];
               const isCorrect = played && pred === winner;
-              const isWrong = played && pred && pred !== winner;
+              const isWrong = played && !!pred && pred !== winner;
 
               return (
                 <div
@@ -170,7 +171,7 @@ export default function Predicciones() {
                     <div className={`px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-center ${
                       isCorrect ? 'bg-positive/20 text-positive' : 'bg-negative/20 text-negative'
                     }`}>
-                      {isCorrect ? '✓ Acertaste' : '✗ Fallaste'}
+                      {isCorrect ? '✓ ACERTASTE' : '✗ FALLASTE'}
                     </div>
                   )}
 
@@ -181,45 +182,44 @@ export default function Predicciones() {
                         Jornada {p.jornada} · {p.fecha}
                       </span>
                       {!played && <div className="text-xs text-gold font-semibold mt-0.5">{p.hora}</div>}
+                      {played && !pred && (
+                        <div className="text-[10px] text-text-muted mt-0.5">Partido jugado · Puedes predecir para ver si hubieras acertado</div>
+                      )}
                     </div>
 
                     {/* Teams */}
                     <div className="flex items-center gap-3">
                       <TeamButton
                         name={p.local}
-                        score={played ? p.marcadorLocal : undefined}
                         isWinner={played && p.marcadorLocal > p.marcadorVisitante}
                         isPredicted={pred === p.local}
                         isCorrectPick={isCorrect && pred === p.local}
-                        isWrongPick={!!isWrong && pred === p.local}
-                        disabled={played}
-                        onClick={() => pred === p.local && !played ? removePrediction(p.id) : predict(p.id, p.local)}
+                        isWrongPick={isWrong && pred === p.local}
+                        onClick={() => predict(p.id, p.local)}
                       />
 
                       <div className="text-text-muted text-xs font-bold shrink-0">VS</div>
 
                       <TeamButton
                         name={p.visitante}
-                        score={played ? p.marcadorVisitante : undefined}
                         isWinner={played && p.marcadorVisitante > p.marcadorLocal}
                         isPredicted={pred === p.visitante}
                         isCorrectPick={isCorrect && pred === p.visitante}
-                        isWrongPick={!!isWrong && pred === p.visitante}
-                        disabled={played}
-                        onClick={() => pred === p.visitante && !played ? removePrediction(p.id) : predict(p.id, p.visitante)}
+                        isWrongPick={isWrong && pred === p.visitante}
+                        onClick={() => predict(p.id, p.visitante)}
                       />
                     </div>
 
                     {/* Played score */}
                     {played && (
                       <div className="text-center mt-3">
-                        <span className="text-lg font-bold gradient-text">{p.marcadorLocal}</span>
-                        <span className="text-text-muted mx-2">-</span>
-                        <span className="text-lg font-bold gradient-text">{p.marcadorVisitante}</span>
+                        <span className={`text-lg font-bold ${p.marcadorLocal > p.marcadorVisitante ? 'gradient-text' : 'text-text-muted'}`}>{p.marcadorLocal}</span>
+                        <span className="text-text-muted mx-2 text-sm">-</span>
+                        <span className={`text-lg font-bold ${p.marcadorVisitante > p.marcadorLocal ? 'gradient-text' : 'text-text-muted'}`}>{p.marcadorVisitante}</span>
                       </div>
                     )}
 
-                    {/* Pending prediction hint */}
+                    {/* Hint for unplayed */}
                     {!played && !pred && (
                       <div className="text-center mt-2 text-[10px] text-text-muted">
                         Toca un equipo para predecir el ganador
@@ -236,52 +236,61 @@ export default function Predicciones() {
   );
 }
 
-function TeamButton({ name, score, isWinner, isPredicted, isCorrectPick, isWrongPick, disabled, onClick }: {
+function TeamButton({ name, isWinner, isPredicted, isCorrectPick, isWrongPick, onClick }: {
   name: string;
-  score?: number;
   isWinner: boolean;
   isPredicted: boolean;
   isCorrectPick: boolean;
   isWrongPick: boolean;
-  disabled: boolean;
   onClick: () => void;
 }) {
   const color = getTeamColor(name);
   const white = isWhiteTeam(name);
 
+  let borderClass = 'border-transparent hover:border-gold/30';
+  let bgStyle: string | undefined = undefined;
+  let borderStyle: string | undefined = undefined;
+
+  if (isCorrectPick) {
+    borderClass = 'border-positive';
+    bgStyle = 'rgba(10, 107, 37, 0.1)';
+  } else if (isWrongPick) {
+    borderClass = 'border-negative';
+    bgStyle = 'rgba(176, 21, 21, 0.1)';
+  } else if (isPredicted) {
+    borderClass = '';
+    borderStyle = white ? '#CCCCCC' : color;
+    bgStyle = white ? 'rgba(255,255,255,0.08)' : color + '15';
+  }
+
   return (
     <button
       onClick={onClick}
-      disabled={disabled && !isPredicted}
-      className={`flex-1 rounded-xl p-3 text-center transition-all duration-200 border-2 ${
-        isCorrectPick
-          ? 'border-positive bg-positive/10'
-          : isWrongPick
-          ? 'border-negative bg-negative/10'
-          : isPredicted
-          ? 'border-gold bg-gold/10 scale-[1.02]'
-          : disabled
-          ? 'border-transparent opacity-70'
-          : 'border-transparent hover:border-gold/30 cursor-pointer active:scale-95'
-      }`}
+      className={`flex-1 rounded-xl p-3 text-center transition-all duration-200 border-2 cursor-pointer active:scale-95 ${borderClass}`}
       style={{
-        borderColor: isPredicted && !isCorrectPick && !isWrongPick ? color : undefined,
-        background: isPredicted && !isCorrectPick && !isWrongPick ? (white ? '#FFFFFF15' : color + '15') : undefined,
+        borderColor: borderStyle,
+        background: bgStyle,
       }}
     >
       <div
-        className="w-2.5 h-2.5 rounded-full mx-auto mb-1.5"
-        style={{ background: white ? '#CCCCCC' : color }}
+        className="w-3 h-3 rounded-full mx-auto mb-1.5"
+        style={{
+          background: white ? '#CCCCCC' : color,
+          boxShadow: isPredicted ? `0 0 8px ${color}60` : undefined,
+        }}
       />
       <div className="text-xs font-bold text-text-primary truncate">{name}</div>
-      {isPredicted && !disabled && (
-        <div className="text-[9px] text-gold font-semibold mt-1 uppercase tracking-wider">Tu pick</div>
+      {isWinner && (
+        <div className="text-[9px] text-gold font-semibold mt-1">Ganador</div>
       )}
-      {isPredicted && isCorrectPick && (
-        <div className="text-[9px] text-positive font-semibold mt-1">✓ Ganador</div>
+      {isPredicted && !isCorrectPick && !isWrongPick && (
+        <div className="text-[9px] font-semibold mt-1" style={{ color: white ? '#666' : color }}>Tu pick</div>
       )}
-      {isPredicted && isWrongPick && (
-        <div className="text-[9px] text-negative font-semibold mt-1">✗ Perdedor</div>
+      {isCorrectPick && (
+        <div className="text-[9px] text-positive font-bold mt-1">✓ Acertaste</div>
+      )}
+      {isWrongPick && (
+        <div className="text-[9px] text-negative font-bold mt-1">✗ Fallaste</div>
       )}
     </button>
   );
