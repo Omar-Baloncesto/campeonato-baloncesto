@@ -48,7 +48,7 @@ function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
       }}
     >
       <div className="w-[7px] shrink-0" style={{ background: empty ? 'var(--color-border-light)' : rawColor }} />
-      <div className="flex-1 px-3.5 flex items-center text-base font-bold tracking-wider uppercase text-text-primary truncate min-w-0">
+      <div className="flex-1 px-3.5 flex items-center text-base font-bold tracking-wider uppercase text-text-primary min-w-0">
         {name || 'POR DEFINIR'}
       </div>
       <StatCell val={q1} />
@@ -70,24 +70,31 @@ function MatchCard({ match }: { match: Match }) {
   const w1 = match.total1 > match.total2;
   const w2 = match.total2 > match.total1;
   return (
-    <div className="bg-bg-card border border-border-light rounded-[14px] p-3.5 w-full max-w-[460px]">
-      <div className="text-center mb-2.5 text-[13px] tracking-widest text-text-muted uppercase font-semibold">
-        {match.date}
-      </div>
-      <div className="flex pl-[140px] md:pl-[188px] mb-1.5">
-        {['Q1', 'Q2', 'Q3', 'Q4', 'TA', 'TOT'].map((h, i) => (
-          <div
-            key={h}
-            className="text-center text-[11px] tracking-wider text-text-muted font-bold"
-            style={{ width: i === 4 ? 42 : i === 5 ? 56 : 38 }}
-          >
-            {h}
+    <div className="bg-bg-card border border-border-light rounded-[14px] overflow-hidden w-full max-w-[600px]">
+      <div className="overflow-x-auto">
+        <div className="p-3.5 min-w-[530px]">
+          <div className="text-center mb-2.5 text-[13px] tracking-widest text-text-muted uppercase font-semibold">
+            {match.date}
           </div>
-        ))}
-      </div>
-      <div className="flex flex-col gap-2">
-        <TeamRow name={match.team1} q1={match.q1_1} q2={match.q2_1} q3={match.q3_1} q4={match.q4_1} ta={match.ta_1} total={match.total1} isWinner={w1} />
-        <TeamRow name={match.team2} q1={match.q1_2} q2={match.q2_2} q3={match.q3_2} q4={match.q4_2} ta={match.ta_2} total={match.total2} isWinner={w2} />
+          {/* Headers mirror the TeamRow flex layout for pixel-perfect alignment */}
+          <div className="flex mb-1.5">
+            <div className="w-[7px] shrink-0" />
+            <div className="flex-1 min-w-0" />
+            {['Q1', 'Q2', 'Q3', 'Q4', 'TA', 'TOT'].map((h, i) => (
+              <div
+                key={h}
+                className="text-center text-[11px] tracking-wider text-text-muted font-bold"
+                style={{ width: i === 4 ? 42 : i === 5 ? 56 : 38 }}
+              >
+                {h}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2">
+            <TeamRow name={match.team1} q1={match.q1_1} q2={match.q2_1} q3={match.q3_1} q4={match.q4_1} ta={match.ta_1} total={match.total1} isWinner={w1} />
+            <TeamRow name={match.team2} q1={match.q1_2} q2={match.q2_2} q3={match.q3_2} q4={match.q4_2} ta={match.ta_2} total={match.total2} isWinner={w2} />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -258,7 +265,7 @@ export default function BracketPage() {
             <div className="flex items-start justify-center gap-0 min-w-max">
               {hasPlayIn && (
                 <>
-                  <div className="flex flex-col items-center shrink-0" style={{ width: 460 }}>
+                  <div className="flex flex-col items-center shrink-0" style={{ width: 600 }}>
                     <ColHeader label="Play In" color="#e06020" />
                     <div className="flex flex-col gap-8">
                       {playIn.map((m, i) => <MatchCard key={i} match={m} />)}
@@ -270,7 +277,7 @@ export default function BracketPage() {
                 </>
               )}
 
-              <div className="flex flex-col items-center shrink-0" style={{ width: 460 }}>
+              <div className="flex flex-col items-center shrink-0" style={{ width: 600 }}>
                 <ColHeader label="Semifinal" color="#2a8aaa" />
                 <div className="flex flex-col gap-8">
                   {semis.map((m, i) => <MatchCard key={i} match={m} />)}
@@ -281,7 +288,7 @@ export default function BracketPage() {
                 <ForkSVG topY={cardCenterY(0)} bottomY={cardCenterY(1)} totalH={semiH} />
               </div>
 
-              <div className="flex flex-col items-center shrink-0" style={{ width: 460 }}>
+              <div className="flex flex-col items-center shrink-0" style={{ width: 600 }}>
                 <ColHeader label="Final" color="#ccaa00" />
                 <div style={{ marginTop: finalOffsetTop }}>
                   {finalMatch && <MatchCard match={finalMatch} />}
