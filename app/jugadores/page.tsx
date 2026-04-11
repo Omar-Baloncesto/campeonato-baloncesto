@@ -234,7 +234,7 @@ export default function Jugadores() {
                       }}
                     >
                       <span className="text-base font-bold leading-none">{getInitials(j.nombre)}</span>
-                      {j.numero && <span className="text-[11px] font-black leading-none mt-1" style={{ color: '#FFD700', textShadow: '0 0 4px rgba(0,0,0,0.6)' }}>#{j.numero}</span>}
+                      {j.numero && <span className="text-[11px] font-black leading-none mt-1" style={{ color: '#FF2020', textShadow: '0 0 6px rgba(255,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)' }}>#{j.numero}</span>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-tight truncate">{j.nombre}</div>
