@@ -37,8 +37,8 @@ export default function Estadisticas() {
             nombre: r[7]?.toString().trim() ?? '', totalPuntos: r[8] || '0', asistencias: r[9] || '0', promedio: r[10] || '0',
           })));
           const maxRows = data.data.filter((r: string[]) => {
-            const cell = r[0]?.toString().trim();
-            return cell && cell.toLowerCase().startsWith('jugador');
+            const cell = r[0]?.toString().trim().toLowerCase();
+            return cell && cell.startsWith('jugador con');
           });
           setMaximos(maxRows.map((r: string[]) => [r[0], r[1], r[4]]));
           setLastUpdated(new Date());
@@ -138,7 +138,7 @@ export default function Estadisticas() {
         <section className="px-4 md:px-6 pb-8" aria-label="Jugadores con maximos puntos">
           <div className="glass-card rounded-xl p-5">
             <h3 className="text-sm text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-              <span className="text-lg">🏆</span> Jugadores con maximos puntos
+              <span className="text-lg">🏆</span> Jugadores con máximos puntos
             </h3>
             {maximos.map((r, i) => (
               <div
