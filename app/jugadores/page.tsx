@@ -7,6 +7,12 @@ import DataFreshness from '../components/DataFreshness';
 import SearchInput from '../components/SearchInput';
 import { normalizeText } from '../lib/utils';
 
+function getInitials(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return nombre.slice(0, 2).toUpperCase();
+}
+
 interface Jugador {
   id: string;
   nombre: string;
@@ -220,15 +226,14 @@ export default function Jugadores() {
                     onClick={() => toggleExpand(j)}
                   >
                     <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0 transition-transform group-hover:scale-105"
+                      className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-hover:scale-105 select-none"
                       style={{
-                        background: isWhite ? '#FFFFFF' : `linear-gradient(135deg, ${color}30, ${color}10)`,
-                        border: `2px solid ${color}50`,
-                        color: isWhite ? '#000000' : color,
-                        boxShadow: `0 2px 10px ${color}15`,
+                        background: isWhite ? '#cccccc' : color,
+                        color: '#ffffff',
+                        boxShadow: `0 2px 10px ${color}40`,
                       }}
                     >
-                      {j.numero || '?'}
+                      {getInitials(j.nombre)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-tight truncate">{j.nombre}</div>
