@@ -93,12 +93,15 @@ export default function EstadisticasEquipos() {
               }}
             >
               <div
-                className="w-3 h-3 rounded-full"
-                style={{ background: getTeamColor(eq.nombre) }}
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{
+                  background: getTeamColor(eq.nombre),
+                  outline: isWhiteTeam(eq.nombre) ? '1.5px solid #CCCCCC' : 'none',
+                }}
               />
               <span
                 className="font-bold text-base"
-                style={{ color: isWhiteTeam(eq.nombre) ? '#000000' : getTeamColor(eq.nombre) }}
+                style={{ color: isWhiteTeam(eq.nombre) ? '#111111' : 'var(--color-text-primary)' }}
               >
                 {eq.nombre}
               </span>
