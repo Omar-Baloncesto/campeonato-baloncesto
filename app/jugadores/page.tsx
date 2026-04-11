@@ -226,14 +226,15 @@ export default function Jugadores() {
                     onClick={() => toggleExpand(j)}
                   >
                     <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-hover:scale-105 select-none"
+                      className="w-12 h-12 rounded-full flex flex-col items-center justify-center shrink-0 transition-transform group-hover:scale-105 select-none"
                       style={{
                         background: isWhite ? '#cccccc' : color,
                         color: '#ffffff',
                         boxShadow: `0 2px 10px ${color}40`,
                       }}
                     >
-                      {getInitials(j.nombre)}
+                      <span className="text-sm font-bold leading-none">{getInitials(j.nombre)}</span>
+                      {j.numero && <span className="text-[9px] font-semibold leading-none mt-0.5 opacity-80">#{j.numero}</span>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-tight truncate">{j.nombre}</div>
