@@ -201,11 +201,25 @@ export default function Jugadores() {
 
       <div className="px-4 md:px-6 pb-8">
         {loading ? (
-          <LoadingState message="Cargando jugadores..." />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="glass-card rounded-xl overflow-hidden">
+                <div className="p-4 flex items-center gap-3.5">
+                  <div className="skeleton w-14 h-14 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="skeleton h-4 w-3/4 rounded" />
+                    <div className="skeleton h-3 w-1/2 rounded" />
+                    <div className="skeleton h-3 w-1/4 rounded" />
+                  </div>
+                  <div className="skeleton w-4 h-4 rounded shrink-0" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <ErrorState onRetry={fetchData} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
             {filtrados.map(j => {
               const team = TEAMS[j.equipoId];
               const color = team?.safeColor || '#888';
