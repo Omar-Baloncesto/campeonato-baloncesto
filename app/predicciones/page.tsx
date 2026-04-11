@@ -72,12 +72,12 @@ export default function Predicciones() {
       delete updated[matchId];
       setPredictions(updated);
       savePredictions(updated);
-      showToast('Prediccion eliminada', 'info');
+      showToast('Predicción eliminada', 'info');
     } else {
       const updated = { ...predictions, [matchId]: team };
       setPredictions(updated);
       savePredictions(updated);
-      showToast(`Prediccion: ${team}`, 'success');
+      showToast(`Predicción: ${team}`, 'success');
     }
   };
 
@@ -127,7 +127,7 @@ export default function Predicciones() {
           </div>
           {totalPredicted === 0 && (
             <div className="text-center mt-3 text-xs text-text-muted">
-              Toca un equipo en cualquier partido para hacer tu prediccion
+              Toca un equipo en cualquier partido para hacer tu predicción
             </div>
           )}
         </div>

@@ -152,7 +152,7 @@ export default function Dashboard() {
             </div>
           ) : error ? (
             <ErrorState
-              message="No se pudieron cargar los equipos. Verifica tu conexion a internet."
+              message="No se pudieron cargar los equipos. Verifica tu conexión a internet."
               onRetry={fetchData}
             />
           ) : (

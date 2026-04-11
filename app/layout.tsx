@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Campeonato Baloncesto - Cucuta 2026",
-  description: "Campeonato de Baloncesto de Cucuta - Primer Semestre 2026. Posiciones, fixture, estadisticas y mas.",
+  description: "Campeonato de Baloncesto de Cucuta - Primer Semestre 2026. Posiciones, fixture, estadísticas y más.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

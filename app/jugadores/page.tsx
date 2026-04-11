@@ -351,7 +351,7 @@ export default function Jugadores() {
                           {/* Empty state if no data at all */}
                           {st.totalPuntos === 0 && st.totalBreakdown === 0 && st.fechas.length === 0 && (
                             <div className="py-4 text-center text-xs text-text-muted">
-                              Sin estadisticas disponibles
+                              Sin estadísticas disponibles
                             </div>
                           )}
                         </div>

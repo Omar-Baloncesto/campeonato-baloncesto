@@ -62,7 +62,7 @@ export default function EstadisticasEquipos() {
       <div className="px-4 md:px-6 pt-4">
         <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
           <span className="w-1 h-4 bg-gold rounded-full" />
-          Estadisticas por equipo
+          Estadísticas por equipo
         </h2>
       </div>
 

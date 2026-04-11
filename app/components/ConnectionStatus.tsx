@@ -14,7 +14,7 @@ export default function ConnectionStatus() {
     const handleOnline = () => {
       setIsOnline(true);
       if (wasOffline) {
-        showToast('Conexion restaurada', 'success');
+        showToast('Conexión restaurada', 'success');
       }
       setWasOffline(false);
     };
@@ -43,7 +43,7 @@ export default function ConnectionStatus() {
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
         <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M12 12h.01M8.464 8.464a5 5 0 010 7.072M15.536 8.464a5 5 0 000 7.072" />
       </svg>
-      Sin conexion a internet
+      Sin conexión a internet
     </div>
   );
 }

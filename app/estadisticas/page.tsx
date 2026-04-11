@@ -62,7 +62,7 @@ export default function Estadisticas() {
       <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
         <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
           <span className="w-1 h-4 bg-gold rounded-full" />
-          Estadisticas
+          Estadísticas
         </h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-muted">{jugadores.length} jugadores</span>
@@ -88,7 +88,7 @@ export default function Estadisticas() {
 
       <div className="px-4 md:px-6 pb-8">
         {loading ? (
-          <LoadingState message="Cargando estadisticas..." variant="skeleton" rows={8} />
+          <LoadingState message="Cargando estadísticas..." variant="skeleton" rows={8} />
         ) : error ? (
           <ErrorState onRetry={fetchData} />
         ) : (
@@ -135,7 +135,7 @@ export default function Estadisticas() {
       </div>
 
       {maximos.length > 0 && (
-        <section className="px-4 md:px-6 pb-8" aria-label="Jugadores con maximos puntos">
+        <section className="px-4 md:px-6 pb-8" aria-label="Jugadores con máximos puntos">
           <div className="glass-card rounded-xl overflow-hidden">
             <div className="p-5 pb-2">
               <h3 className="text-sm text-text-primary font-semibold uppercase tracking-widest flex items-center gap-2">
