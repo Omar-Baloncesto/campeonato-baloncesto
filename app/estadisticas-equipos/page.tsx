@@ -43,7 +43,7 @@ export default function EstadisticasEquipos() {
             color: eq.color,
             jugadores: rows
               .slice(eq.filaInicio - 1, eq.filaFin)
-              .filter((r: string[]) => r[0] && r[0] !== eq.nombre)
+              .filter((r: string[]) => r[0] && r[0] !== eq.nombre && !r[0].toLowerCase().startsWith('equipo'))
               .map((r: string[]) => ({
                 nombre: r[0], p1: r[1] || '0',
                 p2: r[2] || '0', p3: r[3] || '0', total: r[4] || '0',
@@ -110,10 +110,10 @@ export default function EstadisticasEquipos() {
                 <thead>
                   <tr className="bg-bg-header text-[11px] text-text-muted uppercase tracking-wide">
                     <th className="text-left px-5 py-2.5 font-medium">Jugador</th>
-                    <th className="text-center px-3 py-2.5 font-medium w-20">P. de 1</th>
-                    <th className="text-center px-3 py-2.5 font-medium w-20">P. de 2</th>
-                    <th className="text-center px-3 py-2.5 font-medium w-20">P. de 3</th>
-                    <th className="text-center px-3 py-2.5 font-medium w-20">Total</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 1</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 2</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 3</th>
+                    <th className="text-center px-3 py-2.5 font-medium w-24">Total Puntos</th>
                   </tr>
                 </thead>
                 <tbody>
