@@ -29,11 +29,17 @@ export default function Estadisticas() {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.data.length > 1) {
-          const rows = data.data.slice(1).filter((r: string[]) => r[7] && r[7] !== 'NOMBRE JUGADOR');
+          const rows = data.data.slice(1).filter((r: string[]) => {
+            const name = r[7]?.toString().trim();
+            return name && name !== 'NOMBRE JUGADOR' && name.toUpperCase() !== 'JUGADOR';
+          });
           setJugadores(rows.map((r: string[]) => ({
-            nombre: r[7], totalPuntos: r[8] || '0', asistencias: r[9] || '0', promedio: r[10] || '0',
+            nombre: r[7]?.toString().trim() ?? '', totalPuntos: r[8] || '0', asistencias: r[9] || '0', promedio: r[10] || '0',
           })));
-          const maxRows = data.data.filter((r: string[]) => r[0] && r[0].toString().includes('Jugador'));
+          const maxRows = data.data.filter((r: string[]) => {
+            const cell = r[0]?.toString().trim();
+            return cell && cell.toLowerCase().startsWith('jugador');
+          });
           setMaximos(maxRows.map((r: string[]) => [r[0], r[1], r[4]]));
           setLastUpdated(new Date());
         } else if (!data.success) setError(true);
@@ -45,7 +51,7 @@ export default function Estadisticas() {
   useEffect(() => { fetchData(); }, []);
 
   const ordenados = [...jugadores]
-    .filter(j => !searchTerm || normalizeText(j.nombre).includes(normalizeText(searchTerm)))
+    .filter(j => j.nombre && (!searchTerm || normalizeText(j.nombre).includes(normalizeText(searchTerm))))
     .sort((a, b) => parseFloat(b[orden]) - parseFloat(a[orden]));
 
   const medalClass = (i: number) =>
