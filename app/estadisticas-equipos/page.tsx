@@ -111,7 +111,7 @@ export default function EstadisticasEquipos() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[400px]">
                 <thead>
-                  <tr className="bg-bg-header text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                  <tr className="bg-bg-header text-[12px] uppercase tracking-wide font-bold" style={{ color: '#ffffff' }}>
                     <th className="text-left px-5 py-2.5 font-medium">Jugador</th>
                     <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 1</th>
                     <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 2</th>
