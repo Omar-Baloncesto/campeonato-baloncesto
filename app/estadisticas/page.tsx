@@ -137,7 +137,7 @@ export default function Estadisticas() {
       {maximos.length > 0 && (
         <section className="px-4 md:px-6 pb-8" aria-label="Jugadores con maximos puntos">
           <div className="glass-card rounded-xl p-5">
-            <h3 className="text-sm text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-sm text-text-primary font-semibold uppercase tracking-widest mb-4 flex items-center gap-2">
               <span className="text-lg">🏆</span> Jugadores con máximos puntos
             </h3>
             {maximos.map((r, i) => (
@@ -145,7 +145,7 @@ export default function Estadisticas() {
                 key={i}
                 className="flex justify-between items-center py-3 border-b border-border-subtle last:border-b-0 hover:bg-white/[0.02] transition-colors px-2 -mx-2 rounded"
               >
-                <span className="text-[13px] text-text-muted">{r[0]}</span>
+                <span className="text-[13px] text-text-primary">{r[0]}</span>
                 <div className="flex gap-5 items-center">
                   <span className="text-[15px] font-bold text-text-primary">{r[1]}</span>
                   <span className="text-base font-bold gradient-text min-w-[50px] text-right">{r[2]}</span>
