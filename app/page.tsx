@@ -173,7 +173,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={eq.id}
-                    className="bg-bg-primary/80 rounded-xl overflow-hidden border border-border-light glow-hover cursor-pointer group"
+                    className="bg-bg-card rounded-xl overflow-hidden border border-border-light glow-hover cursor-pointer group"
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
                     {team?.photo && (
@@ -256,19 +256,19 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3 pt-3">
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Prom. Pts/Part.</div>
                                 <div className="text-lg font-bold text-positive">{ppgOff}</div>
                               </div>
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Prom. Pts Rec./Part.</div>
                                 <div className="text-lg font-bold text-negative">{ppgDef}</div>
                               </div>
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Ratio PF/PC</div>
                                 <div className="text-lg font-bold text-gold">{ratio}</div>
                               </div>
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">% Victorias</div>
                                 <div className="text-lg font-bold text-text-primary">{winPct}%</div>
                               </div>
