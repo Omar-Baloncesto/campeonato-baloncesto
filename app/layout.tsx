@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Campeonato Baloncesto - Cucuta 2026",
-  description: "Campeonato de Baloncesto de Cucuta - Primer Semestre 2026. Posiciones, fixture, estadisticas y mas.",
+  description: "Campeonato de Baloncesto de Cucuta - Primer Semestre 2026. Posiciones, fixture, estadísticas y más.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -49,12 +49,18 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')}catch(e){}` }} />
       </head>
       <body className="min-h-full flex flex-col">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-gold focus:text-black focus:font-semibold focus:text-sm focus:shadow-lg"
+        >
+          Saltar al contenido
+        </a>
         <ThemeProvider>
           <ToastProvider>
             <ConnectionStatus />
             <Header />
             <Navigation />
-            <main className="flex-1">
+            <main id="main-content" className="flex-1">
               {children}
             </main>
             <footer className="py-5 text-center border-t border-border-subtle">

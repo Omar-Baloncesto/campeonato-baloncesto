@@ -136,7 +136,7 @@ export default function Asistencias() {
                         className={`w-5 h-5 rounded text-[10px] flex items-center justify-center font-medium ${
                           f === '1' ? 'bg-positive/20 text-positive' :
                           f === '0' && fi < 5 ? 'bg-negative/20 text-negative' :
-                          'bg-white/5 text-text-muted'
+                          'bg-bg-darkest/50 text-text-muted'
                         }`}
                       >
                         {f === '1' ? '✓' : f === '0' && fi < 5 ? '✗' : ''}
@@ -181,7 +181,7 @@ export default function Asistencias() {
                       <tr
                         key={i}
                         className={`border-b border-border-subtle transition-colors hover:bg-white/[0.03] ${
-                          i % 2 === 0 ? 'bg-bg-secondary' : 'bg-[#1a2744]'
+                          i % 2 === 0 ? 'bg-bg-secondary' : 'bg-bg-card'
                         }`}
                       >
                         <td className="px-4 py-2.5 text-xs font-medium">{j.nombre}</td>

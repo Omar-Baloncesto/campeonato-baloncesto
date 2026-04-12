@@ -138,6 +138,23 @@ a, button {
   animation: livePulse 2s ease-in-out infinite;
 }
 
+/* Header & Nav backgrounds */
+.header-bg {
+  background: linear-gradient(to right, #16213e, #16213e, #1a2848);
+}
+.nav-bg {
+  background: rgba(22, 33, 62, 0.8);
+}
+.hamburger-line {
+  background-color: #f0ece3;
+}
+.mobile-btn-bg {
+  background: rgba(22, 33, 62, 0.9);
+}
+.mobile-panel-bg {
+  background: rgba(22, 33, 62, 0.95);
+}
+
 /* Glassmorphism card effect */
 .glass-card {
   background: rgba(22, 33, 62, 0.7);
@@ -246,23 +263,63 @@ a, button {
 }
 
 /* ===== LIGHT MODE ===== */
+/* CSS variables for inline styles and non-Tailwind usage */
 html.light {
   --color-bg-primary: #e8ecf1;
   --color-bg-secondary: #f5f7fa;
   --color-bg-header: #0f2440;
   --color-bg-darkest: #d5dbe3;
-  --color-bg-card: #f0f3f7;
-  --color-gold: #b58900;
+  --color-bg-card: #edf0f5;
+  --color-gold: #9a7400;
   --color-gold-dim: rgba(181, 137, 0, 0.15);
-  --color-text-primary: #0d1117;
-  --color-text-muted: #424a56;
-  --color-positive: #0d7a2e;
-  --color-negative: #c41919;
-  --color-border-subtle: rgba(0, 0, 0, 0.08);
-  --color-border-light: rgba(0, 0, 0, 0.14);
+  --color-text-primary: #000000;
+  --color-text-muted: #111111;
+  --color-positive: #0a6b25;
+  --color-negative: #b01515;
+  --color-border-subtle: rgba(0, 0, 0, 0.10);
+  --color-border-light: rgba(0, 0, 0, 0.18);
   --color-border-glow: rgba(181, 137, 0, 0.25);
 }
 
+/* Override Tailwind text color utilities (inline compiles to literals) */
+html.light body {
+  color: #000000 !important;
+  font-weight: 600;
+}
+
+html.light .text-text-primary { color: #000000 !important; }
+html.light .text-text-muted { color: #222222 !important; }
+html.light .text-gold { color: #9a7400 !important; }
+html.light .text-positive { color: #0a6b25 !important; }
+html.light .text-negative { color: #b01515 !important; }
+html.light .text-live { color: #c41919 !important; }
+
+/* Override Tailwind bg utilities */
+html.light .bg-bg-primary { background-color: #e8ecf1 !important; }
+html.light .bg-bg-secondary { background-color: #f5f7fa !important; }
+html.light .bg-bg-card { background-color: #edf0f5 !important; }
+html.light .bg-bg-darkest { background-color: #d5dbe3 !important; }
+html.light .bg-bg-header { background-color: #0f2440 !important; }
+html.light .bg-gold { background-color: #9a7400 !important; }
+
+/* Override Tailwind border utilities */
+html.light .border-border-subtle { border-color: rgba(0, 0, 0, 0.10) !important; }
+html.light .border-border-light { border-color: rgba(0, 0, 0, 0.18) !important; }
+html.light .border-gold { border-color: #9a7400 !important; }
+
+/* Bold text in light mode */
+html.light .font-medium { font-weight: 700 !important; }
+html.light .font-semibold { font-weight: 800 !important; }
+html.light .font-bold,
+html.light .font-black { font-weight: 900 !important; }
+html.light main table td { font-weight: 700; }
+
+/* Medal badges */
+html.light .medal-gold { color: #9a7400 !important; text-shadow: none; }
+html.light .medal-silver { color: #606060 !important; text-shadow: none; }
+html.light .medal-bronze { color: #8B5E34 !important; text-shadow: none; }
+
+/* Background & card overrides */
 html.light body::before {
   background:
     radial-gradient(ellipse at 15% 5%, rgba(181, 137, 0, 0.05) 0%, transparent 50%),
@@ -270,9 +327,25 @@ html.light body::before {
 }
 
 html.light .glass-card {
-  background: rgba(240, 243, 247, 0.9);
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: rgba(240, 243, 247, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+}
+
+html.light .header-bg {
+  background: linear-gradient(to right, #f0f3f7, #e8ecf1, #dfe4ec) !important;
+}
+html.light .nav-bg {
+  background: rgba(240, 243, 247, 0.9) !important;
+}
+html.light .hamburger-line {
+  background-color: #000000 !important;
+}
+html.light .mobile-btn-bg {
+  background: rgba(240, 243, 247, 0.95) !important;
+}
+html.light .mobile-panel-bg {
+  background: rgba(245, 247, 250, 0.98) !important;
 }
 
 html.light .skeleton {
@@ -282,29 +355,24 @@ html.light .skeleton {
 
 html.light .spinner {
   border-color: rgba(0, 0, 0, 0.08);
-  border-top-color: var(--color-gold);
+  border-top-color: #9a7400;
 }
 
 html.light .table-row-hover:hover {
-  background-color: rgba(0, 0, 0, 0.03) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
 html.light .gradient-text {
-  background: linear-gradient(135deg, #b58900, #d46a00);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  background: linear-gradient(135deg, #7a5c00, #a04800) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  font-weight: 900;
 }
 
-html.light ::-webkit-scrollbar-track {
-  background: #e8ecf1;
-}
-html.light ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-}
-html.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
+html.light ::-webkit-scrollbar-track { background: #e8ecf1; }
+html.light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); }
+html.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
 
 /* ===== TOAST ANIMATIONS ===== */
 @keyframes slideInUp {

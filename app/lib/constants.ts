@@ -44,6 +44,7 @@ export const NAV_ITEMS = [
   { label: 'Est. Equipos', href: '/estadisticas-equipos', icon: '📊' },
   { label: 'Asistencias',  href: '/asistencias',         icon: '📋' },
   { label: 'Marcadores',   href: '/lista-equipos',       icon: '🏀' },
+  { label: 'Predicciones', href: '/predicciones',        icon: '🎯' },
   { label: 'Bracket',      href: '/bracket',             icon: '🏆' },
 ];
 

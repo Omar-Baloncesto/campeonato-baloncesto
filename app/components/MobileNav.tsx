@@ -44,14 +44,14 @@ export default function MobileNav() {
       <button
         onClick={toggle}
         style={{ position: 'fixed', top: 12, right: 12, zIndex: 9999 }}
-        className="w-10 h-10 flex items-center justify-center rounded-lg bg-bg-secondary/90 border border-border-light hover:bg-white/[0.06] transition-colors shadow-lg"
+        className="w-10 h-10 flex items-center justify-center rounded-lg mobile-btn-bg border border-border-light transition-colors shadow-lg"
         aria-expanded={isOpen}
         aria-label="Abrir menú de navegación"
       >
         <div className="w-5 h-4 flex flex-col justify-between">
-          <span className={`block h-0.5 bg-text-primary rounded-full transition-all duration-300 origin-center ${isOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
-          <span className={`block h-0.5 bg-text-primary rounded-full transition-all duration-300 ${isOpen ? 'opacity-0 scale-x-0' : ''}`} />
-          <span className={`block h-0.5 bg-text-primary rounded-full transition-all duration-300 origin-center ${isOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+          <span className={`block h-0.5 hamburger-line rounded-full transition-all duration-300 origin-center ${isOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+          <span className={`block h-0.5 hamburger-line rounded-full transition-all duration-300 ${isOpen ? 'opacity-0 scale-x-0' : ''}`} />
+          <span className={`block h-0.5 hamburger-line rounded-full transition-all duration-300 origin-center ${isOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
         </div>
       </button>
 
@@ -67,7 +67,7 @@ export default function MobileNav() {
 
           {/* Slide panel */}
           <nav
-            className="absolute top-0 right-0 bottom-0 w-[280px] bg-bg-secondary/95 backdrop-blur-xl border-l border-border-light menu-panel flex flex-col"
+            className="absolute top-0 right-0 bottom-0 w-[280px] mobile-panel-bg backdrop-blur-xl border-l border-border-light menu-panel flex flex-col"
             role="dialog"
             aria-label="Menú de navegación"
           >
@@ -76,7 +76,7 @@ export default function MobileNav() {
               <span className="text-sm font-semibold gradient-text tracking-wider">MENÚ</span>
               <button
                 onClick={close}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/[0.06] transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/[0.06] transition-colors"
                 aria-label="Cerrar menú"
               >
                 <svg className="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -97,7 +97,7 @@ export default function MobileNav() {
                       flex items-center gap-3 px-5 py-4 text-xl transition-all duration-200
                       ${isActive
                         ? 'text-gold font-semibold border-l-2 border-gold bg-gold/[0.06]'
-                        : 'text-text-muted hover:text-text-primary hover:bg-white/[0.04] border-l-2 border-transparent'
+                        : 'text-text-muted hover:text-text-primary hover:bg-black/[0.04] border-l-2 border-transparent'
                       }
                     `}
                     aria-current={isActive ? 'page' : undefined}
