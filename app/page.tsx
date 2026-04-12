@@ -177,13 +177,13 @@ export default function Dashboard() {
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
                     {team?.photo && (
-                      <div className="relative w-full aspect-[4/3] overflow-hidden">
+                      <div className="relative w-full aspect-square overflow-hidden bg-black/20">
                         <Image
                           src={team.photo}
                           alt={`Foto del equipo ${eq.nombre}`}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                          className="object-contain transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
                           placeholder="blur"
                           blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNCIgaGVpZ2h0PSIzIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjMiIGZpbGw9IiMxZTJhNGEiLz48L3N2Zz4="
