@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { TEAMS } from './lib/constants';
 import { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
@@ -177,17 +176,13 @@ export default function Dashboard() {
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
                     {team?.photo && (
-                      <div className="relative w-full overflow-hidden rounded-t-xl">
-                        <Image
+                      <div className="relative w-full overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={team.photo}
                           alt={`Foto del equipo ${eq.nombre}`}
-                          width={800}
-                          height={700}
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           className="w-full h-auto block transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
-                          placeholder="blur"
-                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNCIgaGVpZ2h0PSIzIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjMiIGZpbGw9IiMxZTJhNGEiLz48L3N2Zz4="
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       </div>
