@@ -61,6 +61,7 @@ export default function Estadisticas() {
             calcMax(1, 'Jugador con más puntos de 1'),
             calcMax(2, 'Jugador con más puntos de 2'),
             calcMax(3, 'Jugador con más puntos de 3'),
+            calcMax(4, 'Jugador con más puntos totales'),
           ].filter(m => m.jugadores.length > 0));
           setLastUpdated(new Date());
         } else if (!data.success) setError(true);
