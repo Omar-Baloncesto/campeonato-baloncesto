@@ -183,7 +183,7 @@ export default function Dashboard() {
                           alt={`Foto del equipo ${eq.nombre}`}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
                           placeholder="blur"
                           blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNCIgaGVpZ2h0PSIzIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjMiIGZpbGw9IiMxZTJhNGEiLz48L3N2Zz4="
