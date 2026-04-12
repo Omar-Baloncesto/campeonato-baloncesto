@@ -13,9 +13,15 @@ interface Jugador {
   promedio: string;
 }
 
+interface MaximoRow {
+  label: string;
+  jugadores: string[];
+  valor: number;
+}
+
 export default function Estadisticas() {
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
-  const [maximos, setMaximos] = useState<string[][]>([]);
+  const [maximos, setMaximos] = useState<MaximoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [orden, setOrden] = useState<'totalPuntos' | 'asistencias' | 'promedio'>('totalPuntos');
@@ -36,11 +42,26 @@ export default function Estadisticas() {
           setJugadores(rows.map((r: string[]) => ({
             nombre: r[7]?.toString().trim() ?? '', totalPuntos: r[8] || '0', asistencias: r[9] || '0', promedio: r[10] || '0',
           })));
-          const maxRows = data.data.filter((r: string[]) => {
-            const cell = r[0]?.toString().trim().toLowerCase();
-            return cell && cell.startsWith('jugador con');
+          // Calculate maximos from raw player rows (cols 0-4: nombre, p1, p2, p3, total)
+          // Player rows are identified by having a name in r[0] and a numeric value in r[1]
+          const playerDataRows = (data.data as string[][]).filter(r => {
+            const name = r[0]?.toString().trim();
+            return name && !isNaN(parseFloat(r[1]));
           });
-          setMaximos(maxRows.map((r: string[]) => [r[0], r[1], r[4]]));
+          const calcMax = (col: number, label: string): MaximoRow => {
+            const max = Math.max(0, ...playerDataRows.map(r => parseFloat(r[col]) || 0));
+            const jugadores = max > 0
+              ? playerDataRows
+                  .filter(r => (parseFloat(r[col]) || 0) === max)
+                  .map(r => r[0].trim())
+              : [];
+            return { label, jugadores, valor: max };
+          };
+          setMaximos([
+            calcMax(1, 'Jugador con más puntos de 1'),
+            calcMax(2, 'Jugador con más puntos de 2'),
+            calcMax(3, 'Jugador con más puntos de 3'),
+          ].filter(m => m.jugadores.length > 0));
           setLastUpdated(new Date());
         } else if (!data.success) setError(true);
         setLoading(false);
@@ -144,15 +165,19 @@ export default function Estadisticas() {
             </div>
             <div className="overflow-x-auto">
               <div className="min-w-[480px] px-5 pb-3">
-                {maximos.map((r, i) => (
+                {maximos.map((m, i) => (
                   <div
                     key={i}
-                    className="flex justify-between items-center py-3 border-b border-border-subtle last:border-b-0"
+                    className="py-3 border-b border-border-subtle last:border-b-0"
                   >
-                    <span className="text-[13px] text-text-primary whitespace-nowrap pr-6">{r[0]}</span>
-                    <div className="flex gap-5 items-center shrink-0">
-                      <span className="text-[15px] font-bold text-text-primary whitespace-nowrap">{r[1]}</span>
-                      <span className="text-base font-bold gradient-text min-w-[50px] text-right">{r[2]}</span>
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-[13px] text-text-primary">{m.label}</span>
+                      <span className="text-base font-bold gradient-text shrink-0">{m.valor}</span>
+                    </div>
+                    <div className="mt-1 space-y-0.5">
+                      {m.jugadores.map((nombre, j) => (
+                        <div key={j} className="text-[12px] font-semibold text-text-primary">{nombre}</div>
+                      ))}
                     </div>
                   </div>
                 ))}
