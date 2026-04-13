@@ -33,6 +33,7 @@ export default function Asistencias() {
   const [equipoActivo, setEquipoActivo] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fechas, setFechas] = useState<string[]>(Array(10).fill(''));
+  const [jugadas, setJugadas] = useState<boolean[]>(Array(10).fill(false));
   const [isLight, setIsLight] = useState(false);
 
   useEffect(() => {
@@ -52,16 +53,22 @@ export default function Asistencias() {
         // Extract dates from FIXTURE (col 1=jornada, col 5=fecha)
         if (fixtureData.success && fixtureData.data.length > 1) {
           const jornadaDates = new Map<string, string>();
+          const jornadaPlayed = new Set<string>();
           fixtureData.data.slice(1).forEach((r: string[]) => {
             const jornada = (r[1] || '').trim();
             const fecha = (r[5] || '').trim();
-            if (jornada && fecha && /^\d+$/.test(jornada) && !jornadaDates.has(jornada)) {
-              // Keep only DD/MM
-              const parts = fecha.split('/');
-              jornadaDates.set(jornada, parts.length >= 2 ? `${parts[0]}/${parts[1]}` : fecha);
+            const mLocal = parseInt(r[7]) || 0;
+            const mVisit = parseInt(r[8]) || 0;
+            if (jornada && /^\d+$/.test(jornada)) {
+              if (fecha && !jornadaDates.has(jornada)) {
+                const parts = fecha.split('/');
+                jornadaDates.set(jornada, parts.length >= 2 ? `${parts[0]}/${parts[1]}` : fecha);
+              }
+              if (mLocal > 0 || mVisit > 0) jornadaPlayed.add(jornada);
             }
           });
           setFechas(Array.from({ length: 10 }, (_, i) => jornadaDates.get(String(i + 1)) || ''));
+          setJugadas(Array.from({ length: 10 }, (_, i) => jornadaPlayed.has(String(i + 1))));
         }
 
         if (data.success && data.data.length > 1) {
@@ -171,20 +178,23 @@ export default function Asistencias() {
                   </div>
                   {/* Mini attendance dots */}
                   <div className="flex gap-1.5 mt-3">
-                    {j.fechas.map((f, fi) => (
-                      <div
-                        key={fi}
-                        className="w-5 h-5 rounded text-[10px] flex items-center justify-center font-bold"
-                        style={{
-                          background: f === '1' ? (isLight ? 'rgba(10,122,42,0.15)' : 'rgba(94,255,128,0.15)')
-                            : f === '0' ? (isLight ? 'rgba(196,24,24,0.15)' : 'rgba(255,107,107,0.15)')
-                            : 'transparent',
-                          color: f === '1' ? checkColor : f === '0' ? crossColor : 'transparent',
-                        }}
-                      >
-                        {f === '1' ? '✓' : f === '0' ? '✗' : ''}
-                      </div>
-                    ))}
+                    {j.fechas.map((f, fi) => {
+                      const played = jugadas[fi];
+                      return (
+                        <div
+                          key={fi}
+                          className="w-5 h-5 rounded text-[10px] flex items-center justify-center font-bold"
+                          style={{
+                            background: !played ? 'transparent'
+                              : f === '1' ? (isLight ? 'rgba(10,122,42,0.15)' : 'rgba(94,255,128,0.15)')
+                              : (isLight ? 'rgba(196,24,24,0.15)' : 'rgba(255,107,107,0.15)'),
+                            color: !played ? 'transparent' : f === '1' ? checkColor : crossColor,
+                          }}
+                        >
+                          {played ? (f === '1' ? '✓' : '✗') : ''}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -209,7 +219,7 @@ export default function Asistencias() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-bg-header text-[10px] uppercase tracking-wide" style={{ color: '#ffffff' }}>
-                      <th className="text-left px-4 py-2.5 font-bold w-[160px]">Jugador</th>
+                      <th className="text-center align-middle px-4 py-3 font-bold text-[14px] w-[160px]">Jugador</th>
                       {fechas.map((f, i) => (
                         <th key={i} className="text-center px-1 py-2.5 font-bold w-[50px]">{f || `F${i + 1}`}</th>
                       ))}
@@ -228,15 +238,20 @@ export default function Asistencias() {
                         }`}
                       >
                         <td className="px-4 py-2.5 text-xs font-medium">{j.nombre}</td>
-                        {j.fechas.map((f, fi) => (
-                          <td key={fi} className="text-center py-2.5">
-                            <span className="text-sm font-bold" style={{
-                              color: f === '1' ? checkColor : f === '0' ? crossColor : 'transparent',
-                            }}>
-                              {f === '1' ? '✓' : f === '0' ? '✗' : ''}
-                            </span>
-                          </td>
-                        ))}
+                        {j.fechas.map((f, fi) => {
+                          const played = jugadas[fi];
+                          return (
+                            <td key={fi} className="text-center py-2.5">
+                              {played ? (
+                                <span className="text-sm font-bold" style={{
+                                  color: f === '1' ? checkColor : crossColor,
+                                }}>
+                                  {f === '1' ? '✓' : '✗'}
+                                </span>
+                              ) : null}
+                            </td>
+                          );
+                        })}
                         <td className="text-center py-2.5 text-xs font-semibold">{j.asistencia}</td>
                         <td className="text-center py-2.5 text-xs">{j.totalFechas}</td>
                         <td className="text-center py-2.5 text-xs font-semibold">{j.fraccion}</td>
