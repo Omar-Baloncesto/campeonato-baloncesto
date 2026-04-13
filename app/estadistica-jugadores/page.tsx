@@ -19,6 +19,47 @@ import DataFreshness from '../components/DataFreshness';
 //  33      = Suma P3      (green)
 //  34      = Subtotal     (brick)
 
+const SPREADSHEET_ID = '1JF2vVbrnMYTMC3WrOVVv-vkTICBxh06S0t-40cyPIo0';
+
+// Fetch directly from the browser using Google's gviz/tq endpoint.
+// This requires no API key — it works for any publicly-shared spreadsheet
+// and is called client-side so it bypasses the server proxy entirely.
+async function fetchSheetRows(sheet: string, range: string): Promise<string[][]> {
+  const url =
+    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq` +
+    `?sheet=${encodeURIComponent(sheet)}&range=${encodeURIComponent(range)}&tqx=out:json`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+
+  // Response is a JSONP wrapper:  /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+  const match = text.match(/google\.visualization\.Query\.setResponse\((\{[\s\S]*\})\)/);
+  if (!match) throw new Error('Formato de respuesta inesperado');
+
+  const payload = JSON.parse(match[1]) as {
+    status: string;
+    table: {
+      cols: unknown[];
+      rows: Array<{ c: Array<{ v: unknown } | null> | null } | null>;
+    };
+  };
+  if (payload.status !== 'ok') throw new Error(`Estado: ${payload.status}`);
+
+  const { cols, rows } = payload.table;
+  const numCols = cols.length;
+
+  return rows.map(row => {
+    const cells: string[] = new Array(numCols).fill('');
+    if (row?.c) {
+      row.c.forEach((cell, i) => {
+        if (cell?.v != null) cells[i] = String(cell.v);
+      });
+    }
+    return cells;
+  });
+}
+
 const FECHAS_LABELS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10'];
 const FECHAS_FULL   = ['21/02','28/02','7/03','14/03','26/03','11/04','18/04','25/04','2/05','9/05'];
 
@@ -75,37 +116,32 @@ export default function EstadisticaJugadores() {
   const fetchData = () => {
     setLoading(true);
     setError(false);
-    fetch('/api/sheets?sheet=EstadisticasJugadores&range=A:AI')
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && data.data.length > 1) {
-          const rows: string[][] = data.data;
+    fetchSheetRows('EstadisticasJugadores', 'A1:AI200')
+      .then(rows => {
+        if (rows.length < 2) { setError(true); setLoading(false); return; }
 
-          const result: EquipoData[] = EQUIPOS_CONFIG.map(eq => {
-            // rows array is 0-indexed; sheet rows are 1-indexed
-            const playerRows = rows.slice(eq.playerRowStart - 1, eq.playerRowEnd);
+        const result: EquipoData[] = EQUIPOS_CONFIG.map(eq => {
+          // rows array is 0-indexed; sheet rows are 1-indexed
+          const playerRows = rows.slice(eq.playerRowStart - 1, eq.playerRowEnd);
 
-            const jugadores: JugadorDetalle[] = playerRows
-              .filter(r => r[0] && r[0].trim() !== '')  // skip empty rows
-              .map(r => ({
-                nombre:   r[0],
-                p1:       [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])),
-                sumaP1:   parseNum(r[11]),
-                p2:       [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])),
-                sumaP2:   parseNum(r[22]),
-                p3:       [23,24,25,26,27,28,29,30,31,32].map(i => parseNum(r[i])),
-                sumaP3:   parseNum(r[33]),
-                subtotal: parseNum(r[34]),
-              }));
+          const jugadores: JugadorDetalle[] = playerRows
+            .filter(r => r[0] && r[0].trim() !== '')  // skip empty rows
+            .map(r => ({
+              nombre:   r[0],
+              p1:       [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])),
+              sumaP1:   parseNum(r[11]),
+              p2:       [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])),
+              sumaP2:   parseNum(r[22]),
+              p3:       [23,24,25,26,27,28,29,30,31,32].map(i => parseNum(r[i])),
+              sumaP3:   parseNum(r[33]),
+              subtotal: parseNum(r[34]),
+            }));
 
-            return { nombre: eq.nombre, jugadores };
-          });
+          return { nombre: eq.nombre, jugadores };
+        });
 
-          setEquipos(result);
-          setLastUpdated(new Date());
-        } else if (!data.success) {
-          setError(true);
-        }
+        setEquipos(result);
+        setLastUpdated(new Date());
         setLoading(false);
       })
       .catch(() => { setError(true); setLoading(false); });
