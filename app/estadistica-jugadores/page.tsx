@@ -154,31 +154,33 @@ export default function EstadisticaJugadores() {
   const fetchData = () => {
     setLoading(true);
     setError(false);
-    fetchSheetRows('EstadisticasJugadores', 'A1:AI200')
-      .then(rows => {
+    Promise.all([
+      fetchSheetRows('EstadisticasJugadores', 'A1:AI200'),
+      fetchSheetRows('FIXTURE', 'A1:G200'),
+    ])
+      .then(([rows, fixtureRows]) => {
         if (rows.length < 2) { setError(true); setLoading(false); return; }
-        // Dynamically find team title rows ("Equipo: ...") instead of
-        // relying on hardcoded row numbers that depend on gviz offset
+
+        // Extract dates from FIXTURE sheet (col 1=jornada, col 5=fecha)
+        const jornadaDates = new Map<string, string>();
+        fixtureRows.forEach(r => {
+          const jornada = (r[1] || '').trim();
+          const fecha = (r[5] || '').trim();
+          if (jornada && fecha && /^\d+$/.test(jornada) && !jornadaDates.has(jornada)) {
+            // Keep only day/month (trim year if present, e.g. "21/02/2026" → "21/02")
+            const parts = fecha.split('/');
+            jornadaDates.set(jornada, parts.length >= 2 ? `${parts[0]}/${parts[1]}` : fecha);
+          }
+        });
+        setFechasDates(Array.from({ length: 10 }, (_, i) => jornadaDates.get(String(i + 1)) || ''));
+
+        // Dynamically find team title rows ("Equipo: ...")
         const teamTitleIndices: number[] = [];
         rows.forEach((r, i) => {
           if ((r[0] || '').trim().toLowerCase().startsWith('equipo')) {
             teamTitleIndices.push(i);
           }
         });
-
-        // Extract date labels from header rows (between first title and first player)
-        if (teamTitleIndices.length > 0) {
-          const start = teamTitleIndices[0] + 1;
-          const end = Math.min(start + 4, teamTitleIndices[1] ?? rows.length);
-          for (let i = start; i < end; i++) {
-            const row = rows[i];
-            // Look for a row whose columns 1-10 contain date-like values (with "/")
-            if (row.slice(1, 11).some(c => (c || '').includes('/'))) {
-              setFechasDates(row.slice(1, 11).map(c => (c || '').trim()));
-              break;
-            }
-          }
-        }
 
         const result: EquipoData[] = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
           const titleIdx = teamTitleIndices[teamIdx];
