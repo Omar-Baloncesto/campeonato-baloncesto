@@ -152,11 +152,11 @@ export default function Dashboard() {
             </div>
           ) : error ? (
             <ErrorState
-              message="No se pudieron cargar los equipos. Verifica tu conexion a internet."
+              message="No se pudieron cargar los equipos. Verifica tu conexión a internet."
               onRetry={fetchData}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 stagger-children">
               {equipos.map(eq => {
                 const color = badgeColor(eq);
                 const team = TEAMS[eq.id];
@@ -172,17 +172,18 @@ export default function Dashboard() {
                 return (
                   <div
                     key={eq.id}
-                    className="bg-bg-primary/80 rounded-xl overflow-hidden border border-border-light glow-hover cursor-pointer group"
+                    className="bg-bg-card rounded-xl border border-border-light glow-hover cursor-pointer group"
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
                     {team?.photo && (
-                      <div className="relative w-full aspect-[4/3] overflow-hidden">
+                      <div className="relative w-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={team.photo}
-                          alt={`Equipo ${eq.nombre}`}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          alt={`Foto del equipo ${eq.nombre}`}
+                          className="w-full h-auto block rounded-t-xl"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-t-xl" />
                       </div>
                     )}
                     <div className="p-4 flex items-center gap-3">
@@ -250,19 +251,19 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3 pt-3">
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Prom. Pts/Part.</div>
                                 <div className="text-lg font-bold text-positive">{ppgOff}</div>
                               </div>
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Prom. Pts Rec./Part.</div>
                                 <div className="text-lg font-bold text-negative">{ppgDef}</div>
                               </div>
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Ratio PF/PC</div>
                                 <div className="text-lg font-bold text-gold">{ratio}</div>
                               </div>
-                              <div className="text-center p-2 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+                              <div className="text-center p-2 rounded-lg bg-bg-secondary border border-border-subtle">
                                 <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">% Victorias</div>
                                 <div className="text-lg font-bold text-text-primary">{winPct}%</div>
                               </div>

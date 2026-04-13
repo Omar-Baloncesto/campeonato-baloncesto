@@ -7,6 +7,12 @@ import DataFreshness from '../components/DataFreshness';
 import SearchInput from '../components/SearchInput';
 import { normalizeText } from '../lib/utils';
 
+function getInitials(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return nombre.slice(0, 2).toUpperCase();
+}
+
 interface Jugador {
   id: string;
   nombre: string;
@@ -195,11 +201,25 @@ export default function Jugadores() {
 
       <div className="px-4 md:px-6 pb-8">
         {loading ? (
-          <LoadingState message="Cargando jugadores..." />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="glass-card rounded-xl overflow-hidden">
+                <div className="p-4 flex items-center gap-3.5">
+                  <div className="skeleton w-14 h-14 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="skeleton h-4 w-3/4 rounded" />
+                    <div className="skeleton h-3 w-1/2 rounded" />
+                    <div className="skeleton h-3 w-1/4 rounded" />
+                  </div>
+                  <div className="skeleton w-4 h-4 rounded shrink-0" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <ErrorState onRetry={fetchData} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
             {filtrados.map(j => {
               const team = TEAMS[j.equipoId];
               const color = team?.safeColor || '#888';
@@ -220,15 +240,15 @@ export default function Jugadores() {
                     onClick={() => toggleExpand(j)}
                   >
                     <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0 transition-transform group-hover:scale-105"
+                      className="w-14 h-14 rounded-full flex flex-col items-center justify-center shrink-0 transition-transform group-hover:scale-105 select-none"
                       style={{
-                        background: isWhite ? '#FFFFFF' : `linear-gradient(135deg, ${color}30, ${color}10)`,
-                        border: `2px solid ${color}50`,
-                        color: isWhite ? '#000000' : color,
-                        boxShadow: `0 2px 10px ${color}15`,
+                        background: isWhite ? '#cccccc' : color,
+                        color: '#ffffff',
+                        boxShadow: `0 2px 10px ${color}40`,
                       }}
                     >
-                      {j.numero || '?'}
+                      <span className="text-base font-bold leading-none">{getInitials(j.nombre)}</span>
+                      {j.numero && <span className="text-[11px] font-black leading-none mt-1" style={{ color: '#000000' }}>#{j.numero}</span>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-tight truncate">{j.nombre}</div>
@@ -331,7 +351,7 @@ export default function Jugadores() {
                           {/* Empty state if no data at all */}
                           {st.totalPuntos === 0 && st.totalBreakdown === 0 && st.fechas.length === 0 && (
                             <div className="py-4 text-center text-xs text-text-muted">
-                              Sin estadisticas disponibles
+                              Sin estadísticas disponibles
                             </div>
                           )}
                         </div>
