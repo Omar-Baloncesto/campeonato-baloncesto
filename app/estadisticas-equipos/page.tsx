@@ -126,7 +126,7 @@ export default function EstadisticasEquipos() {
               <table className="w-full min-w-[400px]">
                 <thead>
                   <tr className="bg-bg-header text-[12px] uppercase tracking-wide font-bold" style={{ color: '#ffffff' }}>
-                    <th className="text-left px-5 py-2.5 font-medium">Jugador</th>
+                    <th className="text-center align-middle px-5 py-3 font-bold text-[14px]">Jugador</th>
                     <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 1</th>
                     <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 2</th>
                     <th className="text-center px-3 py-2.5 font-medium w-24">Puntos de 3</th>
