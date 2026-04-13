@@ -49,7 +49,6 @@ async function fetchSheetRows(sheet: string, range: string): Promise<string[][]>
 }
 
 const FECHAS_LABELS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10'];
-const FECHAS_FULL   = ['21/02','28/02','7/03','14/03','26/03','11/04','18/04','25/04','2/05','9/05'];
 
 const EQUIPOS_NOMBRES = [
   'Miami Heat',
@@ -142,6 +141,7 @@ export default function EstadisticaJugadores() {
   const [error, setError]               = useState(false);
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
   const [isLight, setIsLight]           = useState(false);
+  const [fechasDates, setFechasDates]   = useState<string[]>(Array(10).fill(''));
 
   useEffect(() => {
     const check = () => setIsLight(document.documentElement.classList.contains('light'));
@@ -165,6 +165,20 @@ export default function EstadisticaJugadores() {
             teamTitleIndices.push(i);
           }
         });
+
+        // Extract date labels from header rows (between first title and first player)
+        if (teamTitleIndices.length > 0) {
+          const start = teamTitleIndices[0] + 1;
+          const end = Math.min(start + 4, teamTitleIndices[1] ?? rows.length);
+          for (let i = start; i < end; i++) {
+            const row = rows[i];
+            // Look for a row whose columns 1-10 contain date-like values (with "/")
+            if (row.slice(1, 11).some(c => (c || '').includes('/'))) {
+              setFechasDates(row.slice(1, 11).map(c => (c || '').trim()));
+              break;
+            }
+          }
+        }
 
         const result: EquipoData[] = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
           const titleIdx = teamTitleIndices[teamIdx];
@@ -279,7 +293,7 @@ export default function EstadisticaJugadores() {
                   <tr>
                     <th
                       rowSpan={2}
-                      className="text-left px-3 py-2 font-semibold sticky left-0 z-20 text-[12px]"
+                      className="text-center align-middle px-3 py-3 font-bold sticky left-0 z-20 text-[15px] uppercase tracking-wide"
                       style={{ background: C.name.bg, minWidth: '160px', borderRight: `1px solid ${C.name.bdr}`, color: '#ffffff' }}
                     >
                       Jugador
@@ -319,7 +333,7 @@ export default function EstadisticaJugadores() {
                           minWidth: '32px',
                         }}>
                         {lbl}
-                        <div style={{ fontSize: '8px', opacity: 0.75 }}>{FECHAS_FULL[i]}</div>
+                        <div style={{ fontSize: '8px', opacity: 0.75 }}>{fechasDates[i]}</div>
                       </th>
                     ))}
                     {/* Σ P1 */}
@@ -338,7 +352,7 @@ export default function EstadisticaJugadores() {
                           minWidth: '32px',
                         }}>
                         {lbl}
-                        <div style={{ fontSize: '8px', opacity: 0.75 }}>{FECHAS_FULL[i]}</div>
+                        <div style={{ fontSize: '8px', opacity: 0.75 }}>{fechasDates[i]}</div>
                       </th>
                     ))}
                     {/* Σ P2 */}
@@ -357,7 +371,7 @@ export default function EstadisticaJugadores() {
                           minWidth: '32px',
                         }}>
                         {lbl}
-                        <div style={{ fontSize: '8px', opacity: 0.75 }}>{FECHAS_FULL[i]}</div>
+                        <div style={{ fontSize: '8px', opacity: 0.75 }}>{fechasDates[i]}</div>
                       </th>
                     ))}
                     {/* Σ P3 */}
