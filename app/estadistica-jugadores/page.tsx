@@ -172,11 +172,9 @@ export default function EstadisticaJugadores() {
           // To read sheet rows R_start..R_end: slice(R_start-3, R_end-2)
           const playerRows = rows.slice(eq.playerRowStart - 3, eq.playerRowEnd - 2);
           const jugadores: JugadorDetalle[] = playerRows
-            // Only skip rows that are team title rows (e.g. "Equipo: Brooklyn Nets")
-            // Empty rows are kept so all 12 slots remain visible
-            .filter(r => !r[0]?.trim().toLowerCase().startsWith('equipo'))
             .map(r => ({
-              nombre:   r[0],
+              // If the cell starts with "Equipo:" it is a title row — treat as empty slot
+              nombre:   (r[0] ?? '').trim().toLowerCase().startsWith('equipo') ? '' : (r[0] ?? ''),
               p1:       [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])),
               sumaP1:   parseNum(r[11]),
               p2:       [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])),
