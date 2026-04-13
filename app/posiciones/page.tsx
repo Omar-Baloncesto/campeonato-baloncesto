@@ -154,9 +154,9 @@ export default function Posiciones() {
                       </td>
                     </tr>,
                     isExpanded && (
-                      <tr key={`detail-${i}`} className={i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-bg-card/30'}>
+                      <tr key={`detail-${i}`} className="bg-bg-darkest">
                         <td colSpan={10} className="p-0">
-                          <div className="px-6 py-4 bg-bg-darkest/50 border-t border-border-subtle">
+                          <div className="px-6 py-4 border-t border-border-subtle">
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                               <StatBox label="Prom. Pts/Part." value={ppgOff} color="text-positive" />
                               <StatBox label="Prom. Pts Rec./Part." value={ppgDef} color="text-negative" />
@@ -180,7 +180,7 @@ export default function Posiciones() {
 
 function StatBox({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="text-center p-3 rounded-lg bg-bg-secondary/60 border border-border-subtle">
+    <div className="text-center p-3 rounded-lg bg-bg-secondary border border-border-light">
       <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{label}</div>
       <div className={`text-lg font-bold ${color}`}>{value}</div>
     </div>
