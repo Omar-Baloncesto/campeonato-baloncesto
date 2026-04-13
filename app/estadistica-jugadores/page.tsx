@@ -162,14 +162,26 @@ export default function EstadisticaJugadores() {
         if (rows.length < 2) { setError(true); setLoading(false); return; }
 
         // Extract dates from FIXTURE sheet (col 1=jornada, col 5=fecha)
+        // gviz may return dates as "Date(2026,1,21)", "21/02/2026", or "21/02"
+        const parseDateDM = (raw: string): string => {
+          // gviz date format: "Date(year,month,day)" (month is 0-indexed)
+          const gvizMatch = raw.match(/Date\((\d+),(\d+),(\d+)\)/);
+          if (gvizMatch) {
+            const day = gvizMatch[3].padStart(2, '0');
+            const month = String(Number(gvizMatch[2]) + 1).padStart(2, '0');
+            return `${day}/${month}`;
+          }
+          // "21/02/2026" or "21/02" → keep only DD/MM
+          const parts = raw.split('/');
+          if (parts.length >= 2) return `${parts[0]}/${parts[1]}`;
+          return raw;
+        };
         const jornadaDates = new Map<string, string>();
         fixtureRows.forEach(r => {
           const jornada = (r[1] || '').trim();
           const fecha = (r[5] || '').trim();
           if (jornada && fecha && /^\d+$/.test(jornada) && !jornadaDates.has(jornada)) {
-            // Keep only day/month (trim year if present, e.g. "21/02/2026" → "21/02")
-            const parts = fecha.split('/');
-            jornadaDates.set(jornada, parts.length >= 2 ? `${parts[0]}/${parts[1]}` : fecha);
+            jornadaDates.set(jornada, parseDateDM(fecha));
           }
         });
         setFechasDates(Array.from({ length: 10 }, (_, i) => jornadaDates.get(String(i + 1)) || ''));
