@@ -55,7 +55,7 @@ export default function EstadisticasEquipos() {
                 const name = (r[0] || '').trim();
                 if (name === '') return false;
                 const lower = name.toLowerCase();
-                return !lower.startsWith('equipo') && lower !== 'jugador';
+                return !lower.startsWith('equipo') && !lower.startsWith('jugador');
               })
               .map((r: string[]) => ({
                 nombre: r[0], p1: r[1] || '0',
