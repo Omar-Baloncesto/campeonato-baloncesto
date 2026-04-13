@@ -172,7 +172,9 @@ export default function EstadisticaJugadores() {
           // To read sheet rows R_start..R_end: slice(R_start-3, R_end-2)
           const playerRows = rows.slice(eq.playerRowStart - 3, eq.playerRowEnd - 2);
           const jugadores: JugadorDetalle[] = playerRows
-            .filter(r => r[0] && r[0].trim() !== '' && !r[0].startsWith('Equipo'))
+            // Only skip rows that are team title rows (e.g. "Equipo: Brooklyn Nets")
+            // Empty rows are kept so all 12 slots remain visible
+            .filter(r => !r[0]?.trim().toLowerCase().startsWith('equipo'))
             .map(r => ({
               nombre:   r[0],
               p1:       [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])),
@@ -192,7 +194,12 @@ export default function EstadisticaJugadores() {
       .catch(() => { setError(true); setLoading(false); });
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    // Auto-refresh every 5 minutes so new players added in Google Sheets appear automatically
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const C = makeColors(isLight);
   const eq = equipos[equipoActivo];
@@ -355,12 +362,14 @@ export default function EstadisticaJugadores() {
                 <tbody>
                   {eq.jugadores.map((j, rowIdx) => {
                     const rowBg = rowIdx % 2 === 0 ? 'var(--color-bg-secondary)' : 'var(--color-bg-card)';
+                    const isEmpty = !j.nombre || j.nombre.trim() === '';
                     return (
-                      <tr key={rowIdx} className="border-b border-border-subtle table-row-hover">
+                      <tr key={rowIdx} className="border-b border-border-subtle table-row-hover"
+                        style={{ opacity: isEmpty ? 0.35 : 1 }}>
                         {/* Name */}
                         <td className="px-3 py-2 font-semibold text-[12px] sticky left-0 z-10"
                           style={{ background: rowBg, borderRight: `1px solid ${C.name.bdr}`, color: 'var(--color-text-primary)' }}>
-                          {j.nombre}
+                          {isEmpty ? '' : j.nombre}
                         </td>
 
                         {/* P1 F1-F10 */}
