@@ -90,42 +90,42 @@ function parseNum(v: string | undefined): number {
 function makeColors(light: boolean) {
   return {
     p1: {
-      bg:    light ? 'rgba(180,145,0,0.09)'  : 'rgba(255,220,0,0.10)',
+      bg:    light ? 'rgba(180,145,0,0.09)'  : 'rgba(255,220,0,0.13)',
       hdr:   light ? 'rgba(150,120,0,0.80)'  : 'rgba(160,140,0,0.60)',
       bdr:   light ? 'rgba(150,120,0,0.55)'  : 'rgba(220,200,0,0.45)',
       txt:   '#ffffff',
-      val:   light ? '#7a5c00'               : '#f0cc10',
+      val:   light ? '#7a5c00'               : '#ffe450',
       label: 'PUNTOS DE 1',
     },
     p2: {
-      bg:    light ? 'rgba(20,80,200,0.09)'  : 'rgba(60,130,255,0.10)',
+      bg:    light ? 'rgba(20,80,200,0.09)'  : 'rgba(60,130,255,0.13)',
       hdr:   light ? 'rgba(20,70,190,0.80)'  : 'rgba(40,80,200,0.60)',
       bdr:   light ? 'rgba(20,70,190,0.55)'  : 'rgba(80,140,255,0.45)',
       txt:   '#ffffff',
-      val:   light ? '#0e3f9e'               : '#80b8ff',
+      val:   light ? '#0e3f9e'               : '#a0d4ff',
       label: 'PUNTOS DE 2',
     },
     p3: {
-      bg:    light ? 'rgba(190,20,110,0.09)' : 'rgba(240,60,160,0.10)',
+      bg:    light ? 'rgba(190,20,110,0.09)' : 'rgba(240,60,160,0.13)',
       hdr:   light ? 'rgba(170,15,95,0.80)'  : 'rgba(180,30,110,0.60)',
       bdr:   light ? 'rgba(170,15,95,0.55)'  : 'rgba(230,70,160,0.45)',
       txt:   '#ffffff',
-      val:   light ? '#960058'               : '#ff88cc',
+      val:   light ? '#960058'               : '#ffaadd',
       label: 'PUNTOS DE 3',
     },
     suma: {
-      bg:    light ? 'rgba(10,150,50,0.09)'  : 'rgba(50,210,90,0.10)',
+      bg:    light ? 'rgba(10,150,50,0.09)'  : 'rgba(50,210,90,0.13)',
       hdr:   light ? 'rgba(10,130,45,0.80)'  : 'rgba(30,160,70,0.60)',
       bdr:   light ? 'rgba(10,130,45,0.55)'  : 'rgba(60,210,100,0.45)',
       txt:   '#ffffff',
-      val:   light ? '#0a5a20'               : '#55e878',
+      val:   light ? '#0a5a20'               : '#80ff98',
     },
     sub: {
-      bg:    light ? 'rgba(185,100,0,0.09)'  : 'rgba(230,140,30,0.12)',
+      bg:    light ? 'rgba(185,100,0,0.09)'  : 'rgba(230,140,30,0.15)',
       hdr:   light ? 'rgba(160,85,0,0.80)'   : 'rgba(190,110,20,0.65)',
       bdr:   light ? 'rgba(160,85,0,0.55)'   : 'rgba(230,150,40,0.50)',
       txt:   '#ffffff',
-      val:   light ? '#7a3f00'               : '#f0a030',
+      val:   light ? '#7a3f00'               : '#ffc050',
       label: 'SUBTOTAL',
     },
     name: {
@@ -169,10 +169,7 @@ export default function EstadisticaJugadores() {
         const result: EquipoData[] = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
           const titleIdx = teamTitleIndices[teamIdx];
           if (titleIdx == null) {
-            return { nombre, jugadores: Array.from({ length: 12 }, () => ({
-              nombre: '', p1: Array(10).fill(0), p2: Array(10).fill(0),
-              p3: Array(10).fill(0), sumaP1: 0, sumaP2: 0, sumaP3: 0, subtotal: 0,
-            })) };
+            return { nombre, jugadores: [] };
           }
           // Read all rows from after this title to the next team's title
           const nextTitle = teamTitleIndices[teamIdx + 1] ?? rows.length;
@@ -197,13 +194,6 @@ export default function EstadisticaJugadores() {
               sumaP3:   parseNum(r[33]),
               subtotal: parseNum(r[34]),
             }));
-          // Pad to 12 slots
-          while (jugadores.length < 12) {
-            jugadores.push({
-              nombre: '', p1: Array(10).fill(0), p2: Array(10).fill(0),
-              p3: Array(10).fill(0), sumaP1: 0, sumaP2: 0, sumaP3: 0, subtotal: 0,
-            });
-          }
           return { nombre, jugadores };
         });
         setEquipos(result);
@@ -275,7 +265,7 @@ export default function EstadisticaJugadores() {
               >
                 {eq.nombre}
               </span>
-              <span className="text-xs text-text-muted ml-2">{eq.jugadores.length} jugadores</span>
+              <span className="text-xs text-text-muted ml-2">{eq.jugadores.filter(j => j.nombre.trim() !== '').length} jugadores</span>
             </div>
 
             {/* Table */}
@@ -381,14 +371,12 @@ export default function EstadisticaJugadores() {
                 <tbody>
                   {eq.jugadores.map((j, rowIdx) => {
                     const rowBg = rowIdx % 2 === 0 ? 'var(--color-bg-secondary)' : 'var(--color-bg-card)';
-                    const isEmpty = !j.nombre || j.nombre.trim() === '';
                     return (
-                      <tr key={rowIdx} className="border-b border-border-subtle table-row-hover"
-                        style={{ opacity: isEmpty ? 0.35 : 1 }}>
+                      <tr key={rowIdx} className="border-b border-border-subtle table-row-hover">
                         {/* Name */}
                         <td className="px-3 py-2 font-semibold text-[12px] sticky left-0 z-10"
                           style={{ background: rowBg, borderRight: `1px solid ${C.name.bdr}`, color: 'var(--color-text-primary)' }}>
-                          {isEmpty ? '' : j.nombre}
+                          {j.nombre}
                         </td>
 
                         {/* P1 F1-F10 */}
