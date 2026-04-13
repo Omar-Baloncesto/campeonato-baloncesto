@@ -172,19 +172,34 @@ export default function EstadisticaJugadores() {
           // To read sheet rows R_start..R_end: slice(R_start-3, R_end-2)
           const playerRows = rows.slice(eq.playerRowStart - 3, eq.playerRowEnd - 2);
           const jugadores: JugadorDetalle[] = playerRows
-            // Only skip rows that are team title rows (e.g. "Equipo: Brooklyn Nets")
-            // Empty rows are kept so all 12 slots remain visible
-            .filter(r => !r[0]?.trim().toLowerCase().startsWith('equipo'))
-            .map(r => ({
-              nombre:   r[0],
-              p1:       [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])),
-              sumaP1:   parseNum(r[11]),
-              p2:       [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])),
-              sumaP2:   parseNum(r[22]),
-              p3:       [23,24,25,26,27,28,29,30,31,32].map(i => parseNum(r[i])),
-              sumaP3:   parseNum(r[33]),
-              subtotal: parseNum(r[34]),
-            }));
+            // Skip header rows: team titles ("Equipo: ...") and sub-headers ("Jugador")
+            .filter(r => {
+              const name = r[0]?.trim().toLowerCase() || '';
+              return !name.startsWith('equipo') && name !== 'jugador';
+            })
+            .map(r => {
+              const nombre = r[0]?.trim() || '';
+              const hasName = nombre !== '';
+              // Zero out stats for empty-name rows to prevent formula artifacts
+              // (the sheet has formulas that produce bogus subtotals in blank rows)
+              return {
+                nombre,
+                p1:       hasName ? [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])) : Array(10).fill(0),
+                sumaP1:   hasName ? parseNum(r[11]) : 0,
+                p2:       hasName ? [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])) : Array(10).fill(0),
+                sumaP2:   hasName ? parseNum(r[22]) : 0,
+                p3:       hasName ? [23,24,25,26,27,28,29,30,31,32].map(i => parseNum(r[i])) : Array(10).fill(0),
+                sumaP3:   hasName ? parseNum(r[33]) : 0,
+                subtotal: hasName ? parseNum(r[34]) : 0,
+              };
+            });
+          // Pad to 12 slots when gviz returns fewer rows (e.g. Raptors at end of sheet)
+          while (jugadores.length < 12) {
+            jugadores.push({
+              nombre: '', p1: Array(10).fill(0), p2: Array(10).fill(0),
+              p3: Array(10).fill(0), sumaP1: 0, sumaP2: 0, sumaP3: 0, subtotal: 0,
+            });
+          }
           return { nombre: eq.nombre, jugadores };
         });
         setEquipos(result);
