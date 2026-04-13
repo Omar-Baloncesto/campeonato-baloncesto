@@ -168,32 +168,36 @@ export default function EstadisticaJugadores() {
 
         const result: EquipoData[] = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
           const titleIdx = teamTitleIndices[teamIdx];
-          // After title row, skip 2 header rows ("Jugador" + dates), read 12 player rows
-          const playerRows = titleIdx != null
-            ? rows.slice(titleIdx + 3, titleIdx + 15)
-            : [];
-          const jugadores: JugadorDetalle[] = playerRows
-            // Skip any sub-header rows that appear within the player block
+          if (titleIdx == null) {
+            return { nombre, jugadores: Array.from({ length: 12 }, () => ({
+              nombre: '', p1: Array(10).fill(0), p2: Array(10).fill(0),
+              p3: Array(10).fill(0), sumaP1: 0, sumaP2: 0, sumaP3: 0, subtotal: 0,
+            })) };
+          }
+          // Read all rows from after this title to the next team's title
+          const nextTitle = teamTitleIndices[teamIdx + 1] ?? rows.length;
+          const blockRows = rows.slice(titleIdx + 1, nextTitle);
+          // Keep only rows with an actual player name (filters out headers,
+          // blank rows, "Jugador" sub-headers, and formula-only rows)
+          const jugadores: JugadorDetalle[] = blockRows
             .filter(r => {
-              const name = (r[0] || '').trim().toLowerCase();
-              return !name.startsWith('equipo') && name !== 'jugador';
+              const name = (r[0] || '').trim();
+              if (name === '') return false;
+              const lower = name.toLowerCase();
+              return !lower.startsWith('equipo') && lower !== 'jugador';
             })
-            .map(r => {
-              const nombre = (r[0] || '').trim();
-              const hasName = nombre !== '';
-              // Zero out stats for empty-name rows to prevent formula artifacts
-              return {
-                nombre,
-                p1:       hasName ? [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])) : Array(10).fill(0),
-                sumaP1:   hasName ? parseNum(r[11]) : 0,
-                p2:       hasName ? [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])) : Array(10).fill(0),
-                sumaP2:   hasName ? parseNum(r[22]) : 0,
-                p3:       hasName ? [23,24,25,26,27,28,29,30,31,32].map(i => parseNum(r[i])) : Array(10).fill(0),
-                sumaP3:   hasName ? parseNum(r[33]) : 0,
-                subtotal: hasName ? parseNum(r[34]) : 0,
-              };
-            });
-          // Pad to 12 slots if fewer rows available
+            .slice(0, 12)
+            .map(r => ({
+              nombre: (r[0] || '').trim(),
+              p1:       [1,2,3,4,5,6,7,8,9,10].map(i => parseNum(r[i])),
+              sumaP1:   parseNum(r[11]),
+              p2:       [12,13,14,15,16,17,18,19,20,21].map(i => parseNum(r[i])),
+              sumaP2:   parseNum(r[22]),
+              p3:       [23,24,25,26,27,28,29,30,31,32].map(i => parseNum(r[i])),
+              sumaP3:   parseNum(r[33]),
+              subtotal: parseNum(r[34]),
+            }));
+          // Pad to 12 slots
           while (jugadores.length < 12) {
             jugadores.push({
               nombre: '', p1: Array(10).fill(0), p2: Array(10).fill(0),
