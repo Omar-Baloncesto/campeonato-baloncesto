@@ -150,20 +150,21 @@ export default function EstadisticaJugadores() {
 
   const eq = equipos[equipoActivo];
 
-  // Determine which dates have any data across all teams
-  const activeFechas: number[] = [];
-  if (eq) {
+  // Always show all 10 fechas (matching Google Sheets layout), mark which have data
+  const ALL_FECHAS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const fechasConDatos = new Set<number>();
+  if (equipos.length > 0) {
     for (let f = 0; f < 10; f++) {
       const hasData = equipos.some(team =>
         team.jugadores.some(j => j.fechas[f] && (j.fechas[f].p1 > 0 || j.fechas[f].p2 > 0 || j.fechas[f].p3 > 0))
       );
-      if (hasData) activeFechas.push(f);
+      if (hasData) fechasConDatos.add(f);
     }
   }
 
-  const nF = activeFechas.length;
-  // minWidth: player col (160) + 3 point-type sections (nF cols each) + 3 subtotal cols + 1 total col
-  const tableMinWidth = 160 + nF * 3 * 32 + 3 * 48 + 52;
+  const nF = 10;
+  // minWidth: player col (160) + 3 point-type sections (10 cols each) + 3 subtotal cols + 1 total col
+  const tableMinWidth = 160 + nF * 3 * 30 + 3 * 48 + 52;
 
   return (
     <div className="animate-fade-in">
@@ -240,49 +241,43 @@ export default function EstadisticaJugadores() {
                     </th>
 
                     {/* P1 section */}
-                    {nF > 0 && (
-                      <th
-                        colSpan={nF}
-                        className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
-                        style={{
-                          background: SECTION.p1.header,
-                          borderLeft: `2px solid ${SECTION.p1.border}`,
-                          color: SECTION.p1.text,
-                        }}
-                      >
-                        {SECTION.p1.label}
-                      </th>
-                    )}
+                    <th
+                      colSpan={nF}
+                      className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                      style={{
+                        background: SECTION.p1.header,
+                        borderLeft: `2px solid ${SECTION.p1.border}`,
+                        color: SECTION.p1.text,
+                      }}
+                    >
+                      {SECTION.p1.label}
+                    </th>
 
                     {/* P2 section */}
-                    {nF > 0 && (
-                      <th
-                        colSpan={nF}
-                        className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
-                        style={{
-                          background: SECTION.p2.header,
-                          borderLeft: `2px solid ${SECTION.p2.border}`,
-                          color: SECTION.p2.text,
-                        }}
-                      >
-                        {SECTION.p2.label}
-                      </th>
-                    )}
+                    <th
+                      colSpan={nF}
+                      className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                      style={{
+                        background: SECTION.p2.header,
+                        borderLeft: `2px solid ${SECTION.p2.border}`,
+                        color: SECTION.p2.text,
+                      }}
+                    >
+                      {SECTION.p2.label}
+                    </th>
 
                     {/* P3 section */}
-                    {nF > 0 && (
-                      <th
-                        colSpan={nF}
-                        className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
-                        style={{
-                          background: SECTION.p3.header,
-                          borderLeft: `2px solid ${SECTION.p3.border}`,
-                          color: SECTION.p3.text,
-                        }}
-                      >
-                        {SECTION.p3.label}
-                      </th>
-                    )}
+                    <th
+                      colSpan={nF}
+                      className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                      style={{
+                        background: SECTION.p3.header,
+                        borderLeft: `2px solid ${SECTION.p3.border}`,
+                        color: SECTION.p3.text,
+                      }}
+                    >
+                      {SECTION.p3.label}
+                    </th>
 
                     {/* Subtotals section */}
                     <th
@@ -315,58 +310,67 @@ export default function EstadisticaJugadores() {
                   {/* ── Row 2: date labels per section ── */}
                   <tr style={{ color: '#ffffffcc' }}>
                     {/* P1 date labels */}
-                    {activeFechas.map((f, i) => (
-                      <th
-                        key={`h-p1-${f}`}
-                        className="text-center px-1 py-1 font-medium"
-                        title={FECHAS_FULL[f]}
-                        style={{
-                          background: SECTION.p1.header,
-                          borderLeft: i === 0 ? `2px solid ${SECTION.p1.border}` : `1px solid rgba(234,179,8,0.15)`,
-                          color: '#ffffff99',
-                          minWidth: '32px',
-                        }}
-                      >
-                        {FECHAS_LABELS[f]}
-                        <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
-                      </th>
-                    ))}
+                    {ALL_FECHAS.map((f, i) => {
+                      const hasData = fechasConDatos.has(f);
+                      return (
+                        <th
+                          key={`h-p1-${f}`}
+                          className="text-center px-1 py-1 font-medium"
+                          title={FECHAS_FULL[f]}
+                          style={{
+                            background: hasData ? SECTION.p1.header : 'rgba(234,179,8,0.08)',
+                            borderLeft: i === 0 ? `2px solid ${SECTION.p1.border}` : `1px solid rgba(234,179,8,0.15)`,
+                            color: hasData ? '#ffffffcc' : '#ffffff44',
+                            minWidth: '30px',
+                          }}
+                        >
+                          {FECHAS_LABELS[f]}
+                          <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
+                        </th>
+                      );
+                    })}
 
                     {/* P2 date labels */}
-                    {activeFechas.map((f, i) => (
-                      <th
-                        key={`h-p2-${f}`}
-                        className="text-center px-1 py-1 font-medium"
-                        title={FECHAS_FULL[f]}
-                        style={{
-                          background: SECTION.p2.header,
-                          borderLeft: i === 0 ? `2px solid ${SECTION.p2.border}` : `1px solid rgba(59,130,246,0.15)`,
-                          color: '#ffffff99',
-                          minWidth: '32px',
-                        }}
-                      >
-                        {FECHAS_LABELS[f]}
-                        <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
-                      </th>
-                    ))}
+                    {ALL_FECHAS.map((f, i) => {
+                      const hasData = fechasConDatos.has(f);
+                      return (
+                        <th
+                          key={`h-p2-${f}`}
+                          className="text-center px-1 py-1 font-medium"
+                          title={FECHAS_FULL[f]}
+                          style={{
+                            background: hasData ? SECTION.p2.header : 'rgba(59,130,246,0.08)',
+                            borderLeft: i === 0 ? `2px solid ${SECTION.p2.border}` : `1px solid rgba(59,130,246,0.15)`,
+                            color: hasData ? '#ffffffcc' : '#ffffff44',
+                            minWidth: '30px',
+                          }}
+                        >
+                          {FECHAS_LABELS[f]}
+                          <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
+                        </th>
+                      );
+                    })}
 
                     {/* P3 date labels */}
-                    {activeFechas.map((f, i) => (
-                      <th
-                        key={`h-p3-${f}`}
-                        className="text-center px-1 py-1 font-medium"
-                        title={FECHAS_FULL[f]}
-                        style={{
-                          background: SECTION.p3.header,
-                          borderLeft: i === 0 ? `2px solid ${SECTION.p3.border}` : `1px solid rgba(236,72,153,0.15)`,
-                          color: '#ffffff99',
-                          minWidth: '32px',
-                        }}
-                      >
-                        {FECHAS_LABELS[f]}
-                        <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
-                      </th>
-                    ))}
+                    {ALL_FECHAS.map((f, i) => {
+                      const hasData = fechasConDatos.has(f);
+                      return (
+                        <th
+                          key={`h-p3-${f}`}
+                          className="text-center px-1 py-1 font-medium"
+                          title={FECHAS_FULL[f]}
+                          style={{
+                            background: hasData ? SECTION.p3.header : 'rgba(236,72,153,0.08)',
+                            borderLeft: i === 0 ? `2px solid ${SECTION.p3.border}` : `1px solid rgba(236,72,153,0.15)`,
+                            color: hasData ? '#ffffffcc' : '#ffffff44',
+                            minWidth: '30px',
+                          }}
+                        >
+                          {FECHAS_LABELS[f]}
+                          <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
+                        </th>
+                      );
+                    })}
 
                     {/* Subtotal labels */}
                     {(['ΣP1', 'ΣP2', 'ΣP3'] as const).map((lbl, i) => (
@@ -403,52 +407,55 @@ export default function EstadisticaJugadores() {
                         </td>
 
                         {/* P1 per fecha */}
-                        {activeFechas.map((f, i) => {
+                        {ALL_FECHAS.map((f, i) => {
                           const val = j.fechas[f]?.p1 || 0;
+                          const hasFechaData = fechasConDatos.has(f);
                           return (
                             <td
                               key={`p1-${f}`}
                               className="text-center px-1 py-2"
                               style={{
-                                background: SECTION.p1.cell,
+                                background: hasFechaData ? SECTION.p1.cell : 'rgba(234,179,8,0.03)',
                                 borderLeft: i === 0 ? `2px solid ${SECTION.p1.border}` : `1px solid rgba(234,179,8,0.08)`,
                               }}
                             >
-                              {val > 0 ? <span style={{ color: SECTION.p1.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.2 }}>-</span>}
+                              {val > 0 ? <span style={{ color: SECTION.p1.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.15 }}>-</span>}
                             </td>
                           );
                         })}
 
                         {/* P2 per fecha */}
-                        {activeFechas.map((f, i) => {
+                        {ALL_FECHAS.map((f, i) => {
                           const val = j.fechas[f]?.p2 || 0;
+                          const hasFechaData = fechasConDatos.has(f);
                           return (
                             <td
                               key={`p2-${f}`}
                               className="text-center px-1 py-2"
                               style={{
-                                background: SECTION.p2.cell,
+                                background: hasFechaData ? SECTION.p2.cell : 'rgba(59,130,246,0.03)',
                                 borderLeft: i === 0 ? `2px solid ${SECTION.p2.border}` : `1px solid rgba(59,130,246,0.08)`,
                               }}
                             >
-                              {val > 0 ? <span style={{ color: SECTION.p2.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.2 }}>-</span>}
+                              {val > 0 ? <span style={{ color: SECTION.p2.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.15 }}>-</span>}
                             </td>
                           );
                         })}
 
                         {/* P3 per fecha */}
-                        {activeFechas.map((f, i) => {
+                        {ALL_FECHAS.map((f, i) => {
                           const val = j.fechas[f]?.p3 || 0;
+                          const hasFechaData = fechasConDatos.has(f);
                           return (
                             <td
                               key={`p3-${f}`}
                               className="text-center px-1 py-2"
                               style={{
-                                background: SECTION.p3.cell,
+                                background: hasFechaData ? SECTION.p3.cell : 'rgba(236,72,153,0.03)',
                                 borderLeft: i === 0 ? `2px solid ${SECTION.p3.border}` : `1px solid rgba(236,72,153,0.08)`,
                               }}
                             >
-                              {val > 0 ? <span style={{ color: SECTION.p3.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.2 }}>-</span>}
+                              {val > 0 ? <span style={{ color: SECTION.p3.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.15 }}>-</span>}
                             </td>
                           );
                         })}
@@ -494,7 +501,7 @@ export default function EstadisticaJugadores() {
                     </td>
 
                     {/* P1 totals per fecha */}
-                    {activeFechas.map((f, i) => {
+                    {ALL_FECHAS.map((f, i) => {
                       const sum = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p1 || 0), 0);
                       return (
                         <td
@@ -512,7 +519,7 @@ export default function EstadisticaJugadores() {
                     })}
 
                     {/* P2 totals per fecha */}
-                    {activeFechas.map((f, i) => {
+                    {ALL_FECHAS.map((f, i) => {
                       const sum = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p2 || 0), 0);
                       return (
                         <td
@@ -530,7 +537,7 @@ export default function EstadisticaJugadores() {
                     })}
 
                     {/* P3 totals per fecha */}
-                    {activeFechas.map((f, i) => {
+                    {ALL_FECHAS.map((f, i) => {
                       const sum = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p3 || 0), 0);
                       return (
                         <td
