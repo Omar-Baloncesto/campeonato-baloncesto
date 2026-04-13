@@ -76,16 +76,16 @@ export default function Posiciones() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
               <thead>
-                <tr className="bg-bg-header/80 text-[11px] text-text-muted uppercase tracking-wider">
-                  <th className="text-left px-4 md:px-5 py-3.5 font-medium w-12">#</th>
-                  <th className="text-left px-4 md:px-5 py-3.5 font-medium">Equipo</th>
-                  <th className="text-center px-2 py-3.5 font-medium w-12">PJ</th>
-                  <th className="text-center px-2 py-3.5 font-medium w-12">PG</th>
-                  <th className="text-center px-2 py-3.5 font-medium w-12">PP</th>
-                  <th className="text-center px-2 py-3.5 font-medium">P. Ano.</th>
-                  <th className="text-center px-2 py-3.5 font-medium">P. Rec.</th>
-                  <th className="text-center px-2 py-3.5 font-medium">Dif.</th>
-                  <th className="text-center px-3 py-3.5 font-medium w-14">Pts</th>
+                <tr className="bg-bg-header text-[12px] uppercase tracking-wider" style={{ color: '#ffffff' }}>
+                  <th className="text-center px-4 md:px-5 py-3.5 font-bold w-12">#</th>
+                  <th className="text-center px-4 md:px-5 py-3.5 font-bold">Equipo</th>
+                  <th className="text-center px-2 py-3.5 font-bold w-12">PJ</th>
+                  <th className="text-center px-2 py-3.5 font-bold w-12">PG</th>
+                  <th className="text-center px-2 py-3.5 font-bold w-12">PP</th>
+                  <th className="text-center px-2 py-3.5 font-bold">P. Ano.</th>
+                  <th className="text-center px-2 py-3.5 font-bold">P. Rec.</th>
+                  <th className="text-center px-2 py-3.5 font-bold">Dif.</th>
+                  <th className="text-center px-3 py-3.5 font-bold w-14">Pts</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
