@@ -21,13 +21,13 @@ interface Equipo {
 
 const FECHAS = ['21/02', '28/02', '7/03', '14/03', '26/03', '11/04', '18/04', '25/04', '2/05', '9/05'];
 
-const EQUIPOS_CONFIG = [
-  { nombre: 'Miami Heat', color: '#FFFFFF', inicio: 4, fin: 14 },
-  { nombre: 'Brooklyn Nets', color: '#AAAAAA', inicio: 22, fin: 31 },
-  { nombre: 'Boston Celtics', color: '#22c55e', inicio: 40, fin: 50 },
-  { nombre: 'Oklahoma City Thunder', color: '#00BFFF', inicio: 58, fin: 68 },
-  { nombre: 'Los Angeles Lakers', color: '#FFD700', inicio: 76, fin: 86 },
-  { nombre: 'Toronto Raptors', color: '#FF0000', inicio: 93, fin: 103 },
+const EQUIPOS_NOMBRES = [
+  'Miami Heat',
+  'Brooklyn Nets',
+  'Boston Celtics',
+  'Oklahoma City Thunder',
+  'Los Angeles Lakers',
+  'Toronto Raptors',
 ];
 
 export default function Asistencias() {
@@ -40,13 +40,26 @@ export default function Asistencias() {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.data.length > 1) {
-          const rows = data.data;
-          const result = EQUIPOS_CONFIG.map(eq => ({
-            nombre: eq.nombre,
-            color: eq.color,
-            jugadores: rows
-              .slice(eq.inicio - 1, eq.fin)
-              .filter((r: string[]) => r[0] && r[0] !== 'Jugador')
+          const rows: string[][] = data.data;
+          // Find team title rows dynamically
+          const titleIndices: number[] = [];
+          rows.forEach((r, i) => {
+            if (r[0] && r[0].trim().toLowerCase().startsWith('equipo')) {
+              titleIndices.push(i);
+            }
+          });
+          const result = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
+            const titleIdx = titleIndices[teamIdx];
+            if (titleIdx == null) return { nombre, color: '', jugadores: [] };
+            const nextTitle = titleIndices[teamIdx + 1] ?? rows.length;
+            const blockRows = rows.slice(titleIdx + 1, nextTitle);
+            const jugadores = blockRows
+              .filter((r: string[]) => {
+                const name = (r[0] || '').trim();
+                if (name === '') return false;
+                const lower = name.toLowerCase();
+                return !lower.startsWith('equipo') && lower !== 'jugador';
+              })
               .map((r: string[]) => ({
                 nombre: r[0],
                 fechas: [r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]],
@@ -54,8 +67,9 @@ export default function Asistencias() {
                 totalFechas: r[12] || '0',
                 fraccion: r[13] || '0/0',
                 porcentaje: r[14] || '0%',
-              }))
-          }));
+              }));
+            return { nombre, color: '', jugadores };
+          });
           setEquipos(result);
         }
         setLoading(false);

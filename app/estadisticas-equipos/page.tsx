@@ -18,13 +18,13 @@ interface Equipo {
   jugadores: JugadorEquipo[];
 }
 
-const EQUIPOS_CONFIG = [
-  { nombre: 'Miami Heat', color: '#FFFFFF', filaInicio: 2, filaFin: 12 },
-  { nombre: 'Brooklyn Nets', color: '#AAAAAA', filaInicio: 16, filaFin: 25 },
-  { nombre: 'Boston Celtics', color: '#22c55e', filaInicio: 30, filaFin: 40 },
-  { nombre: 'Oklahoma City Thunder', color: '#00BFFF', filaInicio: 44, filaFin: 53 },
-  { nombre: 'Los Angeles Lakers', color: '#FFD700', filaInicio: 58, filaFin: 68 },
-  { nombre: 'Toronto Raptors', color: '#FF0000', filaInicio: 72, filaFin: 81 },
+const EQUIPOS_NOMBRES = [
+  'Miami Heat',
+  'Brooklyn Nets',
+  'Boston Celtics',
+  'Oklahoma City Thunder',
+  'Los Angeles Lakers',
+  'Toronto Raptors',
 ];
 
 export default function EstadisticasEquipos() {
@@ -37,18 +37,32 @@ export default function EstadisticasEquipos() {
       .then(r => r.json())
       .then(data => {
         if (data.success && data.data.length > 1) {
-          const rows = data.data;
-          const result = EQUIPOS_CONFIG.map(eq => ({
-            nombre: eq.nombre,
-            color: eq.color,
-            jugadores: rows
-              .slice(eq.filaInicio - 1, eq.filaFin)
-              .filter((r: string[]) => r[0] && r[0] !== eq.nombre && !r[0].toLowerCase().startsWith('equipo'))
+          const rows: string[][] = data.data;
+          // Find team title rows dynamically
+          const titleIndices: number[] = [];
+          rows.forEach((r, i) => {
+            if (r[0] && r[0].trim().toLowerCase().startsWith('equipo')) {
+              titleIndices.push(i);
+            }
+          });
+          const result = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
+            const titleIdx = titleIndices[teamIdx];
+            if (titleIdx == null) return { nombre, color: '', jugadores: [] };
+            const nextTitle = titleIndices[teamIdx + 1] ?? rows.length;
+            const blockRows = rows.slice(titleIdx + 1, nextTitle);
+            const jugadores = blockRows
+              .filter((r: string[]) => {
+                const name = (r[0] || '').trim();
+                if (name === '') return false;
+                const lower = name.toLowerCase();
+                return !lower.startsWith('equipo') && lower !== 'jugador';
+              })
               .map((r: string[]) => ({
                 nombre: r[0], p1: r[1] || '0',
                 p2: r[2] || '0', p3: r[3] || '0', total: r[4] || '0',
-              }))
-          }));
+              }));
+            return { nombre, color: '', jugadores };
+          });
           setEquipos(result);
         }
         setLoading(false);
