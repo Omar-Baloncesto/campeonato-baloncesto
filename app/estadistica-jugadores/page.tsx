@@ -31,31 +31,44 @@ interface EquipoData {
   jugadores: JugadorDetalle[];
 }
 
-const FECHA_COLORS = [
-  'bg-emerald-900/30',
-  'bg-blue-900/30',
-  'bg-amber-900/30',
-  'bg-pink-900/30',
-  'bg-purple-900/30',
-  'bg-cyan-900/30',
-  'bg-lime-900/30',
-  'bg-orange-900/30',
-  'bg-indigo-900/30',
-  'bg-rose-900/30',
-];
-
-const FECHA_HEADER_COLORS = [
-  'bg-emerald-800/60',
-  'bg-blue-800/60',
-  'bg-amber-800/60',
-  'bg-pink-800/60',
-  'bg-purple-800/60',
-  'bg-cyan-800/60',
-  'bg-lime-800/60',
-  'bg-orange-800/60',
-  'bg-indigo-800/60',
-  'bg-rose-800/60',
-];
+// Section color styles (cell bg / header bg / header text)
+const SECTION = {
+  p1: {
+    cell: 'rgba(234, 179, 8, 0.10)',
+    header: 'rgba(234, 179, 8, 0.30)',
+    border: 'rgba(234, 179, 8, 0.40)',
+    text: '#f5d45a',
+    label: 'Puntos de 1',
+  },
+  p2: {
+    cell: 'rgba(59, 130, 246, 0.12)',
+    header: 'rgba(59, 130, 246, 0.32)',
+    border: 'rgba(59, 130, 246, 0.40)',
+    text: '#7eb8fa',
+    label: 'Puntos de 2',
+  },
+  p3: {
+    cell: 'rgba(236, 72, 153, 0.12)',
+    header: 'rgba(236, 72, 153, 0.32)',
+    border: 'rgba(236, 72, 153, 0.40)',
+    text: '#f578c4',
+    label: 'Puntos de 3',
+  },
+  sub: {
+    cell: 'rgba(34, 197, 94, 0.12)',
+    header: 'rgba(34, 197, 94, 0.32)',
+    border: 'rgba(34, 197, 94, 0.40)',
+    text: '#5ee897',
+    label: 'Subtotales',
+  },
+  total: {
+    cell: 'rgba(180, 80, 20, 0.25)',
+    header: 'rgba(180, 80, 20, 0.55)',
+    border: 'rgba(200, 100, 40, 0.50)',
+    text: '#f5b870',
+    label: 'Total',
+  },
+};
 
 export default function EstadisticaJugadores() {
   const [equipos, setEquipos] = useState<EquipoData[]>([]);
@@ -63,7 +76,6 @@ export default function EstadisticaJugadores() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [numFechas, setNumFechas] = useState(0);
 
   const fetchData = () => {
     setLoading(true);
@@ -75,35 +87,26 @@ export default function EstadisticaJugadores() {
           const rows: string[][] = data.data;
 
           // Detect how many date columns exist (cols 5+ in groups of 3)
-          // Look at the first player row from the first team to count non-empty date cols
           const sampleTeam = EQUIPOS_CONFIG[0];
           const sampleRows = rows.slice(sampleTeam.filaInicio - 1, sampleTeam.filaFin)
             .filter((r) => r[0] && !r[0].toLowerCase().startsWith('equipo') && r[0] !== sampleTeam.nombre);
 
           let detectedFechas = 0;
           if (sampleRows.length > 0) {
-            // Count groups of 3 columns starting from col 5
             for (let f = 0; f < 10; f++) {
               const colBase = 5 + f * 3;
-              // Check if any player in this team has data in this date group
               const hasData = sampleRows.some(r =>
                 (r[colBase] && r[colBase] !== '0' && r[colBase] !== '') ||
                 (r[colBase + 1] && r[colBase + 1] !== '0' && r[colBase + 1] !== '') ||
                 (r[colBase + 2] && r[colBase + 2] !== '0' && r[colBase + 2] !== '')
               );
-              if (hasData) {
-                detectedFechas = f + 1;
-              }
+              if (hasData) detectedFechas = f + 1;
             }
-            // If no per-date data found in cols 5+, check if there are at least columns beyond 4
             if (detectedFechas === 0) {
               const maxCols = Math.max(...rows.slice(0, 85).map(r => r.length));
-              if (maxCols > 5) {
-                detectedFechas = Math.min(10, Math.floor((maxCols - 5) / 3));
-              }
+              if (maxCols > 5) detectedFechas = Math.min(10, Math.floor((maxCols - 5) / 3));
             }
           }
-          setNumFechas(detectedFechas);
 
           const result = EQUIPOS_CONFIG.map(eq => {
             const teamRows = rows
@@ -147,7 +150,7 @@ export default function EstadisticaJugadores() {
 
   const eq = equipos[equipoActivo];
 
-  // Determine which dates to show (those with any data across all teams)
+  // Determine which dates have any data across all teams
   const activeFechas: number[] = [];
   if (eq) {
     for (let f = 0; f < 10; f++) {
@@ -157,6 +160,10 @@ export default function EstadisticaJugadores() {
       if (hasData) activeFechas.push(f);
     }
   }
+
+  const nF = activeFechas.length;
+  // minWidth: player col (160) + 3 point-type sections (nF cols each) + 3 subtotal cols + 1 total col
+  const tableMinWidth = 160 + nF * 3 * 32 + 3 * 48 + 52;
 
   return (
     <div className="animate-fade-in">
@@ -216,110 +223,358 @@ export default function EstadisticaJugadores() {
 
             {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-[12px]" style={{ minWidth: activeFechas.length > 0 ? `${400 + activeFechas.length * 120}px` : '500px' }}>
+              <table
+                className="w-full text-[11px] border-collapse"
+                style={{ minWidth: `${tableMinWidth}px` }}
+              >
                 <thead>
-                  {/* Top header row with date groups */}
-                  <tr className="bg-bg-header text-[11px] uppercase tracking-wide font-bold" style={{ color: '#ffffff' }}>
-                    <th className="text-left px-3 py-2 font-medium sticky left-0 bg-bg-header z-10" rowSpan={2}>
+                  {/* ── Row 1: section labels ── */}
+                  <tr style={{ color: '#ffffff' }}>
+                    {/* Player name col – spans 2 header rows */}
+                    <th
+                      rowSpan={2}
+                      className="text-left px-3 py-2 font-medium sticky left-0 z-20 text-[12px]"
+                      style={{ background: 'var(--color-bg-header)', minWidth: '160px' }}
+                    >
                       Jugador
                     </th>
-                    {activeFechas.map(f => (
+
+                    {/* P1 section */}
+                    {nF > 0 && (
                       <th
-                        key={`fecha-${f}`}
-                        colSpan={3}
-                        className={`text-center px-1 py-1.5 font-medium border-l border-white/10 ${FECHA_HEADER_COLORS[f % FECHA_HEADER_COLORS.length]}`}
+                        colSpan={nF}
+                        className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                        style={{
+                          background: SECTION.p1.header,
+                          borderLeft: `2px solid ${SECTION.p1.border}`,
+                          color: SECTION.p1.text,
+                        }}
+                      >
+                        {SECTION.p1.label}
+                      </th>
+                    )}
+
+                    {/* P2 section */}
+                    {nF > 0 && (
+                      <th
+                        colSpan={nF}
+                        className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                        style={{
+                          background: SECTION.p2.header,
+                          borderLeft: `2px solid ${SECTION.p2.border}`,
+                          color: SECTION.p2.text,
+                        }}
+                      >
+                        {SECTION.p2.label}
+                      </th>
+                    )}
+
+                    {/* P3 section */}
+                    {nF > 0 && (
+                      <th
+                        colSpan={nF}
+                        className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                        style={{
+                          background: SECTION.p3.header,
+                          borderLeft: `2px solid ${SECTION.p3.border}`,
+                          color: SECTION.p3.text,
+                        }}
+                      >
+                        {SECTION.p3.label}
+                      </th>
+                    )}
+
+                    {/* Subtotals section */}
+                    <th
+                      colSpan={3}
+                      className="text-center py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                      style={{
+                        background: SECTION.sub.header,
+                        borderLeft: `2px solid ${SECTION.sub.border}`,
+                        color: SECTION.sub.text,
+                      }}
+                    >
+                      {SECTION.sub.label}
+                    </th>
+
+                    {/* Total col – spans 2 header rows */}
+                    <th
+                      rowSpan={2}
+                      className="text-center px-2 py-1.5 font-bold tracking-wide text-[11px] uppercase"
+                      style={{
+                        background: SECTION.total.header,
+                        borderLeft: `2px solid ${SECTION.total.border}`,
+                        color: SECTION.total.text,
+                        minWidth: '52px',
+                      }}
+                    >
+                      {SECTION.total.label}
+                    </th>
+                  </tr>
+
+                  {/* ── Row 2: date labels per section ── */}
+                  <tr style={{ color: '#ffffffcc' }}>
+                    {/* P1 date labels */}
+                    {activeFechas.map((f, i) => (
+                      <th
+                        key={`h-p1-${f}`}
+                        className="text-center px-1 py-1 font-medium"
                         title={FECHAS_FULL[f]}
+                        style={{
+                          background: SECTION.p1.header,
+                          borderLeft: i === 0 ? `2px solid ${SECTION.p1.border}` : `1px solid rgba(234,179,8,0.15)`,
+                          color: '#ffffff99',
+                          minWidth: '32px',
+                        }}
                       >
                         {FECHAS_LABELS[f]}
-                        <div className="text-[9px] font-normal opacity-70">{FECHAS_FULL[f]}</div>
+                        <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
                       </th>
                     ))}
-                    <th colSpan={3} className="text-center px-1 py-1.5 font-medium border-l border-white/20 bg-bg-header">
-                      Σ Totales
-                    </th>
-                    <th className="text-center px-2 py-1.5 font-bold border-l border-white/20 bg-bg-header" rowSpan={2}>
-                      Total
-                    </th>
-                  </tr>
-                  {/* Sub-header with P1/P2/P3 labels */}
-                  <tr className="bg-bg-header/90 text-[10px] uppercase tracking-wide" style={{ color: '#ffffffcc' }}>
-                    {activeFechas.map(f => (
-                      [
-                        <th key={`f${f}-p1`} className={`text-center px-1 py-1 border-l border-white/10 ${FECHA_HEADER_COLORS[f % FECHA_HEADER_COLORS.length]}`}>P1</th>,
-                        <th key={`f${f}-p2`} className={`text-center px-1 py-1 ${FECHA_HEADER_COLORS[f % FECHA_HEADER_COLORS.length]}`}>P2</th>,
-                        <th key={`f${f}-p3`} className={`text-center px-1 py-1 ${FECHA_HEADER_COLORS[f % FECHA_HEADER_COLORS.length]}`}>P3</th>,
-                      ]
+
+                    {/* P2 date labels */}
+                    {activeFechas.map((f, i) => (
+                      <th
+                        key={`h-p2-${f}`}
+                        className="text-center px-1 py-1 font-medium"
+                        title={FECHAS_FULL[f]}
+                        style={{
+                          background: SECTION.p2.header,
+                          borderLeft: i === 0 ? `2px solid ${SECTION.p2.border}` : `1px solid rgba(59,130,246,0.15)`,
+                          color: '#ffffff99',
+                          minWidth: '32px',
+                        }}
+                      >
+                        {FECHAS_LABELS[f]}
+                        <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
+                      </th>
                     ))}
-                    <th className="text-center px-1 py-1 border-l border-white/20">P1</th>
-                    <th className="text-center px-1 py-1">P2</th>
-                    <th className="text-center px-1 py-1">P3</th>
+
+                    {/* P3 date labels */}
+                    {activeFechas.map((f, i) => (
+                      <th
+                        key={`h-p3-${f}`}
+                        className="text-center px-1 py-1 font-medium"
+                        title={FECHAS_FULL[f]}
+                        style={{
+                          background: SECTION.p3.header,
+                          borderLeft: i === 0 ? `2px solid ${SECTION.p3.border}` : `1px solid rgba(236,72,153,0.15)`,
+                          color: '#ffffff99',
+                          minWidth: '32px',
+                        }}
+                      >
+                        {FECHAS_LABELS[f]}
+                        <div style={{ fontSize: '8px', opacity: 0.6 }}>{FECHAS_FULL[f]}</div>
+                      </th>
+                    ))}
+
+                    {/* Subtotal labels */}
+                    {(['ΣP1', 'ΣP2', 'ΣP3'] as const).map((lbl, i) => (
+                      <th
+                        key={`h-sub-${i}`}
+                        className="text-center px-1 py-1 font-bold"
+                        style={{
+                          background: SECTION.sub.header,
+                          borderLeft: i === 0 ? `2px solid ${SECTION.sub.border}` : `1px solid rgba(34,197,94,0.15)`,
+                          color: SECTION.sub.text,
+                          minWidth: '48px',
+                        }}
+                      >
+                        {lbl}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
+
                 <tbody>
-                  {eq.jugadores.map((j, i) => (
-                    <tr
-                      key={i}
-                      className={`border-b border-border-subtle table-row-hover ${
-                        i % 2 === 0 ? 'bg-bg-secondary' : 'bg-bg-card'
-                      }`}
-                    >
-                      <td className="px-3 py-2.5 font-medium text-[13px] sticky left-0 z-10" style={{ background: 'inherit' }}>
-                        {j.nombre}
-                      </td>
-                      {activeFechas.map(f => {
-                        const d = j.fechas[f] || { p1: 0, p2: 0, p3: 0 };
-                        return [
-                          <td key={`f${f}-p1`} className={`text-center px-1 py-2.5 border-l border-border-subtle ${FECHA_COLORS[f % FECHA_COLORS.length]}`}>
-                            {d.p1 || <span className="text-text-muted/30">-</span>}
-                          </td>,
-                          <td key={`f${f}-p2`} className={`text-center px-1 py-2.5 ${FECHA_COLORS[f % FECHA_COLORS.length]}`}>
-                            {d.p2 || <span className="text-text-muted/30">-</span>}
-                          </td>,
-                          <td key={`f${f}-p3`} className={`text-center px-1 py-2.5 ${FECHA_COLORS[f % FECHA_COLORS.length]}`}>
-                            {d.p3 || <span className="text-text-muted/30">-</span>}
-                          </td>,
-                        ];
-                      })}
-                      <td className="text-center px-1 py-2.5 border-l border-border-light font-semibold text-positive">
-                        {j.totalP1 || <span className="text-text-muted/30">-</span>}
-                      </td>
-                      <td className="text-center px-1 py-2.5 font-semibold text-positive">
-                        {j.totalP2 || <span className="text-text-muted/30">-</span>}
-                      </td>
-                      <td className="text-center px-1 py-2.5 font-semibold text-positive">
-                        {j.totalP3 || <span className="text-text-muted/30">-</span>}
-                      </td>
-                      <td className="text-center px-2 py-2.5 border-l border-border-light font-bold text-gold text-sm">
-                        {j.total}
-                      </td>
-                    </tr>
-                  ))}
+                  {eq.jugadores.map((j, rowIdx) => {
+                    const rowBg = rowIdx % 2 === 0 ? 'var(--color-bg-secondary)' : 'var(--color-bg-card)';
+                    return (
+                      <tr
+                        key={rowIdx}
+                        className="border-b border-border-subtle table-row-hover"
+                      >
+                        {/* Player name */}
+                        <td
+                          className="px-3 py-2 font-medium text-[12px] sticky left-0 z-10"
+                          style={{ background: rowBg }}
+                        >
+                          {j.nombre}
+                        </td>
+
+                        {/* P1 per fecha */}
+                        {activeFechas.map((f, i) => {
+                          const val = j.fechas[f]?.p1 || 0;
+                          return (
+                            <td
+                              key={`p1-${f}`}
+                              className="text-center px-1 py-2"
+                              style={{
+                                background: SECTION.p1.cell,
+                                borderLeft: i === 0 ? `2px solid ${SECTION.p1.border}` : `1px solid rgba(234,179,8,0.08)`,
+                              }}
+                            >
+                              {val > 0 ? <span style={{ color: SECTION.p1.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.2 }}>-</span>}
+                            </td>
+                          );
+                        })}
+
+                        {/* P2 per fecha */}
+                        {activeFechas.map((f, i) => {
+                          const val = j.fechas[f]?.p2 || 0;
+                          return (
+                            <td
+                              key={`p2-${f}`}
+                              className="text-center px-1 py-2"
+                              style={{
+                                background: SECTION.p2.cell,
+                                borderLeft: i === 0 ? `2px solid ${SECTION.p2.border}` : `1px solid rgba(59,130,246,0.08)`,
+                              }}
+                            >
+                              {val > 0 ? <span style={{ color: SECTION.p2.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.2 }}>-</span>}
+                            </td>
+                          );
+                        })}
+
+                        {/* P3 per fecha */}
+                        {activeFechas.map((f, i) => {
+                          const val = j.fechas[f]?.p3 || 0;
+                          return (
+                            <td
+                              key={`p3-${f}`}
+                              className="text-center px-1 py-2"
+                              style={{
+                                background: SECTION.p3.cell,
+                                borderLeft: i === 0 ? `2px solid ${SECTION.p3.border}` : `1px solid rgba(236,72,153,0.08)`,
+                              }}
+                            >
+                              {val > 0 ? <span style={{ color: SECTION.p3.text, fontWeight: 600 }}>{val}</span> : <span style={{ opacity: 0.2 }}>-</span>}
+                            </td>
+                          );
+                        })}
+
+                        {/* Subtotals: ΣP1, ΣP2, ΣP3 */}
+                        {[j.totalP1, j.totalP2, j.totalP3].map((val, i) => (
+                          <td
+                            key={`sub-${i}`}
+                            className="text-center px-1 py-2 font-semibold"
+                            style={{
+                              background: SECTION.sub.cell,
+                              borderLeft: i === 0 ? `2px solid ${SECTION.sub.border}` : `1px solid rgba(34,197,94,0.08)`,
+                              color: SECTION.sub.text,
+                            }}
+                          >
+                            {val > 0 ? val : <span style={{ opacity: 0.2 }}>-</span>}
+                          </td>
+                        ))}
+
+                        {/* Grand total */}
+                        <td
+                          className="text-center px-2 py-2 font-bold text-[13px]"
+                          style={{
+                            background: SECTION.total.cell,
+                            borderLeft: `2px solid ${SECTION.total.border}`,
+                            color: SECTION.total.text,
+                          }}
+                        >
+                          {j.total}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+
                 <tfoot>
-                  <tr className="bg-bg-header">
-                    <td className="px-3 py-3 font-bold text-gold text-[13px] sticky left-0 bg-bg-header z-10">
+                  <tr style={{ background: 'var(--color-bg-header)' }}>
+                    <td
+                      className="px-3 py-3 font-bold text-[13px] sticky left-0 z-10"
+                      style={{ background: 'var(--color-bg-header)', color: 'var(--color-gold)' }}
+                    >
                       TOTAL
                     </td>
-                    {activeFechas.map(f => {
-                      const sumP1 = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p1 || 0), 0);
-                      const sumP2 = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p2 || 0), 0);
-                      const sumP3 = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p3 || 0), 0);
-                      return [
-                        <td key={`t-f${f}-p1`} className="text-center px-1 py-3 font-bold text-gold border-l border-white/10">{sumP1 || '-'}</td>,
-                        <td key={`t-f${f}-p2`} className="text-center px-1 py-3 font-bold text-gold">{sumP2 || '-'}</td>,
-                        <td key={`t-f${f}-p3`} className="text-center px-1 py-3 font-bold text-gold">{sumP3 || '-'}</td>,
-                      ];
+
+                    {/* P1 totals per fecha */}
+                    {activeFechas.map((f, i) => {
+                      const sum = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p1 || 0), 0);
+                      return (
+                        <td
+                          key={`t-p1-${f}`}
+                          className="text-center px-1 py-3 font-bold"
+                          style={{
+                            background: SECTION.p1.header,
+                            borderLeft: i === 0 ? `2px solid ${SECTION.p1.border}` : `1px solid rgba(234,179,8,0.15)`,
+                            color: SECTION.p1.text,
+                          }}
+                        >
+                          {sum || '-'}
+                        </td>
+                      );
                     })}
-                    <td className="text-center px-1 py-3 font-bold text-gold border-l border-white/20">
-                      {eq.jugadores.reduce((s, j) => s + j.totalP1, 0)}
-                    </td>
-                    <td className="text-center px-1 py-3 font-bold text-gold">
-                      {eq.jugadores.reduce((s, j) => s + j.totalP2, 0)}
-                    </td>
-                    <td className="text-center px-1 py-3 font-bold text-gold">
-                      {eq.jugadores.reduce((s, j) => s + j.totalP3, 0)}
-                    </td>
-                    <td className="text-center px-2 py-3 font-bold text-gold text-sm border-l border-white/20">
+
+                    {/* P2 totals per fecha */}
+                    {activeFechas.map((f, i) => {
+                      const sum = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p2 || 0), 0);
+                      return (
+                        <td
+                          key={`t-p2-${f}`}
+                          className="text-center px-1 py-3 font-bold"
+                          style={{
+                            background: SECTION.p2.header,
+                            borderLeft: i === 0 ? `2px solid ${SECTION.p2.border}` : `1px solid rgba(59,130,246,0.15)`,
+                            color: SECTION.p2.text,
+                          }}
+                        >
+                          {sum || '-'}
+                        </td>
+                      );
+                    })}
+
+                    {/* P3 totals per fecha */}
+                    {activeFechas.map((f, i) => {
+                      const sum = eq.jugadores.reduce((s, j) => s + (j.fechas[f]?.p3 || 0), 0);
+                      return (
+                        <td
+                          key={`t-p3-${f}`}
+                          className="text-center px-1 py-3 font-bold"
+                          style={{
+                            background: SECTION.p3.header,
+                            borderLeft: i === 0 ? `2px solid ${SECTION.p3.border}` : `1px solid rgba(236,72,153,0.15)`,
+                            color: SECTION.p3.text,
+                          }}
+                        >
+                          {sum || '-'}
+                        </td>
+                      );
+                    })}
+
+                    {/* Subtotal totals */}
+                    {[
+                      eq.jugadores.reduce((s, j) => s + j.totalP1, 0),
+                      eq.jugadores.reduce((s, j) => s + j.totalP2, 0),
+                      eq.jugadores.reduce((s, j) => s + j.totalP3, 0),
+                    ].map((val, i) => (
+                      <td
+                        key={`t-sub-${i}`}
+                        className="text-center px-1 py-3 font-bold"
+                        style={{
+                          background: SECTION.sub.header,
+                          borderLeft: i === 0 ? `2px solid ${SECTION.sub.border}` : `1px solid rgba(34,197,94,0.15)`,
+                          color: SECTION.sub.text,
+                        }}
+                      >
+                        {val}
+                      </td>
+                    ))}
+
+                    {/* Grand total */}
+                    <td
+                      className="text-center px-2 py-3 font-bold text-[14px]"
+                      style={{
+                        background: SECTION.total.header,
+                        borderLeft: `2px solid ${SECTION.total.border}`,
+                        color: SECTION.total.text,
+                      }}
+                    >
                       {eq.jugadores.reduce((s, j) => s + j.total, 0)}
                     </td>
                   </tr>
