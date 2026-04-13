@@ -19,8 +19,6 @@ interface Equipo {
   jugadores: Jugador[];
 }
 
-const FECHAS = ['21/02', '28/02', '7/03', '14/03', '26/03', '11/04', '18/04', '25/04', '2/05', '9/05'];
-
 const EQUIPOS_NOMBRES = [
   'Miami Heat',
   'Brooklyn Nets',
@@ -34,14 +32,40 @@ export default function Asistencias() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [equipoActivo, setEquipoActivo] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fechas, setFechas] = useState<string[]>(Array(10).fill(''));
+  const [isLight, setIsLight] = useState(false);
 
   useEffect(() => {
-    fetch('/api/sheets?sheet=AsistenciasJugadores')
-      .then(r => r.json())
-      .then(data => {
+    const check = () => setIsLight(document.documentElement.classList.contains('light'));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/sheets?sheet=AsistenciasJugadores').then(r => r.json()),
+      fetch('/api/sheets?sheet=FIXTURE').then(r => r.json()),
+    ])
+      .then(([data, fixtureData]) => {
+        // Extract dates from FIXTURE (col 1=jornada, col 5=fecha)
+        if (fixtureData.success && fixtureData.data.length > 1) {
+          const jornadaDates = new Map<string, string>();
+          fixtureData.data.slice(1).forEach((r: string[]) => {
+            const jornada = (r[1] || '').trim();
+            const fecha = (r[5] || '').trim();
+            if (jornada && fecha && /^\d+$/.test(jornada) && !jornadaDates.has(jornada)) {
+              // Keep only DD/MM
+              const parts = fecha.split('/');
+              jornadaDates.set(jornada, parts.length >= 2 ? `${parts[0]}/${parts[1]}` : fecha);
+            }
+          });
+          setFechas(Array.from({ length: 10 }, (_, i) => jornadaDates.get(String(i + 1)) || ''));
+        }
+
         if (data.success && data.data.length > 1) {
           const rows: string[][] = data.data;
-          // Find team title rows dynamically
           const titleIndices: number[] = [];
           rows.forEach((r, i) => {
             if (r[0] && r[0].trim().toLowerCase().startsWith('equipo')) {
@@ -79,11 +103,14 @@ export default function Asistencias() {
   const eq = equipos[equipoActivo];
   const color = eq ? getTeamColor(eq.nombre) : '#888';
 
+  // High-contrast colors for both themes
+  const checkColor = isLight ? '#0a7a2a' : '#5eff80';
+  const crossColor = isLight ? '#c41818' : '#ff6b6b';
   const pctColor = (pct: string) => {
     const n = parseFloat(pct);
-    if (n >= 80) return 'text-positive';
-    if (n >= 50) return 'text-gold';
-    return 'text-negative';
+    if (n >= 80) return { color: checkColor };
+    if (n >= 50) return { color: isLight ? '#8a6400' : '#ffc850' };
+    return { color: crossColor };
   };
 
   return (
@@ -134,7 +161,7 @@ export default function Asistencias() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium">{j.nombre}</span>
-                    <span className={`text-sm font-bold ${pctColor(j.porcentaje)}`}>
+                    <span className="text-sm font-bold" style={pctColor(j.porcentaje)}>
                       {j.porcentaje}
                     </span>
                   </div>
@@ -147,13 +174,15 @@ export default function Asistencias() {
                     {j.fechas.map((f, fi) => (
                       <div
                         key={fi}
-                        className={`w-5 h-5 rounded text-[10px] flex items-center justify-center font-medium ${
-                          f === '1' ? 'bg-positive/20 text-positive' :
-                          f === '0' && fi < 5 ? 'bg-negative/20 text-negative' :
-                          'bg-bg-darkest/50 text-text-muted'
-                        }`}
+                        className="w-5 h-5 rounded text-[10px] flex items-center justify-center font-bold"
+                        style={{
+                          background: f === '1' ? (isLight ? 'rgba(10,122,42,0.15)' : 'rgba(94,255,128,0.15)')
+                            : f === '0' ? (isLight ? 'rgba(196,24,24,0.15)' : 'rgba(255,107,107,0.15)')
+                            : 'transparent',
+                          color: f === '1' ? checkColor : f === '0' ? crossColor : 'transparent',
+                        }}
                       >
-                        {f === '1' ? '✓' : f === '0' && fi < 5 ? '✗' : ''}
+                        {f === '1' ? '✓' : f === '0' ? '✗' : ''}
                       </div>
                     ))}
                   </div>
@@ -179,15 +208,15 @@ export default function Asistencias() {
 
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-bg-header text-[10px] text-text-muted uppercase tracking-wide">
-                      <th className="text-left px-4 py-2.5 font-medium w-[160px]">Jugador</th>
-                      {FECHAS.map(f => (
-                        <th key={f} className="text-center px-1 py-2.5 font-medium w-[50px]">{f}</th>
+                    <tr className="bg-bg-header text-[10px] uppercase tracking-wide" style={{ color: '#ffffff' }}>
+                      <th className="text-left px-4 py-2.5 font-bold w-[160px]">Jugador</th>
+                      {fechas.map((f, i) => (
+                        <th key={i} className="text-center px-1 py-2.5 font-bold w-[50px]">{f || `F${i + 1}`}</th>
                       ))}
-                      <th className="text-center px-1 py-2.5 font-medium w-[55px]">Asist.</th>
-                      <th className="text-center px-1 py-2.5 font-medium w-[55px]">Fechas</th>
-                      <th className="text-center px-1 py-2.5 font-medium w-[65px]">Fracc.</th>
-                      <th className="text-center px-1 py-2.5 font-medium w-[55px]">%</th>
+                      <th className="text-center px-1 py-2.5 font-bold w-[55px]">Asist.</th>
+                      <th className="text-center px-1 py-2.5 font-bold w-[55px]">Fechas</th>
+                      <th className="text-center px-1 py-2.5 font-bold w-[65px]">Fracc.</th>
+                      <th className="text-center px-1 py-2.5 font-bold w-[55px]">%</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -201,19 +230,17 @@ export default function Asistencias() {
                         <td className="px-4 py-2.5 text-xs font-medium">{j.nombre}</td>
                         {j.fechas.map((f, fi) => (
                           <td key={fi} className="text-center py-2.5">
-                            <span className={`text-sm ${
-                              f === '1' ? 'text-positive' :
-                              f === '0' && fi < 5 ? 'text-negative' :
-                              'text-text-muted'
-                            }`}>
-                              {f === '1' ? '✓' : f === '0' && fi < 5 ? '✗' : ''}
+                            <span className="text-sm font-bold" style={{
+                              color: f === '1' ? checkColor : f === '0' ? crossColor : 'transparent',
+                            }}>
+                              {f === '1' ? '✓' : f === '0' ? '✗' : ''}
                             </span>
                           </td>
                         ))}
-                        <td className="text-center py-2.5 text-xs">{j.asistencia}</td>
+                        <td className="text-center py-2.5 text-xs font-semibold">{j.asistencia}</td>
                         <td className="text-center py-2.5 text-xs">{j.totalFechas}</td>
-                        <td className="text-center py-2.5 text-xs">{j.fraccion}</td>
-                        <td className={`text-center py-2.5 text-xs font-bold ${pctColor(j.porcentaje)}`}>
+                        <td className="text-center py-2.5 text-xs font-semibold">{j.fraccion}</td>
+                        <td className="text-center py-2.5 text-xs font-bold" style={pctColor(j.porcentaje)}>
                           {j.porcentaje}
                         </td>
                       </tr>
