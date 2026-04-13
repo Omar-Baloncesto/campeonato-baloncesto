@@ -27,7 +27,7 @@ const SPREADSHEET_ID = '1JF2vVbrnMYTMC3WrOVVv-vkTICBxh06S0t-40cyPIo0';
 async function fetchSheetRows(sheet: string, range: string): Promise<string[][]> {
   const url =
     `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq` +
-    `?sheet=${encodeURIComponent(sheet)}&range=${encodeURIComponent(range)}&tqx=out:json`;
+    `?sheet=${encodeURIComponent(sheet)}&range=${encodeURIComponent(range)}&tqx=out:json&headers=0`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
