@@ -290,7 +290,7 @@ export default function EstadisticaJugadores() {
                     <th
                       rowSpan={2}
                       className="text-left px-3 py-2 font-semibold sticky left-0 z-20 text-[12px]"
-                      style={{ background: C.name.bg, minWidth: '160px', borderRight: `1px solid ${C.name.bdr}`, color: 'var(--color-text-primary)' }}
+                      style={{ background: C.name.bg, minWidth: '160px', borderRight: `1px solid ${C.name.bdr}`, color: '#ffffff' }}
                     >
                       Jugador
                     </th>
