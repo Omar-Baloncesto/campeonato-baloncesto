@@ -118,12 +118,12 @@ export default function Estadisticas() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <thead>
-                  <tr className="bg-bg-header/80 text-[11px] text-text-muted uppercase tracking-wider">
-                    <th className="text-left px-4 md:px-5 py-3.5 font-medium w-12">#</th>
-                    <th className="text-left px-4 md:px-5 py-3.5 font-medium">Jugador</th>
-                    <th className="text-center px-3 py-3.5 font-medium">Puntos</th>
-                    <th className="text-center px-3 py-3.5 font-medium">Asistencias</th>
-                    <th className="text-center px-3 py-3.5 font-medium">Promedio</th>
+                  <tr className="bg-bg-header text-[12px] uppercase tracking-wider" style={{ color: '#ffffff' }}>
+                    <th className="text-center px-4 md:px-5 py-3.5 font-bold w-12">#</th>
+                    <th className="text-center px-4 md:px-5 py-3.5 font-bold text-[14px]">Jugador</th>
+                    <th className="text-center px-3 py-3.5 font-bold">Puntos</th>
+                    <th className="text-center px-3 py-3.5 font-bold">Asistencias</th>
+                    <th className="text-center px-3 py-3.5 font-bold">Promedio</th>
                   </tr>
                 </thead>
                 <tbody>
