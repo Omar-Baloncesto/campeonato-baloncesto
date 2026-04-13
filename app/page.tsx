@@ -176,15 +176,14 @@ export default function Dashboard() {
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
                     {team?.photo && (
-                      <div className="relative w-full overflow-hidden rounded-t-xl">
+                      <div className="relative w-full">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={team.photo}
                           alt={`Foto del equipo ${eq.nombre}`}
-                          className="w-full h-auto block"
-                          loading="lazy"
+                          className="w-full h-auto block rounded-t-xl"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-t-xl" />
                       </div>
                     )}
                     <div className="p-4 flex items-center gap-3">
