@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface DayCount {
   date: string;
@@ -14,51 +14,52 @@ interface VisitStats {
 }
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState<boolean | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [stats, setStats] = useState<VisitStats | null>(null);
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStats = async () => {
-    setError(null);
-    const r = await fetch('/api/visits', { cache: 'no-store' });
-    if (r.status === 401) {
-      setAuthed(false);
+  const loadStats = async (t: string) => {
+    const r = await fetch('/api/visits', {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    if (!r.ok) {
+      setToken(null);
+      setStats(null);
+      setError('Sesión inválida. Vuelve a ingresar la clave.');
       return;
     }
     const data = await r.json() as { success: boolean } & VisitStats;
     if (data.success) {
       setStats({ today: data.today, total: data.total, days: data.days });
-      setAuthed(true);
-    } else {
-      setAuthed(false);
     }
   };
-
-  useEffect(() => { void loadStats(); }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      const r = await fetch('/api/admin/login', {
+      const r = await fetch('/api/admin/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       });
-      if (r.ok) {
-        setPassword('');
-        await loadStats();
-      } else {
+      if (!r.ok) {
         const data = await r.json().catch(() => ({})) as { error?: string };
         setError(
           data.error === 'admin_password_not_configured'
             ? 'ADMIN_PASSWORD no está configurado en el servidor.'
             : 'Contraseña incorrecta.',
         );
+        return;
       }
+      const data = await r.json() as { token: string };
+      setPassword('');
+      setToken(data.token);
+      await loadStats(data.token);
     } catch {
       setError('Error de conexión.');
     } finally {
@@ -66,22 +67,13 @@ export default function AdminPage() {
     }
   };
 
-  const onLogout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' });
-    setAuthed(false);
+  const onLogout = () => {
+    setToken(null);
     setStats(null);
+    setPassword('');
   };
 
-  if (authed === null) {
-    return (
-      <div className="p-6 text-center text-text-muted">
-        <div className="spinner mx-auto mb-4" />
-        <span className="text-sm tracking-wide">Cargando...</span>
-      </div>
-    );
-  }
-
-  if (!authed) {
+  if (!token || !stats) {
     return (
       <div className="p-4 md:p-6 max-w-md mx-auto">
         <div className="glass-card rounded-xl p-6">
@@ -114,7 +106,7 @@ export default function AdminPage() {
     );
   }
 
-  const max = Math.max(1, ...(stats?.days.map((d) => d.count) || [1]));
+  const max = Math.max(1, ...stats.days.map((d) => d.count));
 
   return (
     <div className="p-4 md:p-6 animate-fade-in">
@@ -134,11 +126,11 @@ export default function AdminPage() {
       <div className="grid grid-cols-2 gap-px bg-bg-darkest border border-border-light rounded-xl overflow-hidden mb-5">
         <div className="bg-bg-secondary px-4 py-5 text-center">
           <div className="text-[11px] text-text-muted uppercase tracking-wider mb-1">Hoy</div>
-          <div className="text-3xl font-bold gradient-text">{stats?.today ?? 0}</div>
+          <div className="text-3xl font-bold gradient-text">{stats.today}</div>
         </div>
         <div className="bg-bg-secondary px-4 py-5 text-center">
           <div className="text-[11px] text-text-muted uppercase tracking-wider mb-1">Total</div>
-          <div className="text-3xl font-bold text-gold">{stats?.total ?? 0}</div>
+          <div className="text-3xl font-bold text-gold">{stats.total}</div>
         </div>
       </div>
 
@@ -147,7 +139,7 @@ export default function AdminPage() {
           Últimos 30 días
         </div>
         <div className="space-y-1.5">
-          {stats?.days.map((d) => (
+          {stats.days.map((d) => (
             <div key={d.date} className="flex items-center gap-3 text-[12px]">
               <div className="w-20 shrink-0 text-text-muted font-mono">{d.date}</div>
               <div className="flex-1 h-5 bg-bg-secondary rounded overflow-hidden">
@@ -160,7 +152,7 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
-        {stats && stats.total === 0 && (
+        {stats.total === 0 && (
           <div className="text-center text-text-muted text-xs mt-4">
             Aún no hay visitas registradas. Verifica que la hoja <code className="text-gold">Visitas</code> exista
             y que <code className="text-gold">GOOGLE_SERVICE_ACCOUNT_JSON</code> esté configurado.
