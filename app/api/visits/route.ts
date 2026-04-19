@@ -36,26 +36,21 @@ export async function GET(request: Request) {
     : rows;
 
   const byDay: Record<string, number> = {};
+  let firstDate = '';
   for (const r of dataRows) {
     const date = (r[1] || '').trim();
     if (!date) continue;
     byDay[date] = (byDay[date] || 0) + 1;
+    if (!firstDate || date < firstDate) firstDate = date;
   }
 
   const today = todayISO();
-  const days: { date: string; count: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const tz = d.getTimezoneOffset();
-    const key = new Date(d.getTime() - tz * 60_000).toISOString().slice(0, 10);
-    days.push({ date: key, count: byDay[key] || 0 });
-  }
 
   return NextResponse.json({
     success: true,
     today: byDay[today] || 0,
     total: dataRows.length,
-    days,
+    byDay,
+    firstDate,
   });
 }
