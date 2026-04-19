@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { ADMIN_COOKIE, expectedAdminToken, verifyPassword } from '../../../lib/admin-auth';
+import { expectedAdminToken, verifyPassword } from '../../../lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,14 +28,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'server_error' }, { status: 500 });
   }
 
-  const store = await cookies();
-  store.set(ADMIN_COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
-
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, token });
 }

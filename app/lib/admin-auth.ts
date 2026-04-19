@@ -1,10 +1,7 @@
 import crypto from 'crypto';
-import { cookies } from 'next/headers';
-
-export const ADMIN_COOKIE = 'bv_admin';
 
 function adminTokenFor(password: string): string {
-  const salt = 'bv-admin-v1';
+  const salt = 'bv-admin-v2';
   return crypto.createHash('sha256').update(`${salt}:${password}`).digest('hex');
 }
 
@@ -23,14 +20,11 @@ export function verifyPassword(submitted: string): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-export async function isAuthedAdmin(): Promise<boolean> {
+export function verifyToken(token: string | null | undefined): boolean {
   const expected = expectedAdminToken();
-  if (!expected) return false;
-  const store = await cookies();
-  const c = store.get(ADMIN_COOKIE);
-  if (!c) return false;
-  const a = Buffer.from(c.value);
-  const b = Buffer.from(expected);
+  if (!expected || !token) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(token);
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
 }

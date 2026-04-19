@@ -66,8 +66,15 @@ export default function RootLayout({
               {children}
             </main>
             <footer className="py-5 text-center border-t border-border-subtle">
-              <div className="text-[11px] text-text-muted/60 tracking-[0.25em] uppercase">
-                Campeonato · Baloncesto · Cucuta 2026
+              <div className="text-[11px] text-text-muted/60 tracking-[0.25em] uppercase flex items-center justify-center gap-4">
+                <span>Campeonato · Baloncesto · Cucuta 2026</span>
+                <a
+                  href="/admin"
+                  aria-label="V"
+                  className="text-text-muted/40 hover:text-gold transition-colors font-mono text-[11px] leading-none"
+                >
+                  V
+                </a>
               </div>
             </footer>
             <MobileNav />

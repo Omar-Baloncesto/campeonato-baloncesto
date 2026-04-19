@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { appendVisitRow, readVisitRows } from '../../lib/sheets';
-import { isAuthedAdmin } from '../../lib/admin-auth';
+import { verifyToken } from '../../lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +23,10 @@ export async function POST(request: Request) {
   return NextResponse.json({ success: true });
 }
 
-export async function GET() {
-  if (!(await isAuthedAdmin())) {
+export async function GET(request: Request) {
+  const auth = request.headers.get('authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!verifyToken(token)) {
     return NextResponse.json({ success: false, error: 'unauthorized' }, { status: 401 });
   }
 
