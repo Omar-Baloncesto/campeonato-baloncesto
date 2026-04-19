@@ -1,16 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-
-interface DayCount {
-  date: string;
-  count: number;
-}
+import { useState, useMemo } from 'react';
 
 interface VisitStats {
   today: number;
   total: number;
-  days: DayCount[];
+  byDay: Record<string, number>;
+  firstDate: string;
+}
+
+const RANGE_OPTIONS: { label: string; days: number | 'all' }[] = [
+  { label: '7d', days: 7 },
+  { label: '14d', days: 14 },
+  { label: '30d', days: 30 },
+  { label: '60d', days: 60 },
+  { label: '90d', days: 90 },
+  { label: 'Todos', days: 'all' },
+];
+
+function todayKey(): string {
+  const d = new Date();
+  const tz = d.getTimezoneOffset();
+  return new Date(d.getTime() - tz * 60_000).toISOString().slice(0, 10);
+}
+
+function daysBetween(from: string, to: string): number {
+  const a = new Date(from + 'T00:00:00');
+  const b = new Date(to + 'T00:00:00');
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1);
 }
 
 export default function AdminPage() {
@@ -19,6 +36,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rangeDays, setRangeDays] = useState<number | 'all'>(7);
 
   const loadStats = async (t: string) => {
     const r = await fetch('/api/visits', {
@@ -33,7 +51,12 @@ export default function AdminPage() {
     }
     const data = await r.json() as { success: boolean } & VisitStats;
     if (data.success) {
-      setStats({ today: data.today, total: data.total, days: data.days });
+      setStats({
+        today: data.today,
+        total: data.total,
+        byDay: data.byDay || {},
+        firstDate: data.firstDate || todayKey(),
+      });
     }
   };
 
@@ -73,6 +96,23 @@ export default function AdminPage() {
     setPassword('');
   };
 
+  const days = useMemo(() => {
+    if (!stats) return [];
+    const today = todayKey();
+    const n = rangeDays === 'all'
+      ? daysBetween(stats.firstDate, today)
+      : rangeDays;
+    const out: { date: string; count: number }[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const tz = d.getTimezoneOffset();
+      const key = new Date(d.getTime() - tz * 60_000).toISOString().slice(0, 10);
+      out.push({ date: key, count: stats.byDay[key] || 0 });
+    }
+    return out;
+  }, [stats, rangeDays]);
+
   if (!token || !stats) {
     return (
       <div className="p-4 md:p-6 max-w-md mx-auto">
@@ -106,7 +146,8 @@ export default function AdminPage() {
     );
   }
 
-  const max = Math.max(1, ...stats.days.map((d) => d.count));
+  const max = Math.max(1, ...days.map((d) => d.count));
+  const rangeSum = days.reduce((s, d) => s + d.count, 0);
 
   return (
     <div className="p-4 md:p-6 animate-fade-in">
@@ -135,11 +176,34 @@ export default function AdminPage() {
       </div>
 
       <div className="glass-card rounded-xl p-4 md:p-5">
-        <div className="text-[11px] text-text-muted uppercase tracking-wider mb-3">
-          Últimos 30 días
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div className="text-[11px] text-text-muted uppercase tracking-wider">
+            {rangeDays === 'all'
+              ? `Todos los días (${days.length})`
+              : `Últimos ${rangeDays} días`}
+            <span className="ml-2 text-gold font-semibold">· {rangeSum}</span>
+          </div>
+          <div className="flex items-center gap-1 flex-wrap">
+            {RANGE_OPTIONS.map((opt) => {
+              const active = opt.days === rangeDays;
+              return (
+                <button
+                  key={opt.label}
+                  onClick={() => setRangeDays(opt.days)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] uppercase tracking-wider transition-colors ${
+                    active
+                      ? 'bg-gold text-black font-semibold'
+                      : 'bg-bg-secondary text-text-muted hover:text-text-primary border border-border-subtle'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="space-y-1.5">
-          {stats.days.map((d) => (
+        <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
+          {days.map((d) => (
             <div key={d.date} className="flex items-center gap-3 text-[12px]">
               <div className="w-20 shrink-0 text-text-muted font-mono">{d.date}</div>
               <div className="flex-1 h-5 bg-bg-secondary rounded overflow-hidden">
