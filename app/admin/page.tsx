@@ -103,7 +103,7 @@ export default function AdminPage() {
       ? daysBetween(stats.firstDate, today)
       : rangeDays;
     const out: { date: string; count: number }[] = [];
-    for (let i = n - 1; i >= 0; i--) {
+    for (let i = 0; i < n; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const tz = d.getTimezoneOffset();
