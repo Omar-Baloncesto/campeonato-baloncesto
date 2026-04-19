@@ -8,6 +8,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConnectionStatus from "./components/ConnectionStatus";
+import VisitTracker from "./components/VisitTracker";
 
 const geistSans = localFont({
   src: "../public/fonts/GeistVF.woff2",
@@ -58,6 +59,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ToastProvider>
             <ConnectionStatus />
+            <VisitTracker />
             <Header />
             <Navigation />
             <main id="main-content" className="flex-1">
