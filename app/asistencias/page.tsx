@@ -5,7 +5,7 @@ import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportAsistenciasPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { parseFixtureRows, isJugado } from '../lib/fixture';
 
@@ -156,11 +156,22 @@ export default function Asistencias() {
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     if (!eq) return;
-    await exportTablePdf({
-      subtitle: `Asistencias · ${equipoNombre}`,
+    await exportAsistenciasPdf({
+      subtitle: 'Asistencias',
       filename: buildFilename(`asistencias-${equipoNombre}`),
-      columns: exportColumns,
-      rows: eq.jugadores,
+      equipo: equipoNombre,
+      equipoColor: getTeamColor(equipoNombre),
+      fechas,
+      jugadas,
+      jugadores: eq.jugadores.map((j) => ({
+        nombre: j.nombre,
+        fechas: j.fechas,
+        asistencia: j.asistencia,
+        totalFechas: j.totalFechas,
+        fraccion: j.fraccion,
+        porcentaje: j.porcentaje,
+      })),
+      destination,
     });
   };
 

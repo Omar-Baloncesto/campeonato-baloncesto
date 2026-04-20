@@ -401,6 +401,209 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface AsistenciaPdfRow {
+  nombre: string;
+  /** Length 10. '1' = presente, '0' = ausente, '' = sin datos. */
+  fechas: string[];
+  asistencia: string;
+  totalFechas: string;
+  fraccion: string;
+  /** e.g. "71%" */
+  porcentaje: string;
+}
+
+export interface ExportAsistenciasPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  equipo: string;
+  equipoColor: string;
+  /** Length 10 — short "DD/MM" date labels for F1..F10. Empty if unknown. */
+  fechas: string[];
+  /** Length 10 — true if that fecha already took place. */
+  jugadas: boolean[];
+  jugadores: AsistenciaPdfRow[];
+  destination?: Destination;
+}
+
+const AS_HDR_BG: RGB = [24, 24, 28];
+const AS_HDR_TEXT: RGB = [255, 255, 255];
+const AS_CHECK: RGB = [10, 150, 50];
+const AS_CROSS: RGB = [200, 30, 30];
+const AS_PCT_HIGH: RGB = [10, 130, 45];
+const AS_PCT_MID: RGB = [180, 130, 0];
+const AS_PCT_LOW: RGB = [200, 30, 30];
+
+/**
+ * Render the "Asistencias" table for one team as a Letter landscape PDF.
+ * Check and cross glyphs are drawn with line primitives (Helvetica doesn't
+ * include the Unicode ✓ / ✗ characters), so they actually appear as shapes
+ * instead of being replaced with punctuation. The % column is colored by
+ * value to match the web.
+ */
+export async function exportAsistenciasPdf(
+  opts: ExportAsistenciasPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 8;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle;
+  const generatedAt = formatDateTime(new Date());
+
+  // --- Header row: Jugador | 10 date columns | Asist | Fechas | Fracc. | % ---
+  const dateHeaderCell = (i: number): CellDef => ({
+    content: opts.fechas[i] || `F${i + 1}`,
+    styles: { fillColor: AS_HDR_BG, textColor: AS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+  });
+
+  const head: CellDef[][] = [[
+    {
+      content: 'JUGADOR',
+      styles: { fillColor: AS_HDR_BG, textColor: AS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 },
+    },
+    ...[0,1,2,3,4,5,6,7,8,9].map(dateHeaderCell),
+    { content: 'ASIST.',  styles: { fillColor: AS_HDR_BG, textColor: AS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: 'FECHAS',  styles: { fillColor: AS_HDR_BG, textColor: AS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: 'FRACC.',  styles: { fillColor: AS_HDR_BG, textColor: AS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: '%',       styles: { fillColor: AS_HDR_BG, textColor: AS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+  ]];
+
+  // Helper: pick the % column color by its numeric value.
+  const pctColorFor = (pct: string): RGB => {
+    const n = parseFloat(pct);
+    if (isNaN(n)) return [22, 22, 22];
+    if (n >= 80) return AS_PCT_HIGH;
+    if (n >= 50) return AS_PCT_MID;
+    return AS_PCT_LOW;
+  };
+
+  // --- Body ---
+  // Attendance cells are passed with empty content; the check/cross shape is
+  // drawn in didDrawCell using the original jugadores data.
+  const body: RowInput[] = opts.jugadores.map((j) => [
+    {
+      content: j.nombre,
+      styles: { fontStyle: 'bold', halign: 'left', textColor: [22, 22, 22] as RGB, fontSize: 9 },
+    } as CellDef,
+    ...j.fechas.map((): CellDef => ({ content: '', styles: { halign: 'center' } })),
+    { content: j.asistencia,  styles: { halign: 'center', fontStyle: 'bold', fontSize: 9 } } as CellDef,
+    { content: j.totalFechas, styles: { halign: 'center', fontSize: 9 } } as CellDef,
+    { content: j.fraccion,    styles: { halign: 'center', fontStyle: 'bold', fontSize: 9 } } as CellDef,
+    {
+      content: j.porcentaje,
+      styles: { halign: 'center', fontStyle: 'bold', textColor: pctColorFor(j.porcentaje), fontSize: 9.5 },
+    } as CellDef,
+  ]);
+
+  // --- Column widths ---
+  // Letter landscape usable width ~263mm. Allocations: Jugador 50, 10 date
+  // cols 13 each = 130, Asist/Fechas 14 each, Fracc/% 16 each. Total ≈ 240mm,
+  // leaving a little slack for padding.
+  const columnStyles: Record<number, { cellWidth: number }> = {};
+  columnStyles[0] = { cellWidth: 50 };
+  for (let i = 1; i <= 10; i++) columnStyles[i] = { cellWidth: 13 };
+  columnStyles[11] = { cellWidth: 14 };
+  columnStyles[12] = { cellWidth: 14 };
+  columnStyles[13] = { cellWidth: 16 };
+  columnStyles[14] = { cellWidth: 16 };
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: subtitle ? 32 : 26,
+    margin: { top: subtitle ? 32 : 26, bottom: 14, left: marginX, right: marginX },
+    styles: {
+      font: 'helvetica',
+      fontSize: 9,
+      cellPadding: 2,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.2,
+      textColor: [22, 22, 22],
+      valign: 'middle',
+    },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
+    columnStyles,
+    theme: 'grid',
+    didDrawCell: (data) => {
+      if (data.section !== 'body') return;
+      const col = data.column.index;
+      if (col < 1 || col > 10) return;
+      const rowIdx = data.row.index;
+      const fechaIdx = col - 1;
+      const player = opts.jugadores[rowIdx];
+      if (!player) return;
+      const played = opts.jugadas[fechaIdx];
+      if (!played) return;
+      const f = player.fechas[fechaIdx];
+      const cell = data.cell;
+      const cx = cell.x + cell.width / 2;
+      const cy = cell.y + cell.height / 2;
+      if (f === '1') {
+        // Green check — two lines forming a V (longer right arm).
+        doc.setDrawColor(...AS_CHECK);
+        doc.setLineWidth(0.7);
+        doc.line(cx - 2.2, cy + 0.2, cx - 0.4, cy + 2);
+        doc.line(cx - 0.4, cy + 2, cx + 2.4, cy - 2);
+      } else if (f === '0') {
+        // Red cross — two diagonal lines.
+        doc.setDrawColor(...AS_CROSS);
+        doc.setLineWidth(0.7);
+        doc.line(cx - 2, cy - 2, cx + 2, cy + 2);
+        doc.line(cx - 2, cy + 2, cx + 2, cy - 2);
+      }
+    },
+    didDrawPage: () => {
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 12);
+      if (subtitle) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...TEXT_MUTED);
+        doc.text(subtitle, marginX, 18);
+      }
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, subtitle ? 21 : 15, pageW - marginX, subtitle ? 21 : 15);
+
+      // Team banner under the underline.
+      if (opts.equipo) {
+        const [er, eg, eb] = hexToRgb(opts.equipoColor);
+        const isWhiteish = er > 240 && eg > 240 && eb > 240;
+        const [dr, dg, db]: RGB = isWhiteish ? [204, 204, 204] : [er, eg, eb];
+        doc.setFillColor(dr, dg, db);
+        doc.circle(marginX + 2, (subtitle ? 25 : 19) + 0.3, 1.3, 'F');
+        doc.setTextColor(...TEXT_DARK);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(opts.equipo, marginX + 5, subtitle ? 26 : 20);
+      }
+
+      const page = doc.getCurrentPageInfo().pageNumber;
+      const total = doc.getNumberOfPages();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${page} de ${total}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    },
+  });
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
+// hexToRgb is defined later in the file (shared with exportEquiposPdf).
+
 export interface EquipoPdfRow {
   nombre: string;
   /** Public URL of the team photo (e.g. /teams/miami-heat.jpg). */
