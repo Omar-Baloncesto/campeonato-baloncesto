@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
-import LoadingState, { ErrorState } from '../components/LoadingState';
+import LoadingState from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 
 interface Jugador {
@@ -35,6 +35,7 @@ export default function Asistencias() {
   const [fechas, setFechas] = useState<string[]>(Array(10).fill(''));
   const [jugadas, setJugadas] = useState<boolean[]>(Array(10).fill(false));
   const [isLight, setIsLight] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const check = () => setIsLight(document.documentElement.classList.contains('light'));
@@ -44,21 +45,27 @@ export default function Asistencias() {
     return () => obs.disconnect();
   }, []);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     Promise.all([
-      fetch('/api/sheets?sheet=AsistenciasJugadores').then(r => r.json()),
-      fetch('/api/sheets?sheet=FIXTURE').then(r => r.json()),
+      fetch('/api/sheets?sheet=AsistenciasJugadores', { signal }).then(r => r.json()),
+      fetch('/api/sheets?sheet=FIXTURE', { signal }).then(r => r.json()),
     ])
       .then(([data, fixtureData]) => {
+        if (signal.aborted) return;
         // Extract dates from FIXTURE (col 1=jornada, col 5=fecha)
-        if (fixtureData.success && fixtureData.data.length > 1) {
+        if (fixtureData.success && Array.isArray(fixtureData.data) && fixtureData.data.length > 1) {
           const jornadaDates = new Map<string, string>();
           const jornadaPlayed = new Set<string>();
           fixtureData.data.slice(1).forEach((r: string[]) => {
             const jornada = (r[1] || '').trim();
             const fecha = (r[5] || '').trim();
-            const mLocal = parseInt(r[7]) || 0;
-            const mVisit = parseInt(r[8]) || 0;
+            const mLocal = parseInt(r[7], 10) || 0;
+            const mVisit = parseInt(r[8], 10) || 0;
             if (jornada && /^\d+$/.test(jornada)) {
               if (fecha && !jornadaDates.has(jornada)) {
                 const parts = fecha.split('/');
@@ -71,7 +78,7 @@ export default function Asistencias() {
           setJugadas(Array.from({ length: 10 }, (_, i) => jornadaPlayed.has(String(i + 1))));
         }
 
-        if (data.success && data.data.length > 1) {
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows: string[][] = data.data;
           const titleIndices: number[] = [];
           rows.forEach((r, i) => {
@@ -104,8 +111,17 @@ export default function Asistencias() {
           setEquipos(result);
         }
         setLoading(false);
+      })
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const eq = equipos[equipoActivo];
   const color = eq ? getTeamColor(eq.nombre) : '#888';
@@ -163,7 +179,7 @@ export default function Asistencias() {
               </div>
               {eq.jugadores.map((j, i) => (
                 <div
-                  key={i}
+                  key={`${eq.nombre}-${j.nombre}-${i}`}
                   className="bg-bg-secondary rounded-xl p-4 border border-border-light"
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -182,7 +198,7 @@ export default function Asistencias() {
                       const played = jugadas[fi];
                       return (
                         <div
-                          key={fi}
+                          key={`${j.nombre}-${fi}`}
                           className="w-5 h-5 rounded text-[10px] flex items-center justify-center font-bold"
                           style={{
                             background: !played ? 'transparent'
@@ -221,7 +237,7 @@ export default function Asistencias() {
                     <tr className="bg-bg-header text-[10px] uppercase tracking-wide" style={{ color: '#ffffff' }}>
                       <th className="text-center align-middle px-4 py-3 font-bold text-[14px] w-[160px]">Jugador</th>
                       {fechas.map((f, i) => (
-                        <th key={i} className="text-center px-1 py-2.5 font-bold w-[50px]">{f || `F${i + 1}`}</th>
+                        <th key={`hdr-f-${i}`} className="text-center px-1 py-2.5 font-bold w-[50px]">{f || `F${i + 1}`}</th>
                       ))}
                       <th className="text-center px-1 py-2.5 font-bold w-[55px]">Asist.</th>
                       <th className="text-center px-1 py-2.5 font-bold w-[55px]">Fechas</th>
@@ -232,7 +248,7 @@ export default function Asistencias() {
                   <tbody>
                     {eq.jugadores.map((j, i) => (
                       <tr
-                        key={i}
+                        key={`${eq.nombre}-row-${j.nombre}-${i}`}
                         className={`border-b border-border-subtle transition-colors hover:bg-white/[0.03] ${
                           i % 2 === 0 ? 'bg-bg-secondary' : 'bg-bg-card'
                         }`}
@@ -241,7 +257,7 @@ export default function Asistencias() {
                         {j.fechas.map((f, fi) => {
                           const played = jugadas[fi];
                           return (
-                            <td key={fi} className="text-center py-2.5">
+                            <td key={`${j.nombre}-cell-${fi}`} className="text-center py-2.5">
                               {played ? (
                                 <span className="text-sm font-bold" style={{
                                   color: f === '1' ? checkColor : crossColor,

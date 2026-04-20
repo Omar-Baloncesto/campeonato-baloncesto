@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
@@ -27,14 +27,21 @@ export default function Estadisticas() {
   const [orden, setOrden] = useState<'totalPuntos' | 'asistencias' | 'promedio'>('totalPuntos');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setLoading(true);
     setError(false);
-    fetch('/api/sheets?sheet=PuntosJugadores')
+    fetch('/api/sheets?sheet=PuntosJugadores', { signal })
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.data.length > 1) {
+        if (signal.aborted) return;
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows = data.data.slice(1).filter((r: string[]) => {
             const name = r[7]?.toString().trim();
             return name && name !== 'NOMBRE JUGADOR' && name.toUpperCase() !== 'JUGADOR';
@@ -67,10 +74,17 @@ export default function Estadisticas() {
         } else if (!data.success) setError(true);
         setLoading(false);
       })
-      .catch(() => { setError(true); setLoading(false); });
-  };
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const ordenados = [...jugadores]
     .filter(j => j.nombre && (!searchTerm || normalizeText(j.nombre).includes(normalizeText(searchTerm))))
@@ -129,7 +143,7 @@ export default function Estadisticas() {
                 <tbody>
                   {ordenados.map((j, i) => (
                     <tr
-                      key={i}
+                      key={`${j.nombre}-${i}`}
                       className={`border-b border-border-subtle table-row-hover ${
                         i % 2 === 0 ? 'bg-bg-secondary/50' : 'bg-bg-card/50'
                       }`}
@@ -166,9 +180,9 @@ export default function Estadisticas() {
             </div>
             <div className="overflow-x-auto">
               <div className="min-w-[480px] px-5 pb-3">
-                {maximos.map((m, i) => (
+                {maximos.map((m) => (
                   <div
-                    key={i}
+                    key={m.label}
                     className="py-3 border-b border-border-subtle last:border-b-0"
                   >
                     <div className="flex justify-between items-start gap-4">
@@ -176,8 +190,8 @@ export default function Estadisticas() {
                       <span className="text-base font-bold gradient-text shrink-0">{m.valor}</span>
                     </div>
                     <div className="mt-1 space-y-0.5">
-                      {m.jugadores.map((nombre, j) => (
-                        <div key={j} className="text-[12px] font-semibold text-text-primary">{nombre}</div>
+                      {m.jugadores.map((nombre) => (
+                        <div key={`${m.label}-${nombre}`} className="text-[12px] font-semibold text-text-primary">{nombre}</div>
                       ))}
                     </div>
                   </div>

@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getTeamColor, getTeamColorRaw, TEAM_BY_NAME } from '../lib/constants';
+import { useEffect, useRef, useState } from 'react';
+import { getTeamColorRaw, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState from '../components/LoadingState';
 
 interface Match {
   date: string;
   team1: string; q1_1: string; q2_1: string; q3_1: string; q4_1: string; ta_1: string; total1: number;
   team2: string; q1_2: string; q2_2: string; q3_2: string; q4_2: string; ta_2: string; total2: number;
+}
+
+function matchKey(m: Match): string {
+  return `${m.date}|${m.team1}|${m.team2}`;
 }
 
 function parseMatch(rows: string[][], date: string): Match {
@@ -34,7 +38,6 @@ function StatCell({ val, width = 38 }: { val: string; width?: number }) {
 function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
   name: string; q1: string; q2: string; q3: string; q4: string; ta: string; total: number; isWinner: boolean;
 }) {
-  const color = getTeamColor(name);
   const rawColor = getTeamColorRaw(name);
   const empty = !name;
   return (
@@ -168,18 +171,28 @@ export default function BracketPage() {
   const [playIn, setPlayIn] = useState<Match[]>([]);
   const [semis, setSemis] = useState<Match[]>([]);
   const [finalMatch, setFinalMatch] = useState<Match | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     async function load() {
       try {
         // Use server-side API route instead of exposing API key
         const fetchRange = async (range: string) => {
-          const res = await fetch(`/api/sheets?sheet=TablaPosiciones&range=${encodeURIComponent(range)}`);
+          const res = await fetch(
+            `/api/sheets?sheet=TablaPosiciones&range=${encodeURIComponent(range)}`,
+            { signal }
+          );
           const json = await res.json();
-          return json.data ?? [];
+          return Array.isArray(json.data) ? json.data : [];
         };
 
         const titleCell = await fetchRange('L1');
+        if (signal.aborted) return;
         const title = (titleCell?.[0]?.[0] ?? '').toUpperCase();
         const withPI = title.includes('PLAY');
         setHasPlayIn(withPI);
@@ -190,6 +203,7 @@ export default function BracketPage() {
             fetchRange('L13:R14'), fetchRange('L16:R17'),
             fetchRange('L22:R23'),
           ]);
+          if (signal.aborted) return;
           setPlayIn([parseMatch(pi1, '16/05/2026'), parseMatch(pi2, '16/05/2026')]);
           setSemis([parseMatch(s1, '23/05/2026'), parseMatch(s2, '23/05/2026')]);
           setFinalMatch(parseMatch(fin, '30/05/2026'));
@@ -198,16 +212,20 @@ export default function BracketPage() {
             fetchRange('L4:R5'), fetchRange('L7:R8'),
             fetchRange('L13:R14'),
           ]);
+          if (signal.aborted) return;
           setSemis([parseMatch(s1, '16/05/2026'), parseMatch(s2, '16/05/2026')]);
           setFinalMatch(parseMatch(fin, '23/05/2026'));
         }
       } catch (e) {
+        const name = (e as { name?: string })?.name;
+        if (name === 'AbortError' || signal.aborted) return;
         console.error('Bracket error:', e);
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     }
     load();
+    return () => { controller.abort(); };
   }, []);
 
   const champion =
@@ -241,7 +259,7 @@ export default function BracketPage() {
               <section>
                 <ColHeader label="Play In" color="#e06020" />
                 <div className="space-y-4">
-                  {playIn.map((m, i) => <MatchCard key={i} match={m} />)}
+                  {playIn.map((m) => <MatchCard key={matchKey(m)} match={m} />)}
                 </div>
               </section>
             )}
@@ -268,7 +286,7 @@ export default function BracketPage() {
                   <div className="flex flex-col items-center shrink-0" style={{ width: 600 }}>
                     <ColHeader label="Play In" color="#e06020" />
                     <div className="flex flex-col gap-8">
-                      {playIn.map((m, i) => <MatchCard key={i} match={m} />)}
+                      {playIn.map((m) => <MatchCard key={matchKey(m)} match={m} />)}
                     </div>
                   </div>
                   <div className="flex items-start shrink-0" style={{ paddingTop: HDR_H }}>
@@ -280,7 +298,7 @@ export default function BracketPage() {
               <div className="flex flex-col items-center shrink-0" style={{ width: 600 }}>
                 <ColHeader label="Semifinal" color="#2a8aaa" />
                 <div className="flex flex-col gap-8">
-                  {semis.map((m, i) => <MatchCard key={i} match={m} />)}
+                  {semis.map((m) => <MatchCard key={matchKey(m)} match={m} />)}
                 </div>
               </div>
 

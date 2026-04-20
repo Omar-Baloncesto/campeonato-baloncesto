@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
-import LoadingState, { ErrorState } from '../components/LoadingState';
+import LoadingState from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 
 interface JugadorEquipo {
@@ -31,12 +31,19 @@ export default function EstadisticasEquipos() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [equipoActivo, setEquipoActivo] = useState(0);
   const [loading, setLoading] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    fetch('/api/sheets?sheet=PuntosJugadores')
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
+    fetch('/api/sheets?sheet=PuntosJugadores', { signal })
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.data.length > 1) {
+        if (signal.aborted) return;
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows: string[][] = data.data;
           // Find team title rows dynamically
           const titleIndices: number[] = [];
@@ -66,8 +73,17 @@ export default function EstadisticasEquipos() {
           setEquipos(result);
         }
         setLoading(false);
+      })
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const eq = equipos[equipoActivo];
 
@@ -136,7 +152,7 @@ export default function EstadisticasEquipos() {
                 <tbody>
                   {eq.jugadores.map((j, i) => (
                     <tr
-                      key={i}
+                      key={`${eq.nombre}-${j.nombre}-${i}`}
                       className={`border-b border-border-subtle table-row-hover ${
                         i % 2 === 0 ? 'bg-bg-secondary' : 'bg-bg-card'
                       }`}
@@ -154,7 +170,7 @@ export default function EstadisticasEquipos() {
                     <td className="px-5 py-3.5 text-[13px] font-bold text-gold">TOTAL EQUIPO</td>
                     {(['p1', 'p2', 'p3', 'total'] as const).map(key => (
                       <td key={key} className="text-center py-3.5 text-sm font-bold text-gold">
-                        {eq.jugadores.reduce((sum, j) => sum + (parseInt(j[key]) || 0), 0)}
+                        {eq.jugadores.reduce((sum, j) => sum + (parseInt(j[key], 10) || 0), 0)}
                       </td>
                     ))}
                   </tr>

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
@@ -35,32 +35,47 @@ export default function Predicciones() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [predictions, setPredictions] = useState<Predictions>({});
+  const [predictions, setPredictions] = useState<Predictions>(() =>
+    typeof window !== 'undefined' ? loadPredictions() : {}
+  );
   const { showToast } = useToast();
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setLoading(true);
     setError(false);
-    fetch('/api/sheets?sheet=FIXTURE')
+    fetch('/api/sheets?sheet=FIXTURE', { signal })
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.data.length > 1) {
+        if (signal.aborted) return;
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows = data.data.slice(1).filter((r: string[]) => r[0]);
           setPartidos(rows.map((r: string[]) => ({
             id: r[0], jornada: r[1], local: r[2],
             visitante: r[4], fecha: r[5], hora: r[6],
-            marcadorLocal: parseInt(r[7]) || 0,
-            marcadorVisitante: parseInt(r[8]) || 0,
+            marcadorLocal: parseInt(r[7], 10) || 0,
+            marcadorVisitante: parseInt(r[8], 10) || 0,
           })));
           setLastUpdated(new Date());
         } else if (!data.success) setError(true);
         setLoading(false);
       })
-      .catch(() => { setError(true); setLoading(false); });
-  };
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
-  useEffect(() => { setPredictions(loadPredictions()); }, []);
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const jugado = (p: Partido) => p.marcadorLocal > 0 || p.marcadorVisitante > 0;
   const ganador = (p: Partido) => p.marcadorLocal > p.marcadorVisitante ? p.local : p.visitante;
