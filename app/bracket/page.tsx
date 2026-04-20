@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColorRaw, TEAM_BY_NAME } from '../lib/constants';
-import LoadingState from '../components/LoadingState';
+import LoadingState, { EmptyState } from '../components/LoadingState';
 
 interface Match {
   date: string;
@@ -251,6 +251,8 @@ export default function BracketPage() {
 
       {loading ? (
         <LoadingState message="Cargando bracket..." />
+      ) : semis.length === 0 && !finalMatch ? (
+        <EmptyState message="Aún no hay datos del bracket. Vuelve cuando comiencen las eliminatorias." />
       ) : (
         <>
           {/* Mobile: stacked layout */}
