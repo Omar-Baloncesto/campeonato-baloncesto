@@ -401,6 +401,211 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface PartidoFixturePdfRow {
+  jornada: string;
+  /** "21/02/2026" */
+  fecha: string;
+  /** "16:30" */
+  hora: string;
+  local: string;
+  /** Hex color for the local team's color bar. */
+  colorLocal: string;
+  visitante: string;
+  /** Hex color for the away team's color bar. */
+  colorVisitante: string;
+  /** "61" or "" if not played yet. */
+  marcadorLocal: string;
+  marcadorVisitante: string;
+  jugado: boolean;
+}
+
+export interface ExportFixturePdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  /** Fixture rows to include. Grouped by jornada for display. */
+  partidos: PartidoFixturePdfRow[];
+  destination?: Destination;
+}
+
+/**
+ * Render the Fixture as Letter portrait cards that mirror the web design:
+ * vertical team-color bars at the left and right edges of each match row,
+ * team names, the score (with the winner in gold), and the fecha below.
+ * Rows are grouped under a thin "Jornada N" banner so "Todos" stays
+ * readable across pages.
+ */
+export async function exportFixturePdf(
+  opts: ExportFixturePdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 12;
+  const topY = 26;
+  const botY = 12;
+  const usableW = pageW - marginX * 2;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle ?? 'Fixture';
+  const generatedAt = formatDateTime(new Date());
+
+  const drawChromeOnEveryPage = () => {
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, 22, pageW - marginX, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${p} de ${pages}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    }
+  };
+
+  // Group rows by jornada while preserving input order.
+  const groups: Array<{ jornada: string; partidos: PartidoFixturePdfRow[] }> = [];
+  for (const p of opts.partidos) {
+    const g = groups[groups.length - 1];
+    if (g && g.jornada === p.jornada) g.partidos.push(p);
+    else groups.push({ jornada: p.jornada, partidos: [p] });
+  }
+
+  const cardH = 18;
+  const cardGap = 3;
+  const jornadaHeaderH = 8;
+  const jornadaGap = 4;
+
+  let cy = topY;
+  const pageBudget = pageH - botY;
+
+  const ensureSpace = (needed: number) => {
+    if (cy + needed > pageBudget) {
+      doc.addPage();
+      cy = topY;
+    }
+  };
+
+  const drawJornadaHeader = (label: string) => {
+    ensureSpace(jornadaHeaderH + jornadaGap);
+    doc.setFillColor(24, 24, 28);
+    doc.roundedRect(marginX, cy, usableW, jornadaHeaderH, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(`JORNADA ${label}`, marginX + 4, cy + jornadaHeaderH / 2 + 1.3);
+    cy += jornadaHeaderH + jornadaGap;
+  };
+
+  const drawMatchCard = (p: PartidoFixturePdfRow) => {
+    ensureSpace(cardH + cardGap);
+    const x = marginX;
+    const y = cy;
+
+    // Card background + border.
+    doc.setFillColor(252, 252, 252);
+    doc.setDrawColor(225, 225, 225);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, usableW, cardH, 2, 2, 'FD');
+
+    // Left and right team-color bars.
+    const [lr, lg, lb] = hexToRgb(p.colorLocal);
+    const [vr, vg, vb] = hexToRgb(p.colorVisitante);
+    const localAccent: RGB = lr > 240 && lg > 240 && lb > 240 ? [204, 204, 204] : [lr, lg, lb];
+    const visitAccent: RGB = vr > 240 && vg > 240 && vb > 240 ? [204, 204, 204] : [vr, vg, vb];
+    const barW = 1.1;
+    const barH = cardH - 6;
+    const barY = y + 3;
+    doc.setFillColor(...localAccent);
+    doc.roundedRect(x + 2, barY, barW, barH, 0.4, 0.4, 'F');
+    doc.setFillColor(...visitAccent);
+    doc.roundedRect(x + usableW - 2 - barW, barY, barW, barH, 0.4, 0.4, 'F');
+
+    // Local team name on the left.
+    const localWin = p.jugado && parseInt(p.marcadorLocal, 10) > parseInt(p.marcadorVisitante, 10);
+    const visitWin = p.jugado && parseInt(p.marcadorVisitante, 10) > parseInt(p.marcadorLocal, 10);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(22, 22, 22);
+    doc.text(p.local, x + 6, y + 8);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(22, 22, 22);
+    doc.text(p.visitante, x + usableW - 6, y + 8, { align: 'right' });
+
+    // Center area: score (if played) or hora (if pending), plus fecha below.
+    const centerX = x + usableW / 2;
+    if (p.jugado) {
+      const localStr = p.marcadorLocal || '0';
+      const visitStr = p.marcadorVisitante || '0';
+      const sep = ' : ';
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      const localW = doc.getTextWidth(localStr);
+      const visitW = doc.getTextWidth(visitStr);
+      const sepW = doc.getTextWidth(sep);
+      const totalW = localW + sepW + visitW;
+      let sx = centerX - totalW / 2;
+      doc.setTextColor(...(localWin ? GOLD_RGB : ([140, 140, 140] as RGB)));
+      doc.text(localStr, sx, y + 9);
+      sx += localW;
+      doc.setTextColor(140, 140, 140);
+      doc.setFont('helvetica', 'normal');
+      doc.text(sep, sx, y + 9);
+      sx += sepW;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...(visitWin ? GOLD_RGB : ([140, 140, 140] as RGB)));
+      doc.text(visitStr, sx, y + 9);
+    } else if (p.hora) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...GOLD_RGB);
+      doc.text(p.hora, centerX, y + 9, { align: 'center' });
+    }
+
+    // Fecha below the score / hora.
+    if (p.fecha) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(p.fecha, centerX, y + cardH - 4, { align: 'center' });
+    }
+
+    cy += cardH + cardGap;
+  };
+
+  for (const group of groups) {
+    drawJornadaHeader(group.jornada);
+    for (const p of group.partidos) {
+      drawMatchCard(p);
+    }
+    // Breather between jornadas.
+    cy += 2;
+  }
+
+  drawChromeOnEveryPage();
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
 export interface PosicionPdfRow {
   /** "1°", "2°", ..., "6°" */
   puesto: string;
