@@ -10,7 +10,7 @@
  *   - optional merged title rows spanning all columns.
  */
 
-import { XLSX_MIME, shareOrDownload } from './export';
+import { XLSX_MIME, shareOrDownload, type Destination } from './export';
 
 export interface XlsxColumn<T> {
   header: string;
@@ -25,6 +25,7 @@ export interface ExportTableXlsxOptions<T> {
   rows: T[];
   /** Optional title rows shown above the table, merged across all columns. */
   titleRows?: string[];
+  destination?: Destination;
 }
 
 export async function exportTableXlsx<T>(
@@ -77,5 +78,5 @@ export async function exportTableXlsx<T>(
   // that downloads automatically (we want to route through shareOrDownload).
   const arrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
   const blob = new Blob([arrayBuffer], { type: XLSX_MIME });
-  await shareOrDownload(blob, `${opts.filename}.xlsx`, XLSX_MIME);
+  await shareOrDownload(blob, `${opts.filename}.xlsx`, XLSX_MIME, opts.destination);
 }

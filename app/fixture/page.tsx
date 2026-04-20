@@ -34,7 +34,7 @@ export default function Fixture() {
 
   const subtitleSuffix = jornada === 'Todos' ? '' : ` · Jornada ${jornada}`;
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: `Fixture${subtitleSuffix}`,
       filename: buildFilename(`fixture${jornada === 'Todos' ? '' : '-j' + jornada}`),
@@ -43,7 +43,7 @@ export default function Fixture() {
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename(`fixture${jornada === 'Todos' ? '' : '-j' + jornada}`),
       sheetName: 'Fixture',

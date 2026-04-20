@@ -239,16 +239,17 @@ export default function BracketPage() {
     return null;
   }, [finalMatch]);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportVisualPdf({
       title: 'Campeonato Baloncesto · Cúcuta 2026',
       subtitle: 'Fase eliminatoria · Bracket',
       filename: buildFilename('bracket'),
       elementId: 'bracket-export-root',
+      destination,
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     type BracketRow = {
       fase: string;
       fecha: string;
@@ -305,6 +306,7 @@ export default function BracketPage() {
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Fase eliminatoria · Bracket'],
       columns,
       rows,
+      destination,
     });
   };
 

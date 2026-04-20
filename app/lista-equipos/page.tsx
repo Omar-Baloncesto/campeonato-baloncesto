@@ -125,22 +125,24 @@ export default function ListaEquipos() {
     { header: 'Resultado', cell: (r: MarcadorRow) => r.resultado, align: 'center' as const, width: 16 },
   ];
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: 'Marcadores por cuarto',
       filename: buildFilename('marcadores'),
       columns: exportColumns,
       rows: flatRows,
+      destination,
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename('marcadores'),
       sheetName: 'Marcadores',
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Marcadores por cuarto'],
       columns: exportColumns,
       rows: flatRows,
+      destination,
     });
   };
 

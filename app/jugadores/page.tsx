@@ -215,7 +215,7 @@ export default function Jugadores() {
     ? 'Todos los equipos'
     : (TEAMS[equipoFiltro]?.name || `Equipo ${equipoFiltro}`);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: `Jugadores · ${equipoLabel}`,
       filename: buildFilename('jugadores'),
@@ -224,7 +224,7 @@ export default function Jugadores() {
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename('jugadores'),
       sheetName: 'Jugadores',

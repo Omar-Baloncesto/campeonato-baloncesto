@@ -287,7 +287,7 @@ export default function EstadisticaJugadores() {
 
   const equipoNombre = eq?.nombre ?? '';
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: `Puntos de jugadores · ${equipoNombre}`,
       filename: buildFilename(`puntos-jugadores-${equipoNombre || 'equipo'}`),
@@ -296,7 +296,7 @@ export default function EstadisticaJugadores() {
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename(`puntos-jugadores-${equipoNombre || 'equipo'}`),
       sheetName: (equipoNombre || 'Equipo').substring(0, 31),
