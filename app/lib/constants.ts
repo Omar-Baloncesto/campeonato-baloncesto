@@ -54,3 +54,14 @@ export const APP_CONFIG = {
   subtitle: 'CÚCUTA · PRIMER SEMESTRE 2026',
   year: 2026,
 };
+
+/**
+ * Public base URL of the deployed site, used by robots.ts / sitemap.ts /
+ * per-page metadata. Set NEXT_PUBLIC_SITE_URL in Vercel to point at the
+ * production domain. Falls back to the Vercel preview domain or local dev.
+ */
+export const SITE_URL = (() => {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  return 'http://localhost:3000';
+})();
