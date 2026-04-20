@@ -111,22 +111,24 @@ export default function Estadisticas() {
     { header: 'Promedio',   cell: (r: Ranked) => Number(r.promedio) || 0,       align: 'center' as const, width: 18 },
   ];
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: 'Estadísticas',
       filename: buildFilename('estadisticas'),
       columns: exportColumns,
       rows: ranked,
+      destination,
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename('estadisticas'),
       sheetName: 'Estadísticas',
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Estadísticas'],
       columns: exportColumns,
       rows: ranked,
+      destination,
     });
   };
 

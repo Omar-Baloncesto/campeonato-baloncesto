@@ -127,22 +127,24 @@ export default function EstadisticasEquipos() {
     { header: 'Total',      cell: (r: FlatRow) => r.total,                      align: 'center' as const, width: 14 },
   ];
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: 'Estadísticas por equipo',
       filename: buildFilename('estadisticas-equipos'),
       columns: exportColumns,
       rows: flatRows,
+      destination,
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename('estadisticas-equipos'),
       sheetName: 'Estadísticas por equipo',
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Estadísticas por equipo'],
       columns: exportColumns,
       rows: flatRows,
+      destination,
     });
   };
 

@@ -8,6 +8,9 @@
 
 export const SITE_TITLE = 'Campeonato Baloncesto · Cúcuta 2026';
 
+/** Where the generated file should end up. */
+export type Destination = 'download' | 'whatsapp' | 'share';
+
 /** Strip accents, collapse whitespace, and lower-case for filename safety. */
 function slugify(input: string): string {
   return input
@@ -49,48 +52,17 @@ export function formatDateTime(date: Date): string {
 }
 
 /**
- * Share the generated file via the Web Share API when the device supports
- * file-level sharing (modern iOS Safari, Chrome Android, some desktops).
- * Falls back to a traditional download for everything else.
- *
- * We intentionally do not target WhatsApp directly — letting the OS show the
- * native share sheet is both safer and lets the user pick any destination
- * (Telegram, Mail, Drive, AirDrop, etc.).
+ * UA-based mobile detection. Used by the ExportButton to decide whether to
+ * show the desktop "Descargar / WhatsApp" destination picker or jump straight
+ * to the native share sheet. Intentionally conservative — iPads that report
+ * as "Macintosh" will be treated as desktop.
  */
-export async function shareOrDownload(
-  blob: Blob,
-  filename: string,
-  mimeType: string,
-): Promise<void> {
-  if (typeof window === 'undefined') return;
+export function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
-  // Build the File once; Web Share needs a File, download works with Blob.
-  const file = new File([blob], filename, { type: mimeType });
-
-  // Try the Web Share API only if the UA reports it can share THIS file.
-  // Some browsers expose canShare() but can't handle files; the check with
-  // `{ files }` guards against that false positive.
-  const nav = navigator as Navigator & {
-    canShare?: (data: ShareData) => boolean;
-  };
-  if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
-    try {
-      await nav.share({
-        files: [file],
-        title: SITE_TITLE,
-        text: SITE_TITLE,
-      });
-      return;
-    } catch (err) {
-      // AbortError = user dismissed the share sheet. Do nothing (don't
-      // fall back to download, they made a choice). Any other error, we
-      // fall through to the download path below.
-      const name = (err as { name?: string })?.name;
-      if (name === 'AbortError') return;
-    }
-  }
-
-  // Desktop / unsupported mobile browsers: classic download.
+function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   try {
     const a = document.createElement('a');
@@ -105,6 +77,70 @@ export async function shareOrDownload(
     // download before we invalidate the URL.
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+}
+
+/**
+ * Dispatch the generated file to the destination the user picked.
+ *
+ * - `share`  → Web Share API (native share sheet, used on mobile).
+ * - `download` → classic download to the browser's Descargas folder.
+ * - `whatsapp` → download the file AND open WhatsApp Web in a new tab
+ *   with a helpful hint toast. WhatsApp Web has no API for attaching files
+ *   programmatically, so the user drags the just-downloaded file into the
+ *   chat; the flow is still one less decision than "download, find the file,
+ *   manually open WhatsApp".
+ *
+ * If `share` is requested but the UA can't actually share THIS file (e.g.
+ * desktop browsers without file-level Web Share), we fall back to download.
+ */
+export async function shareOrDownload(
+  blob: Blob,
+  filename: string,
+  mimeType: string,
+  destination: Destination = 'download',
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  if (destination === 'share') {
+    const file = new File([blob], filename, { type: mimeType });
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+    };
+    if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+      try {
+        await nav.share({
+          files: [file],
+          title: SITE_TITLE,
+          text: SITE_TITLE,
+        });
+        return;
+      } catch (err) {
+        const name = (err as { name?: string })?.name;
+        if (name === 'AbortError') return; // user dismissed, no fallback
+        // Any other error → fall through to download below.
+      }
+    }
+    // Fallback: no Web Share support for this file — just download it.
+    triggerDownload(blob, filename);
+    return;
+  }
+
+  if (destination === 'whatsapp') {
+    // Always download the file first — WhatsApp Web can't accept files
+    // via URL parameters, so the user drags it into the chat manually.
+    triggerDownload(blob, filename);
+    // Open WhatsApp Web in a new tab so the user already sees it.
+    try {
+      window.open('https://web.whatsapp.com/', '_blank', 'noopener,noreferrer');
+    } catch {
+      // Pop-up blockers etc. — silently ignore, the file was still
+      // downloaded so the user can open WhatsApp Web themselves.
+    }
+    return;
+  }
+
+  // Default: plain download.
+  triggerDownload(blob, filename);
 }
 
 export const PDF_MIME = 'application/pdf';

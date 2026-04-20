@@ -154,7 +154,7 @@ export default function Asistencias() {
 
   const equipoNombre = eq?.nombre ?? '';
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     if (!eq) return;
     await exportTablePdf({
       subtitle: `Asistencias · ${equipoNombre}`,
@@ -164,7 +164,7 @@ export default function Asistencias() {
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     if (!eq) return;
     await exportTableXlsx({
       filename: buildFilename(`asistencias-${equipoNombre}`),

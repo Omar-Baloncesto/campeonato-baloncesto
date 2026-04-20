@@ -150,7 +150,7 @@ export default function Dashboard() {
 
   // Pre-compute the derived rates per team once instead of inside the map
   // body, so a re-render that doesn't change equipos / statsMap is free.
-  const handleExportPdf = useCallback(async () => {
+  const handleExportPdf = useCallback(async (destination: 'download' | 'whatsapp' | 'share') => {
     // Temporarily expand every team card so the capture shows all stats,
     // not just whichever one the user happened to have open. We wait two
     // animation frames so the CSS expand transition settles and the full
@@ -167,6 +167,7 @@ export default function Dashboard() {
         subtitle: 'Equipos participantes',
         filename: buildFilename('equipos'),
         elementId: 'equipos-export-root',
+        destination,
       });
     } finally {
       setExpandAllForExport(false);

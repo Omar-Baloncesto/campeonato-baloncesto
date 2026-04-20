@@ -78,22 +78,24 @@ export default function Predicciones() {
     { header: 'Resultado',      cell: (p: Partido) => resultadoFor(p),                     align: 'center' as const, width: 18 },
   ];
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: 'Predicciones',
       filename: buildFilename('predicciones'),
       columns: exportColumns,
       rows: filtrados,
+      destination,
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename('predicciones'),
       sheetName: 'Predicciones',
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Predicciones'],
       columns: exportColumns,
       rows: filtrados,
+      destination,
     });
   };
 

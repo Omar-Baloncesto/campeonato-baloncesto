@@ -17,6 +17,7 @@ import {
   PDF_MIME,
   formatDateTime,
   shareOrDownload,
+  type Destination,
 } from './export';
 
 const GOLD = '#F5B800';
@@ -41,6 +42,7 @@ export interface ExportTablePdfOptions<T> {
   columns: PdfColumn<T>[];
   rows: T[];
   footer?: string;
+  destination?: Destination;
 }
 
 export async function exportTablePdf<T>(
@@ -138,7 +140,7 @@ export async function exportTablePdf<T>(
   });
 
   const blob = doc.output('blob');
-  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME);
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
 export interface ExportVisualPdfOptions {
@@ -149,6 +151,7 @@ export interface ExportVisualPdfOptions {
   elementId: string;
   /** Optional background color to force during capture (defaults to white). */
   backgroundColor?: string;
+  destination?: Destination;
 }
 
 /**
@@ -253,5 +256,5 @@ export async function exportVisualPdf(
   void GOLD;
 
   const blob = doc.output('blob');
-  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME);
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }

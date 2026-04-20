@@ -77,22 +77,24 @@ export default function Posiciones() {
     { header: 'Pts',     cell: (e: Equipo) => Number(e.puntos) || 0,          align: 'center' as const, width: 14 },
   ]), []);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     await exportTablePdf({
       subtitle: 'Tabla de posiciones',
       filename: buildFilename('posiciones'),
       columns: exportColumns,
       rows: lista,
+      destination,
     });
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (destination: "download" | "whatsapp" | "share") => {
     await exportTableXlsx({
       filename: buildFilename('posiciones'),
       sheetName: 'Posiciones',
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Tabla de posiciones'],
       columns: exportColumns,
       rows: lista,
+      destination,
     });
   };
 

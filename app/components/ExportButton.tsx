@@ -9,33 +9,36 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useToast } from './ToastProvider';
+import { isMobileDevice, type Destination } from '../lib/export';
 
 export interface ExportButtonProps {
   /** Disables the whole control while data is still loading. */
   disabled?: boolean;
   /** If omitted, the PDF option isn't shown. */
-  onExportPdf?: () => void | Promise<void>;
+  onExportPdf?: (destination: Destination) => void | Promise<void>;
   /** If omitted, the Excel option isn't shown. */
-  onExportExcel?: () => void | Promise<void>;
+  onExportExcel?: (destination: Destination) => void | Promise<void>;
   /** Optional label override (defaults to "Exportar"). */
   label?: string;
 }
 
 type FormatKey = 'pdf' | 'excel';
+type Phase = 'closed' | 'format' | 'destination';
 
 /**
- * Small "Exportar" button shown in each page's header area.
+ * Export trigger shown in each page header.
  *
- * Behaviour:
- *   - If both PDF + Excel handlers are provided, the button opens a
- *     dropdown menu with both options.
- *   - If only the PDF handler is provided (e.g. Equipos page), the
- *     button exports directly on click — no menu is shown.
- *   - Keyboard: Escape closes, Arrow keys navigate, Enter activates,
- *     Tab leaves. Click-outside closes. Focus returns to the trigger
- *     after selection or Escape.
- *   - Uses the existing ToastProvider to announce progress and errors.
- *   - Shows a spinner while the export runs and disables both options.
+ * Flow (mobile): one tap → format menu → pick PDF/Excel → file is built
+ * and the native share sheet opens (WhatsApp, Mail, Drive, etc. appear
+ * as the OS normally offers).
+ *
+ * Flow (desktop): two taps → format menu → pick PDF/Excel → destination
+ * menu → pick Descargar or WhatsApp Web. Descargar saves to the browser's
+ * Descargas folder; WhatsApp Web downloads the file and opens
+ * web.whatsapp.com in a new tab so the user can drag the file into a chat.
+ *
+ * For pages with only one format (Equipos = PDF), the format step is
+ * skipped on desktop: the trigger opens the destination menu directly.
  */
 export default function ExportButton({
   disabled = false,
@@ -43,9 +46,17 @@ export default function ExportButton({
   onExportExcel,
   label = 'Exportar',
 }: ExportButtonProps) {
-  const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<Phase>('closed');
+  const [pickedFormat, setPickedFormat] = useState<FormatKey | null>(null);
   const [busy, setBusy] = useState<FormatKey | null>(null);
+  const [mobile, setMobile] = useState(false);
   const { showToast } = useToast();
+
+  // Re-evaluate the UA on mount so SSR renders desktop UI consistently and
+  // the client swaps to mobile flow if appropriate.
+  useEffect(() => {
+    setMobile(isMobileDevice());
+  }, []);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -54,43 +65,75 @@ export default function ExportButton({
 
   const hasPdf = typeof onExportPdf === 'function';
   const hasExcel = typeof onExportExcel === 'function';
-  const hasMenu = hasPdf && hasExcel;
+  const hasBothFormats = hasPdf && hasExcel;
 
   const runExport = useCallback(
-    async (kind: FormatKey) => {
+    async (kind: FormatKey, destination: Destination) => {
       const handler = kind === 'pdf' ? onExportPdf : onExportExcel;
       if (!handler) return;
       setBusy(kind);
-      setOpen(false);
+      setPhase('closed');
+      setPickedFormat(null);
       const niceName = kind === 'pdf' ? 'PDF' : 'Excel';
       showToast(`Generando ${niceName}…`, 'info');
       try {
-        await handler();
-        showToast('Listo', 'success');
+        await handler(destination);
+        if (destination === 'whatsapp') {
+          showToast('Archivo listo — arrástralo al chat de WhatsApp', 'success');
+        } else {
+          showToast('Listo', 'success');
+        }
       } catch (err) {
         console.error(`Export ${kind} failed:`, err);
         showToast(`Error al generar ${niceName}`, 'error');
       } finally {
         setBusy(null);
-        // Restore focus to trigger so keyboard users don't lose context.
         triggerRef.current?.focus();
       }
     },
     [onExportPdf, onExportExcel, showToast],
   );
 
+  // On mobile, picking a format triggers export directly via Web Share.
+  // On desktop, picking a format advances to the destination step.
+  const selectFormat = useCallback(
+    (kind: FormatKey) => {
+      if (mobile) {
+        void runExport(kind, 'share');
+        return;
+      }
+      setPickedFormat(kind);
+      setPhase('destination');
+    },
+    [mobile, runExport],
+  );
+
+  const selectDestination = useCallback(
+    (dest: Destination) => {
+      if (!pickedFormat) return;
+      void runExport(pickedFormat, dest);
+    },
+    [pickedFormat, runExport],
+  );
+
   // Close the menu when the user clicks anywhere outside of it.
   useEffect(() => {
-    if (!open) return;
+    if (phase === 'closed') return;
     const onDocClick = (e: MouseEvent) => {
       const root = rootRef.current;
       if (root && e.target instanceof Node && !root.contains(e.target)) {
-        setOpen(false);
+        setPhase('closed');
+        setPickedFormat(null);
       }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setOpen(false);
+        if (phase === 'destination') {
+          setPhase('format');
+          setPickedFormat(null);
+        } else {
+          setPhase('closed');
+        }
         triggerRef.current?.focus();
       }
     };
@@ -100,31 +143,43 @@ export default function ExportButton({
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [phase]);
 
   // When the menu opens, focus the first enabled item.
   useEffect(() => {
-    if (!open) return;
+    if (phase === 'closed') return;
     const first = menuRef.current?.querySelector<HTMLButtonElement>(
       '[role="menuitem"]:not([disabled])',
     );
     first?.focus();
-  }, [open]);
+  }, [phase]);
 
   if (!hasPdf && !hasExcel) {
-    // Nothing to export — render nothing rather than an inert button.
     return null;
   }
 
   const handleTriggerClick = () => {
     if (disabled || busy) return;
-    if (!hasMenu) {
-      // Single-handler mode: export directly.
-      if (hasPdf) void runExport('pdf');
-      else if (hasExcel) void runExport('excel');
+    if (phase !== 'closed') {
+      setPhase('closed');
+      setPickedFormat(null);
       return;
     }
-    setOpen((v) => !v);
+    // Single format + desktop → jump straight to destination picker.
+    if (!hasBothFormats && !mobile) {
+      const only: FormatKey = hasPdf ? 'pdf' : 'excel';
+      setPickedFormat(only);
+      setPhase('destination');
+      return;
+    }
+    // Single format + mobile → one-tap export via native share.
+    if (!hasBothFormats && mobile) {
+      const only: FormatKey = hasPdf ? 'pdf' : 'excel';
+      void runExport(only, 'share');
+      return;
+    }
+    // Two formats → start with the format picker.
+    setPhase('format');
   };
 
   const onMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -150,20 +205,14 @@ export default function ExportButton({
       e.preventDefault();
       items[items.length - 1]?.focus();
     } else if (e.key === 'Tab') {
-      // Let the user tab out, which should close the menu.
-      setOpen(false);
+      setPhase('closed');
+      setPickedFormat(null);
     }
   };
 
-  // Label shown when in single-handler mode — more descriptive than
-  // the generic "Exportar".
-  const triggerLabel = hasMenu
-    ? label
-    : hasPdf
-      ? 'PDF'
-      : 'Excel';
-
+  const triggerLabel = hasBothFormats ? label : hasPdf ? 'PDF' : 'Excel';
   const isBusy = busy !== null;
+  const open = phase !== 'closed';
 
   return (
     <div ref={rootRef} className="relative inline-block">
@@ -172,11 +221,11 @@ export default function ExportButton({
         type="button"
         onClick={handleTriggerClick}
         disabled={disabled || isBusy}
-        aria-haspopup={hasMenu ? 'menu' : undefined}
-        aria-expanded={hasMenu ? open : undefined}
-        aria-controls={hasMenu ? menuId : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
         aria-label={
-          hasMenu ? `${label} datos de la página` : `Exportar como ${triggerLabel}`
+          hasBothFormats ? `${label} datos de la página` : `Exportar como ${triggerLabel}`
         }
         className={`
           inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
@@ -199,49 +248,83 @@ export default function ExportButton({
           </svg>
         )}
         <span>{isBusy ? 'Generando…' : triggerLabel}</span>
-        {hasMenu && !isBusy && (
+        {!isBusy && (
           <svg className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         )}
       </button>
 
-      {hasMenu && open && (
+      {open && (
         <div
           ref={menuRef}
           id={menuId}
           role="menu"
-          aria-label="Formato de exportación"
+          aria-label={phase === 'destination' ? 'Destino del archivo' : 'Formato de exportación'}
           onKeyDown={onMenuKeyDown}
-          className="absolute right-0 mt-2 min-w-[160px] rounded-xl border border-border-light bg-bg-card backdrop-blur-xl shadow-xl z-50 overflow-hidden"
+          className="absolute right-0 mt-2 min-w-[220px] rounded-xl border border-border-light bg-bg-card backdrop-blur-xl shadow-xl z-50 overflow-hidden"
         >
-          {hasPdf && (
-            <MenuItem
-              label="PDF"
-              hint="Documento"
-              disabled={isBusy}
-              onSelect={() => runExport('pdf')}
-              icon={
-                <svg className="w-4 h-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" />
-                </svg>
-              }
-            />
+          {phase === 'format' && (
+            <>
+              {hasPdf && (
+                <MenuItem
+                  label="PDF"
+                  hint="Documento"
+                  disabled={isBusy}
+                  onSelect={() => selectFormat('pdf')}
+                  icon={
+                    <svg className="w-4 h-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" />
+                    </svg>
+                  }
+                />
+              )}
+              {hasExcel && (
+                <MenuItem
+                  label="Excel"
+                  hint="Hoja de cálculo"
+                  disabled={isBusy}
+                  onSelect={() => selectFormat('excel')}
+                  icon={
+                    <svg className="w-4 h-4 text-positive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <path strokeLinecap="round" d="M8 8l8 8M16 8l-8 8" />
+                    </svg>
+                  }
+                />
+              )}
+            </>
           )}
-          {hasExcel && (
-            <MenuItem
-              label="Excel"
-              hint="Hoja de cálculo"
-              disabled={isBusy}
-              onSelect={() => runExport('excel')}
-              icon={
-                <svg className="w-4 h-4 text-positive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <path strokeLinecap="round" d="M8 8l8 8M16 8l-8 8" />
-                </svg>
-              }
-            />
+
+          {phase === 'destination' && (
+            <>
+              <div className="px-3.5 py-2 text-[10px] text-text-muted uppercase tracking-wider border-b border-border-subtle">
+                {pickedFormat === 'pdf' ? 'PDF' : 'Excel'} · ¿a dónde?
+              </div>
+              <MenuItem
+                label="Descargar"
+                hint="A Descargas del PC"
+                disabled={isBusy}
+                onSelect={() => selectDestination('download')}
+                icon={
+                  <svg className="w-4 h-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                }
+              />
+              <MenuItem
+                label="WhatsApp Web"
+                hint="Abre el chat y arrastras el archivo"
+                disabled={isBusy}
+                onSelect={() => selectDestination('whatsapp')}
+                icon={
+                  <svg className="w-4 h-4 text-positive" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.588-5.945C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.99 5.945L2.44 19.94l3.213-1.747zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.372-.025-.521-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/>
+                  </svg>
+                }
+              />
+            </>
           )}
         </div>
       )}
