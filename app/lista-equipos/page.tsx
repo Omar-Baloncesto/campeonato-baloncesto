@@ -5,7 +5,7 @@ import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportMarcadoresPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 
 interface Partido {
@@ -80,8 +80,9 @@ export default function ListaEquipos() {
 
   const fecha = fechas[fechaActiva];
 
-  // Flatten every fecha → partido → 2 rows (local + visita) for a simple
-  // export. Users typically want the whole tournament, not a single fecha.
+  // For the Excel export we still flatten all fechas into one sheet — Excel
+  // users typically want the whole tournament. For the PDF we only export
+  // the fecha the user is currently viewing (same behaviour as the web).
   type MarcadorRow = {
     fecha: string;
     equipo: string;
@@ -113,7 +114,7 @@ export default function ListaEquipos() {
     });
   });
 
-  const exportColumns = [
+  const excelColumns = [
     { header: 'Fecha',     cell: (r: MarcadorRow) => r.fecha,     align: 'center' as const, width: 18 },
     { header: 'Equipo',    cell: (r: MarcadorRow) => r.equipo,    align: 'left'   as const, width: 28 },
     { header: '1°',        cell: (r: MarcadorRow) => r.q1 || '-', align: 'center' as const, width: 10 },
@@ -126,11 +127,18 @@ export default function ListaEquipos() {
   ];
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
-      subtitle: 'Marcadores por cuarto',
-      filename: buildFilename('marcadores'),
-      columns: exportColumns,
-      rows: flatRows,
+    if (!fecha) return;
+    await exportMarcadoresPdf({
+      filename: buildFilename(`marcadores-${fecha.fecha.replace(/\//g, '-')}`),
+      fecha: fecha.fecha,
+      partidos: fecha.partidos.map((p) => ({
+        equipoA: p.equipoA,
+        q1A: p.q1A, q2A: p.q2A, q3A: p.q3A, q4A: p.q4A, taA: p.taA, totalA: p.totalA,
+        equipoB: p.equipoB,
+        q1B: p.q1B, q2B: p.q2B, q3B: p.q3B, q4B: p.q4B, taB: p.taB, totalB: p.totalB,
+        colorA: getTeamColor(p.equipoA),
+        colorB: getTeamColor(p.equipoB),
+      })),
       destination,
     });
   };
@@ -140,7 +148,7 @@ export default function ListaEquipos() {
       filename: buildFilename('marcadores'),
       sheetName: 'Marcadores',
       titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Marcadores por cuarto'],
-      columns: exportColumns,
+      columns: excelColumns,
       rows: flatRows,
       destination,
     });
