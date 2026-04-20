@@ -6,7 +6,7 @@ import DataFreshness from '../components/DataFreshness';
 import ExportButton from '../components/ExportButton';
 import SearchInput from '../components/SearchInput';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportEstadisticasPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { normalizeText } from '../lib/utils';
 
@@ -112,11 +112,15 @@ export default function Estadisticas() {
   ];
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
-      subtitle: 'Estadísticas',
+    await exportEstadisticasPdf({
       filename: buildFilename('estadisticas'),
-      columns: exportColumns,
-      rows: ranked,
+      orden,
+      jugadores: ordenados.map((j) => ({
+        nombre: j.nombre,
+        totalPuntos: Number(j.totalPuntos) || 0,
+        asistencias: Number(j.asistencias) || 0,
+        promedio: j.promedio,
+      })),
       destination,
     });
   };
