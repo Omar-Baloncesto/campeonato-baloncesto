@@ -456,10 +456,16 @@ async function fetchAsDataUrl(src: string): Promise<string | null> {
 }
 
 /**
- * Render the Equipos page as a 2×N grid of team cards drawn natively with
- * jsPDF. Photos are pre-fetched and embedded as JPEG data URLs. Layout is
- * fixed (A4 portrait, 2 columns) so the output is identical regardless of
- * the user's viewport or whether Next/Image has finished optimising.
+ * Render the Equipos page as a 3×2 grid of team cards drawn natively with
+ * jsPDF on landscape A4 (6 teams per page). Photos are pre-fetched and
+ * embedded as JPEG data URLs. Layout is fixed so the output is identical
+ * regardless of the user's viewport or whether Next/Image has finished
+ * optimising.
+ *
+ * The card design mirrors the web screen: photo on top, team name +
+ * "Cúcuta" subtitle, PUESTO pill, PUNTOS, PJ/PG/PP row, P.ANO/P.REC/DIF
+ * row, 2×2 stat-box grid (Prom. Pts, Prom. Pts Rec., Ratio, % Vict.),
+ * and a máx. anotador footer.
  */
 export async function exportEquiposPdf(
   opts: ExportEquiposPdfOptions,
@@ -472,17 +478,17 @@ export async function exportEquiposPdf(
     opts.rows.map((r) => (r.photoSrc ? fetchAsDataUrl(r.photoSrc) : Promise.resolve(null))),
   );
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();   // 210
-  const pageH = doc.internal.pageSize.getHeight();  // 297
-  const marginX = 12;
-  const topY = 26;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();   // 297
+  const pageH = doc.internal.pageSize.getHeight();  // 210
+  const marginX = 10;
+  const topY = 24;
   const botY = 12;
   const usableW = pageW - marginX * 2;
   const usableH = pageH - topY - botY;
 
-  const cols = 2;
-  const rowsPerPage = 3;
+  const cols = 3;
+  const rowsPerPage = 2;
   const gapX = 6;
   const gapY = 6;
   const cardW = (usableW - gapX * (cols - 1)) / cols;
@@ -553,10 +559,10 @@ function drawTeamCard(
   doc.setFillColor(252, 252, 252);
   doc.setDrawColor(225, 225, 225);
   doc.setLineWidth(0.3);
-  doc.roundedRect(x, y, w, h, 2.2, 2.2, 'FD');
+  doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
 
-  // --- Photo (top ~45% of card) ---
-  const photoH = h * 0.42;
+  // --- Photo (top ~48% of card) ---
+  const photoH = h * 0.48;
   if (photoDataUrl) {
     try {
       doc.addImage(photoDataUrl, 'JPEG', x, y, w, photoH, undefined, 'FAST');
@@ -569,111 +575,182 @@ function drawTeamCard(
     doc.rect(x, y, w, photoH, 'F');
   }
 
-  // --- Name row: color dot + team name + puesto pill ---
-  const nameRowY = y + photoH + 6.5;
+  // Thin color bar just under the photo for team accent.
   const [dr, dg, db] = hexToRgb(team.color);
   const isWhiteish = dr > 240 && dg > 240 && db > 240;
-  const dotColor: RGB = isWhiteish ? [204, 204, 204] : [dr, dg, db];
-  doc.setFillColor(...dotColor);
-  doc.circle(x + 4, nameRowY - 1.1, 1.3, 'F');
+  const accent: RGB = isWhiteish ? [204, 204, 204] : [dr, dg, db];
+  doc.setFillColor(...accent);
+  doc.rect(x, y + photoH, w, 0.8, 'F');
+
+  // --- Name row: color dot + team name + "Cúcuta" subtitle ---
+  const nameTopY = y + photoH + 4;
+  doc.setFillColor(...accent);
+  doc.roundedRect(x + 3, nameTopY, 1.2, 4.5, 0.4, 0.4, 'F');
 
   doc.setTextColor(...TEXT_DARK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text(team.nombre, x + 7, nameRowY);
+  doc.text(team.nombre, x + 6, nameTopY + 3);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text('Cúcuta', x + 6, nameTopY + 6.5);
 
-  if (team.puesto) {
-    const puestoText = `${team.puesto}°`;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    const textW = doc.getTextWidth(puestoText);
-    const pillW = textW + 5;
-    const pillH = 5;
-    const pillX = x + w - pillW - 2.5;
-    const pillY = nameRowY - 4;
-    doc.setFillColor(...GOLD_RGB);
-    doc.roundedRect(pillX, pillY, pillW, pillH, 1.2, 1.2, 'F');
-    doc.setTextColor(22, 22, 22);
-    doc.text(puestoText, pillX + pillW / 2, pillY + pillH - 1.3, { align: 'center' });
-  }
-
-  // --- Stat rows ---
-  // We fit: puntos line, PJ/PG/PP, P.ANO/P.REC/DIF, PPG/PPG.R/RATIO/%WIN,
-  // and máximo anotador. Each row has a thin separator above it.
-  const statsStartY = nameRowY + 3.5;
-  const statsEndY = y + h - 2;
+  // --- Stats area begins just below the name block ---
+  const statsStartY = nameTopY + 8.5;
+  const statsEndY = y + h - 2.5;
   const statsH = statsEndY - statsStartY;
-  // 5 content rows → equal vertical slots.
-  const rowH = statsH / 5;
+
+  // Vertical layout (in mm): rows roughly proportional to statsH.
+  // If the card is shorter on a smaller page, everything scales.
+  const R = statsH / 100; // "percent unit" → mm
+  const heights = {
+    puesto: 10 * R,
+    puntos: 9  * R,
+    pjpgpp: 14 * R,
+    panoRecDif: 14 * R,
+    promBoxes: 33 * R,
+    maxScorer: 20 * R,
+  };
 
   const drawSeparator = (atY: number) => {
-    doc.setDrawColor(230, 230, 230);
+    doc.setDrawColor(228, 228, 228);
     doc.setLineWidth(0.2);
     doc.line(x + 3, atY, x + w - 3, atY);
   };
 
-  // Row 1: Puntos
   let curY = statsStartY;
-  drawSeparator(curY);
-  const r1Mid = curY + rowH / 2 + 1.2;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(...TEXT_MUTED);
-  doc.text('PUNTOS', x + 3.5, r1Mid);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...GOLD_RGB);
-  doc.text(String(team.puntos ?? '—'), x + w - 3.5, r1Mid, { align: 'right' });
 
-  // Row 2: PJ / PG / PP
-  curY += rowH;
+  // PUESTO row: label left, gold pill right.
   drawSeparator(curY);
-  drawThreeStat(doc, x, curY, w, rowH, [
+  {
+    const midY = curY + heights.puesto / 2 + 1.1;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text('PUESTO', x + 4, midY);
+    if (team.puesto) {
+      const puestoText = `${team.puesto}°`;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      const tw = doc.getTextWidth(puestoText);
+      const pillW = tw + 4.5;
+      const pillH = 5;
+      const pillX = x + w - pillW - 3;
+      const pillY = midY - 3.7;
+      doc.setFillColor(...GOLD_RGB);
+      doc.roundedRect(pillX, pillY, pillW, pillH, 1.2, 1.2, 'F');
+      doc.setTextColor(22, 22, 22);
+      doc.text(puestoText, pillX + pillW / 2, pillY + pillH - 1.4, { align: 'center' });
+    }
+  }
+  curY += heights.puesto;
+
+  // PUNTOS row: label left, gold value right.
+  drawSeparator(curY);
+  {
+    const midY = curY + heights.puntos / 2 + 1.1;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text('PUNTOS', x + 4, midY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...GOLD_RGB);
+    doc.text(String(team.puntos ?? '—'), x + w - 4, midY, { align: 'right' });
+  }
+  curY += heights.puntos;
+
+  // PJ / PG / PP three-column row.
+  drawSeparator(curY);
+  drawThreeStat(doc, x, curY, w, heights.pjpgpp, [
     { label: 'PJ', value: String(team.pj ?? '—'), color: TEXT_DARK },
     { label: 'PG', value: String(team.pg ?? '—'), color: [34, 197, 94] },
     { label: 'PP', value: String(team.pp ?? '—'), color: [220, 38, 38] },
   ]);
+  curY += heights.pjpgpp;
 
-  // Row 3: P.ANO / P.REC / DIF
-  curY += rowH;
+  // P.ANO / P.REC / DIF three-column row.
   drawSeparator(curY);
   const dif = team.diferencia;
   const difText = dif == null ? '—' : `${dif > 0 ? '+' : ''}${dif}`;
   const difColor: RGB = dif == null ? TEXT_DARK : dif >= 0 ? [34, 197, 94] : [220, 38, 38];
-  drawThreeStat(doc, x, curY, w, rowH, [
+  drawThreeStat(doc, x, curY, w, heights.panoRecDif, [
     { label: 'P. ANO.', value: String(team.puntosAnotados ?? '—'), color: TEXT_DARK },
     { label: 'P. REC.', value: String(team.puntosRecibidos ?? '—'), color: TEXT_DARK },
     { label: 'DIF.',    value: difText, color: difColor },
   ]);
+  curY += heights.panoRecDif;
 
-  // Row 4: PPG / PPG.R / RATIO / %WIN (4 columns)
-  curY += rowH;
+  // 2×2 grid of stat boxes (Prom. Pts, Prom. Pts Rec., Ratio, % Victorias).
   drawSeparator(curY);
-  drawFourStat(doc, x, curY, w, rowH, [
-    { label: 'PROM PTS', value: team.ppgOff ?? '—',     color: [34, 197, 94] },
-    { label: 'PROM REC', value: team.ppgDef ?? '—',     color: [220, 38, 38] },
-    { label: 'RATIO',    value: team.ratio ?? '—',      color: [245, 184, 0] },
-    { label: '% VIC.',   value: team.winPct ? `${team.winPct}%` : '—', color: TEXT_DARK },
+  drawStatBoxGrid(doc, x + 3, curY + 1.5, w - 6, heights.promBoxes - 2, [
+    { label: 'PROM. PTS/PART.',      value: team.ppgOff ?? '—',     color: [34, 197, 94] },
+    { label: 'PROM. PTS REC./PART.', value: team.ppgDef ?? '—',     color: [220, 38, 38] },
+    { label: 'RATIO PF/PC',          value: team.ratio ?? '—',      color: [245, 184, 0] },
+    { label: '% VICTORIAS',          value: team.winPct ? `${team.winPct}%` : '—', color: TEXT_DARK },
   ]);
+  curY += heights.promBoxes;
 
-  // Row 5: Max anotador
-  curY += rowH;
+  // Máx. anotador row — name left, "<pts> pts" right.
   drawSeparator(curY);
-  const r5Mid = curY + rowH / 2 + 1.2;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(...TEXT_MUTED);
-  doc.text('MÁX. ANOTADOR', x + 3.5, r5Mid - 1.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...TEXT_DARK);
-  const scorerName = team.topScorer?.nombre ?? '—';
-  doc.text(scorerName, x + 3.5, r5Mid + 1.7);
-  if (team.topScorer) {
-    doc.setTextColor(...GOLD_RGB);
-    doc.setFontSize(9);
-    doc.text(`${team.topScorer.puntos} pts`, x + w - 3.5, r5Mid + 0.5, { align: 'right' });
+  {
+    const labelY = curY + 3.2;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text('MÁX. ANOTADOR', x + 4, labelY);
+
+    const scorerName = team.topScorer?.nombre ?? '—';
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...TEXT_DARK);
+    doc.text(scorerName, x + 4, labelY + 5.5);
+
+    if (team.topScorer) {
+      const rightX = x + w - 4;
+      doc.setFontSize(11);
+      doc.setTextColor(...GOLD_RGB);
+      doc.text(String(team.topScorer.puntos), rightX, labelY + 3.5, { align: 'right' });
+      doc.setFontSize(6);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text('pts', rightX, labelY + 6.5, { align: 'right' });
+    }
   }
+}
+
+function drawStatBoxGrid(
+  doc: JsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  cells: Array<{ label: string; value: string; color: RGB }>,
+) {
+  // 2×2 grid; each box has a light-gray fill, label on top, value bold below.
+  const gap = 1.5;
+  const bw = (w - gap) / 2;
+  const bh = (h - gap) / 2;
+  cells.forEach((c, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const bx = x + col * (bw + gap);
+    const by = y + row * (bh + gap);
+    doc.setFillColor(243, 243, 243);
+    doc.setDrawColor(225, 225, 225);
+    doc.setLineWidth(0.15);
+    doc.roundedRect(bx, by, bw, bh, 1, 1, 'FD');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(c.label, bx + bw / 2, by + bh * 0.38, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...c.color);
+    doc.text(c.value, bx + bw / 2, by + bh * 0.85, { align: 'center' });
+  });
 }
 
 function drawThreeStat(
@@ -687,38 +764,14 @@ function drawThreeStat(
   const n = cells.length;
   for (let i = 0; i < n; i++) {
     const cx = x + (w / n) * (i + 0.5);
-    const labelY = y + rowH * 0.38;
+    const labelY = y + rowH * 0.35;
     const valueY = y + rowH * 0.85;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...TEXT_MUTED);
     doc.text(cells[i].label, cx, labelY, { align: 'center' });
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...cells[i].color);
-    doc.text(cells[i].value, cx, valueY, { align: 'center' });
-  }
-}
-
-function drawFourStat(
-  doc: JsPDF,
-  x: number,
-  y: number,
-  w: number,
-  rowH: number,
-  cells: Array<{ label: string; value: string; color: RGB }>,
-) {
-  const n = cells.length;
-  for (let i = 0; i < n; i++) {
-    const cx = x + (w / n) * (i + 0.5);
-    const labelY = y + rowH * 0.38;
-    const valueY = y + rowH * 0.85;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(...TEXT_MUTED);
-    doc.text(cells[i].label, cx, labelY, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(10);
     doc.setTextColor(...cells[i].color);
     doc.text(cells[i].value, cx, valueY, { align: 'center' });
   }
