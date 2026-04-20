@@ -12,7 +12,7 @@ import LoadingState, { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
 import ExportButton from './components/ExportButton';
 import { buildFilename } from './lib/export';
-import { exportVisualPdf } from './lib/export-pdf';
+import { exportEquiposPdf } from './lib/export-pdf';
 
 // Static imports give Next/Image the intrinsic width/height so we get no
 // layout shift while the optimized version is loading.
@@ -52,7 +52,6 @@ export default function Dashboard() {
   const [statsMap, setStatsMap] = useState<Record<string, TeamStats>>({});
   const [topScorers, setTopScorers] = useState<Record<string, { nombre: string; puntos: number }>>({});
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
-  const [expandAllForExport, setExpandAllForExport] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(() => {
@@ -148,32 +147,6 @@ export default function Dashboard() {
     { value: '2', label: 'Rondas', icon: '🏆' },
   ]), [loading, totalJugadores]);
 
-  // Pre-compute the derived rates per team once instead of inside the map
-  // body, so a re-render that doesn't change equipos / statsMap is free.
-  const handleExportPdf = useCallback(async (destination: 'download' | 'whatsapp' | 'share') => {
-    // Temporarily expand every team card so the capture shows all stats,
-    // not just whichever one the user happened to have open. We wait two
-    // animation frames so the CSS expand transition settles and the full
-    // layout has paint-completed before html2canvas measures it.
-    setExpandAllForExport(true);
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-    // Extra small delay for the CSS max-height transition to finish.
-    await new Promise((r) => setTimeout(r, 350));
-    try {
-      await exportVisualPdf({
-        title: 'Campeonato Baloncesto · Cúcuta 2026',
-        subtitle: 'Equipos participantes',
-        filename: buildFilename('equipos'),
-        elementId: 'equipos-export-root',
-        destination,
-      });
-    } finally {
-      setExpandAllForExport(false);
-    }
-  }, []);
-
   const equiposConStats = useMemo(() => equipos.map((eq, idx) => {
     const st = statsMap[eq.nombre];
     const pj = st?.pj || 1;
@@ -189,6 +162,33 @@ export default function Dashboard() {
       winPct: st ? ((st.pg / pj) * 100).toFixed(0) : '—',
     };
   }), [equipos, statsMap]);
+
+  const handleExportPdf = useCallback(async (destination: 'download' | 'whatsapp' | 'share') => {
+    await exportEquiposPdf({
+      title: 'Campeonato Baloncesto · Cúcuta 2026',
+      subtitle: 'Equipos participantes',
+      filename: buildFilename('equipos'),
+      destination,
+      rows: equiposConStats.map(({ eq, st, ppgOff, ppgDef, ratio, winPct }) => ({
+        nombre: eq.nombre,
+        photoSrc: TEAMS[eq.id]?.photo ?? null,
+        color: TEAMS[eq.id]?.safeColor || eq.hexColor,
+        puesto: st?.puesto,
+        puntos: st?.puntos,
+        pj: st?.pj,
+        pg: st?.pg,
+        pp: st?.pp,
+        puntosAnotados: st?.puntosAnotados,
+        puntosRecibidos: st?.puntosRecibidos,
+        diferencia: st?.diferencia,
+        ppgOff,
+        ppgDef,
+        ratio,
+        winPct,
+        topScorer: topScorers[eq.nombre] ?? null,
+      })),
+    });
+  }, [equiposConStats, topScorers]);
 
   return (
     <div className="animate-fade-in">
@@ -241,7 +241,7 @@ export default function Dashboard() {
               {equiposConStats.map(({ eq, idx, st, ppgOff, ppgDef, ratio, winPct }) => {
                 const color = badgeColor(eq);
                 const photo = TEAM_PHOTOS[eq.id];
-                const isExpanded = expandAllForExport || expandedTeam === eq.nombre;
+                const isExpanded = expandedTeam === eq.nombre;
                 const scorer = topScorers[eq.nombre];
 
                 return (

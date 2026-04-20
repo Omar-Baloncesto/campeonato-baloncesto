@@ -1,11 +1,15 @@
 /**
  * PDF export helpers built on top of jsPDF + jspdf-autotable.
  *
- * Two flavours:
+ * Three flavours:
  *   - exportTablePdf: for pages whose content is naturally a table
  *     (posiciones, fixture, stats, etc.).
  *   - exportVisualPdf: for pages whose layout is rich/non-tabular and
- *     should be captured from the DOM with html2canvas (Equipos, Bracket).
+ *     should be captured from the DOM with html2canvas (Bracket).
+ *   - exportEquiposPdf: dedicated native jsPDF renderer for the Equipos
+ *     grid — draws each team card (photo + stats) directly so the output
+ *     is consistent regardless of the user's viewport width and doesn't
+ *     depend on html2canvas being able to capture Next/Image elements.
  *
  * Both load their heavy dependencies with dynamic import() so the libraries
  * don't appear in the initial bundle. Only pages that actually export
@@ -19,6 +23,7 @@ import {
   shareOrDownload,
   type Destination,
 } from './export';
+import type { jsPDF as JsPDF } from 'jspdf';
 
 const GOLD = '#F5B800';
 const GOLD_RGB: [number, number, number] = [245, 184, 0];
@@ -141,6 +146,329 @@ export async function exportTablePdf<T>(
 
   const blob = doc.output('blob');
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
+export interface EquipoPdfRow {
+  nombre: string;
+  /** Public URL of the team photo (e.g. /teams/miami-heat.jpg). */
+  photoSrc: string | null;
+  /** Hex colour string like #RRGGBB used for the accent dot. */
+  color: string;
+  puesto?: string;
+  puntos?: number;
+  pj?: number;
+  pg?: number;
+  pp?: number;
+  puntosAnotados?: number;
+  puntosRecibidos?: number;
+  diferencia?: number;
+  ppgOff?: string;
+  ppgDef?: string;
+  ratio?: string;
+  winPct?: string;
+  topScorer?: { nombre: string; puntos: number } | null;
+}
+
+export interface ExportEquiposPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  rows: EquipoPdfRow[];
+  destination?: Destination;
+}
+
+type RGB = [number, number, number];
+
+function hexToRgb(hex: string, fallback: RGB = [136, 136, 136]): RGB {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return fallback;
+  const int = parseInt(m[1], 16);
+  return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+}
+
+async function fetchAsDataUrl(src: string): Promise<string | null> {
+  try {
+    const res = await fetch(src);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Render the Equipos page as a 2×N grid of team cards drawn natively with
+ * jsPDF. Photos are pre-fetched and embedded as JPEG data URLs. Layout is
+ * fixed (A4 portrait, 2 columns) so the output is identical regardless of
+ * the user's viewport or whether Next/Image has finished optimising.
+ */
+export async function exportEquiposPdf(
+  opts: ExportEquiposPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+
+  // Pre-load every photo as a data URL in parallel so addImage() below is
+  // synchronous and can't race against image decoding.
+  const photos = await Promise.all(
+    opts.rows.map((r) => (r.photoSrc ? fetchAsDataUrl(r.photoSrc) : Promise.resolve(null))),
+  );
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();   // 210
+  const pageH = doc.internal.pageSize.getHeight();  // 297
+  const marginX = 12;
+  const topY = 26;
+  const botY = 12;
+  const usableW = pageW - marginX * 2;
+  const usableH = pageH - topY - botY;
+
+  const cols = 2;
+  const rowsPerPage = 3;
+  const gapX = 6;
+  const gapY = 6;
+  const cardW = (usableW - gapX * (cols - 1)) / cols;
+  const cardH = (usableH - gapY * (rowsPerPage - 1)) / rowsPerPage;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle;
+  const generatedAt = formatDateTime(new Date());
+
+  const drawChrome = (pageNum: number, totalPages: number) => {
+    doc.setTextColor(...TEXT_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(title, marginX, 13);
+    if (subtitle) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+    }
+    doc.setDrawColor(...GOLD_RGB);
+    doc.setLineWidth(0.7);
+    doc.line(marginX, subtitle ? 22 : 16, pageW - marginX, subtitle ? 22 : 16);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(`Generado el ${generatedAt}`, marginX, pageH - 5);
+    const rightText = `Página ${pageNum} de ${totalPages}`;
+    const rightW = doc.getTextWidth(rightText);
+    doc.text(rightText, pageW - marginX - rightW, pageH - 5);
+  };
+
+  const perPage = cols * rowsPerPage;
+  const totalPages = Math.max(1, Math.ceil(opts.rows.length / perPage));
+
+  for (let i = 0; i < opts.rows.length; i++) {
+    const posInPage = i % perPage;
+    if (i > 0 && posInPage === 0) doc.addPage();
+
+    const col = posInPage % cols;
+    const row = Math.floor(posInPage / cols);
+    const x = marginX + col * (cardW + gapX);
+    const y = topY + row * (cardH + gapY);
+
+    drawTeamCard(doc, x, y, cardW, cardH, opts.rows[i], photos[i]);
+  }
+
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    drawChrome(p, totalPages);
+  }
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
+function drawTeamCard(
+  doc: JsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  team: EquipoPdfRow,
+  photoDataUrl: string | null,
+) {
+  // Card background + border.
+  doc.setFillColor(252, 252, 252);
+  doc.setDrawColor(225, 225, 225);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(x, y, w, h, 2.2, 2.2, 'FD');
+
+  // --- Photo (top ~45% of card) ---
+  const photoH = h * 0.42;
+  if (photoDataUrl) {
+    try {
+      doc.addImage(photoDataUrl, 'JPEG', x, y, w, photoH, undefined, 'FAST');
+    } catch {
+      doc.setFillColor(235, 235, 235);
+      doc.rect(x, y, w, photoH, 'F');
+    }
+  } else {
+    doc.setFillColor(235, 235, 235);
+    doc.rect(x, y, w, photoH, 'F');
+  }
+
+  // --- Name row: color dot + team name + puesto pill ---
+  const nameRowY = y + photoH + 6.5;
+  const [dr, dg, db] = hexToRgb(team.color);
+  const isWhiteish = dr > 240 && dg > 240 && db > 240;
+  const dotColor: RGB = isWhiteish ? [204, 204, 204] : [dr, dg, db];
+  doc.setFillColor(...dotColor);
+  doc.circle(x + 4, nameRowY - 1.1, 1.3, 'F');
+
+  doc.setTextColor(...TEXT_DARK);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(team.nombre, x + 7, nameRowY);
+
+  if (team.puesto) {
+    const puestoText = `${team.puesto}°`;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    const textW = doc.getTextWidth(puestoText);
+    const pillW = textW + 5;
+    const pillH = 5;
+    const pillX = x + w - pillW - 2.5;
+    const pillY = nameRowY - 4;
+    doc.setFillColor(...GOLD_RGB);
+    doc.roundedRect(pillX, pillY, pillW, pillH, 1.2, 1.2, 'F');
+    doc.setTextColor(22, 22, 22);
+    doc.text(puestoText, pillX + pillW / 2, pillY + pillH - 1.3, { align: 'center' });
+  }
+
+  // --- Stat rows ---
+  // We fit: puntos line, PJ/PG/PP, P.ANO/P.REC/DIF, PPG/PPG.R/RATIO/%WIN,
+  // and máximo anotador. Each row has a thin separator above it.
+  const statsStartY = nameRowY + 3.5;
+  const statsEndY = y + h - 2;
+  const statsH = statsEndY - statsStartY;
+  // 5 content rows → equal vertical slots.
+  const rowH = statsH / 5;
+
+  const drawSeparator = (atY: number) => {
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.2);
+    doc.line(x + 3, atY, x + w - 3, atY);
+  };
+
+  // Row 1: Puntos
+  let curY = statsStartY;
+  drawSeparator(curY);
+  const r1Mid = curY + rowH / 2 + 1.2;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text('PUNTOS', x + 3.5, r1Mid);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...GOLD_RGB);
+  doc.text(String(team.puntos ?? '—'), x + w - 3.5, r1Mid, { align: 'right' });
+
+  // Row 2: PJ / PG / PP
+  curY += rowH;
+  drawSeparator(curY);
+  drawThreeStat(doc, x, curY, w, rowH, [
+    { label: 'PJ', value: String(team.pj ?? '—'), color: TEXT_DARK },
+    { label: 'PG', value: String(team.pg ?? '—'), color: [34, 197, 94] },
+    { label: 'PP', value: String(team.pp ?? '—'), color: [220, 38, 38] },
+  ]);
+
+  // Row 3: P.ANO / P.REC / DIF
+  curY += rowH;
+  drawSeparator(curY);
+  const dif = team.diferencia;
+  const difText = dif == null ? '—' : `${dif > 0 ? '+' : ''}${dif}`;
+  const difColor: RGB = dif == null ? TEXT_DARK : dif >= 0 ? [34, 197, 94] : [220, 38, 38];
+  drawThreeStat(doc, x, curY, w, rowH, [
+    { label: 'P. ANO.', value: String(team.puntosAnotados ?? '—'), color: TEXT_DARK },
+    { label: 'P. REC.', value: String(team.puntosRecibidos ?? '—'), color: TEXT_DARK },
+    { label: 'DIF.',    value: difText, color: difColor },
+  ]);
+
+  // Row 4: PPG / PPG.R / RATIO / %WIN (4 columns)
+  curY += rowH;
+  drawSeparator(curY);
+  drawFourStat(doc, x, curY, w, rowH, [
+    { label: 'PROM PTS', value: team.ppgOff ?? '—',     color: [34, 197, 94] },
+    { label: 'PROM REC', value: team.ppgDef ?? '—',     color: [220, 38, 38] },
+    { label: 'RATIO',    value: team.ratio ?? '—',      color: [245, 184, 0] },
+    { label: '% VIC.',   value: team.winPct ? `${team.winPct}%` : '—', color: TEXT_DARK },
+  ]);
+
+  // Row 5: Max anotador
+  curY += rowH;
+  drawSeparator(curY);
+  const r5Mid = curY + rowH / 2 + 1.2;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text('MÁX. ANOTADOR', x + 3.5, r5Mid - 1.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT_DARK);
+  const scorerName = team.topScorer?.nombre ?? '—';
+  doc.text(scorerName, x + 3.5, r5Mid + 1.7);
+  if (team.topScorer) {
+    doc.setTextColor(...GOLD_RGB);
+    doc.setFontSize(9);
+    doc.text(`${team.topScorer.puntos} pts`, x + w - 3.5, r5Mid + 0.5, { align: 'right' });
+  }
+}
+
+function drawThreeStat(
+  doc: JsPDF,
+  x: number,
+  y: number,
+  w: number,
+  rowH: number,
+  cells: Array<{ label: string; value: string; color: RGB }>,
+) {
+  const n = cells.length;
+  for (let i = 0; i < n; i++) {
+    const cx = x + (w / n) * (i + 0.5);
+    const labelY = y + rowH * 0.38;
+    const valueY = y + rowH * 0.85;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(cells[i].label, cx, labelY, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...cells[i].color);
+    doc.text(cells[i].value, cx, valueY, { align: 'center' });
+  }
+}
+
+function drawFourStat(
+  doc: JsPDF,
+  x: number,
+  y: number,
+  w: number,
+  rowH: number,
+  cells: Array<{ label: string; value: string; color: RGB }>,
+) {
+  const n = cells.length;
+  for (let i = 0; i < n; i++) {
+    const cx = x + (w / n) * (i + 0.5);
+    const labelY = y + rowH * 0.38;
+    const valueY = y + rowH * 0.85;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(cells[i].label, cx, labelY, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...cells[i].color);
+    doc.text(cells[i].value, cx, valueY, { align: 'center' });
+  }
 }
 
 export interface ExportVisualPdfOptions {
