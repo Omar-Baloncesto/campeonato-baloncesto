@@ -41,24 +41,6 @@ interface PlayerStats {
 
 const FECHAS_LABELS = ['21/02', '28/02', '7/03', '14/03', '26/03', '11/04', '18/04', '25/04', '2/05', '9/05'];
 
-const EQUIPOS_PUNTOS: Record<string, { filaInicio: number; filaFin: number }> = {
-  'Miami Heat': { filaInicio: 2, filaFin: 12 },
-  'Brooklyn Nets': { filaInicio: 16, filaFin: 25 },
-  'Boston Celtics': { filaInicio: 30, filaFin: 40 },
-  'Oklahoma City Thunder': { filaInicio: 44, filaFin: 53 },
-  'Los Angeles Lakers': { filaInicio: 58, filaFin: 68 },
-  'Toronto Raptors': { filaInicio: 72, filaFin: 81 },
-};
-
-const EQUIPOS_ASIST: Record<string, { inicio: number; fin: number }> = {
-  'Miami Heat': { inicio: 4, fin: 14 },
-  'Brooklyn Nets': { inicio: 22, fin: 31 },
-  'Boston Celtics': { inicio: 40, fin: 50 },
-  'Oklahoma City Thunder': { inicio: 58, fin: 68 },
-  'Los Angeles Lakers': { inicio: 76, fin: 86 },
-  'Toronto Raptors': { inicio: 93, fin: 103 },
-};
-
 export default function Jugadores() {
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [equipoFiltro, setEquipoFiltro] = useState('Todos');
@@ -118,7 +100,6 @@ export default function Jugadores() {
 
     if (statsCache[j.id]) return;
 
-    const teamName = TEAMS[j.equipoId]?.name || '';
     setLoadingStats(j.id);
 
     statsAbortRef.current?.abort();
@@ -151,34 +132,46 @@ export default function Jugadores() {
           stats.promedio = parseFloat(statsRow[10]) || 0;
         }
 
-        const tc = EQUIPOS_PUNTOS[teamName];
-        if (tc) {
-          const playerRow = rows.slice(tc.filaInicio - 1, tc.filaFin).find(
-            (r: string[]) => r[0] && r[0].trim() === j.nombre.trim()
-          );
-          if (playerRow) {
-            stats.p1 = parseInt(playerRow[1], 10) || 0;
-            stats.p2 = parseInt(playerRow[2], 10) || 0;
-            stats.p3 = parseInt(playerRow[3], 10) || 0;
-            stats.totalBreakdown = parseInt(playerRow[4], 10) || 0;
-          }
+        // Scan every row for the per-player p1/p2/p3 breakdown instead of
+        // trusting EQUIPOS_PUNTOS (the hardcoded ranges miss the last row
+        // for at least Miami Heat, leaving that player without a desglose).
+        const isHeaderName = (n: string) => {
+          const lo = n.toLowerCase();
+          return lo === 'jugador' || lo === 'nombre jugador' || lo.startsWith('equipo');
+        };
+        const breakdownRow = rows.find(
+          (r: string[]) => {
+            const n = (r[0] || '').trim();
+            return !!n && !isHeaderName(n) && n === j.nombre.trim();
+          },
+        );
+        if (breakdownRow) {
+          stats.p1 = parseInt(breakdownRow[1], 10) || 0;
+          stats.p2 = parseInt(breakdownRow[2], 10) || 0;
+          stats.p3 = parseInt(breakdownRow[3], 10) || 0;
+          stats.totalBreakdown = parseInt(breakdownRow[4], 10) || 0;
         }
       }
 
       if (attRes.success && Array.isArray(attRes.data)) {
         const rows = attRes.data;
-        const ac = EQUIPOS_ASIST[teamName];
-        if (ac) {
-          const playerRow = rows.slice(ac.inicio - 1, ac.fin).find(
-            (r: string[]) => r[0] && r[0].trim() === j.nombre.trim()
-          );
-          if (playerRow) {
-            stats.fechas = [playerRow[1], playerRow[2], playerRow[3], playerRow[4], playerRow[5],
-                            playerRow[6], playerRow[7], playerRow[8], playerRow[9], playerRow[10]];
-            stats.asistenciaCount = parseInt(playerRow[11], 10) || 0;
-            stats.totalFechas = parseInt(playerRow[12], 10) || 0;
-            stats.porcentaje = playerRow[14] || '0%';
-          }
+        const isHeaderName = (n: string) => {
+          const lo = n.toLowerCase();
+          return lo === 'jugador' || lo === 'nombre jugador' || lo.startsWith('equipo');
+        };
+        // Same fix for attendance: full-sheet scan instead of per-team slice.
+        const playerRow = rows.find(
+          (r: string[]) => {
+            const n = (r[0] || '').trim();
+            return !!n && !isHeaderName(n) && n === j.nombre.trim();
+          },
+        );
+        if (playerRow) {
+          stats.fechas = [playerRow[1], playerRow[2], playerRow[3], playerRow[4], playerRow[5],
+                          playerRow[6], playerRow[7], playerRow[8], playerRow[9], playerRow[10]];
+          stats.asistenciaCount = parseInt(playerRow[11], 10) || 0;
+          stats.totalFechas = parseInt(playerRow[12], 10) || 0;
+          stats.porcentaje = playerRow[14] || '0%';
         }
       }
 
