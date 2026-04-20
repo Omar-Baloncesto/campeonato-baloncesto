@@ -401,6 +401,159 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface EstadisticaEquipoJugadorPdfRow {
+  nombre: string;
+  p1: number;
+  p2: number;
+  p3: number;
+  total: number;
+}
+
+export interface ExportEstadisticasEquipoPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  equipo: string;
+  /** Hex color of the team (e.g. "#RRGGBB"). */
+  equipoColor: string;
+  jugadores: EstadisticaEquipoJugadorPdfRow[];
+  destination?: Destination;
+}
+
+/**
+ * Render "Estadísticas por Equipo" for the active team as a Letter
+ * portrait PDF. Matches the web screen: colored team banner at the top,
+ * a table of players with Puntos de 1/2/3 and Total (gold), and a dark
+ * TOTAL EQUIPO footer row summing every column.
+ */
+export async function exportEstadisticasEquipoPdf(
+  opts: ExportEstadisticasEquipoPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 12;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle ?? 'Estadísticas por Equipo';
+  const generatedAt = formatDateTime(new Date());
+
+  const [er, eg, eb] = hexToRgb(opts.equipoColor);
+  const isWhiteish = er > 240 && eg > 240 && eb > 240;
+  const teamColor: RGB = isWhiteish ? [204, 204, 204] : [er, eg, eb];
+
+  // --- Team banner (title + colored bar + team name) ---
+  const bannerY = 28;
+  const bannerH = 12;
+  doc.setFillColor(teamColor[0], teamColor[1], teamColor[2]);
+  // Soft tinted background using mixing with white
+  const tintR = Math.min(255, Math.round(teamColor[0] * 0.18 + 210));
+  const tintG = Math.min(255, Math.round(teamColor[1] * 0.18 + 210));
+  const tintB = Math.min(255, Math.round(teamColor[2] * 0.18 + 210));
+  doc.setFillColor(tintR, tintG, tintB);
+  doc.roundedRect(marginX, bannerY, pageW - marginX * 2, bannerH, 2, 2, 'F');
+  // Left accent bar
+  doc.setFillColor(teamColor[0], teamColor[1], teamColor[2]);
+  doc.rect(marginX, bannerY, 1.5, bannerH, 'F');
+  // Team name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(22, 22, 22);
+  doc.text(opts.equipo, marginX + 5, bannerY + bannerH / 2 + 1.5);
+
+  const tableStartY = bannerY + bannerH + 4;
+
+  // --- Table ---
+  const HDR_BG: RGB = [24, 24, 28];
+  const HDR_TEXT: RGB = [255, 255, 255];
+  const GOLD: RGB = [245, 184, 0];
+
+  const head: CellDef[][] = [[
+    { content: 'JUGADOR',     styles: { fillColor: HDR_BG, textColor: HDR_TEXT, fontStyle: 'bold', halign: 'left',   fontSize: 9 } },
+    { content: 'PUNTOS DE 1', styles: { fillColor: HDR_BG, textColor: HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'PUNTOS DE 2', styles: { fillColor: HDR_BG, textColor: HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'PUNTOS DE 3', styles: { fillColor: HDR_BG, textColor: HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'TOTAL',       styles: { fillColor: HDR_BG, textColor: HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+  ]];
+
+  const body: RowInput[] = opts.jugadores.map((j) => [
+    { content: j.nombre,     styles: { fontStyle: 'bold', halign: 'left',   fontSize: 10, textColor: [22, 22, 22] as RGB } } as CellDef,
+    { content: String(j.p1), styles: { halign: 'center', fontSize: 10 } } as CellDef,
+    { content: String(j.p2), styles: { halign: 'center', fontSize: 10 } } as CellDef,
+    { content: String(j.p3), styles: { halign: 'center', fontSize: 10 } } as CellDef,
+    { content: String(j.total), styles: { halign: 'center', fontStyle: 'bold', fontSize: 11, textColor: GOLD } } as CellDef,
+  ]);
+
+  const sum1 = opts.jugadores.reduce((s, j) => s + j.p1, 0);
+  const sum2 = opts.jugadores.reduce((s, j) => s + j.p2, 0);
+  const sum3 = opts.jugadores.reduce((s, j) => s + j.p3, 0);
+  const sumT = opts.jugadores.reduce((s, j) => s + j.total, 0);
+
+  const foot: RowInput[] = [[
+    { content: 'TOTAL EQUIPO', styles: { fillColor: HDR_BG, textColor: GOLD, fontStyle: 'bold', halign: 'left',   fontSize: 10 } } as CellDef,
+    { content: String(sum1),   styles: { fillColor: HDR_BG, textColor: GOLD, fontStyle: 'bold', halign: 'center', fontSize: 10 } } as CellDef,
+    { content: String(sum2),   styles: { fillColor: HDR_BG, textColor: GOLD, fontStyle: 'bold', halign: 'center', fontSize: 10 } } as CellDef,
+    { content: String(sum3),   styles: { fillColor: HDR_BG, textColor: GOLD, fontStyle: 'bold', halign: 'center', fontSize: 10 } } as CellDef,
+    { content: String(sumT),   styles: { fillColor: HDR_BG, textColor: GOLD, fontStyle: 'bold', halign: 'center', fontSize: 11 } } as CellDef,
+  ]];
+
+  const columnStyles: Record<number, { cellWidth: number }> = {
+    0: { cellWidth: 72 },
+    1: { cellWidth: 30 },
+    2: { cellWidth: 30 },
+    3: { cellWidth: 30 },
+    4: { cellWidth: 30 },
+  };
+
+  autoTable(doc, {
+    head,
+    body,
+    foot,
+    startY: tableStartY,
+    margin: { top: tableStartY, bottom: 14, left: marginX, right: marginX },
+    styles: {
+      font: 'helvetica',
+      fontSize: 10,
+      cellPadding: 3,
+      lineColor: [225, 225, 225],
+      lineWidth: 0.2,
+      valign: 'middle',
+    },
+    alternateRowStyles: { fillColor: [248, 248, 248] as RGB },
+    columnStyles,
+    theme: 'grid',
+    didDrawPage: () => {
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, 22, pageW - marginX, 22);
+
+      const page = doc.getCurrentPageInfo().pageNumber;
+      const total = doc.getNumberOfPages();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${page} de ${total}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    },
+  });
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
 export interface EstadisticaJugadorPdfRow {
   nombre: string;
   totalPuntos: number;

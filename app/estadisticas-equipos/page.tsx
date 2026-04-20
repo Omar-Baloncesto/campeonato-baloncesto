@@ -5,7 +5,7 @@ import LoadingState from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportEstadisticasEquipoPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 
 interface JugadorEquipo {
@@ -128,11 +128,18 @@ export default function EstadisticasEquipos() {
   ];
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
-      subtitle: 'Estadísticas por equipo',
-      filename: buildFilename('estadisticas-equipos'),
-      columns: exportColumns,
-      rows: flatRows,
+    if (!eq) return;
+    await exportEstadisticasEquipoPdf({
+      filename: buildFilename(`estadisticas-${eq.nombre}`),
+      equipo: eq.nombre,
+      equipoColor: getTeamColor(eq.nombre),
+      jugadores: eq.jugadores.map((j) => ({
+        nombre: j.nombre,
+        p1: parseInt(j.p1, 10) || 0,
+        p2: parseInt(j.p2, 10) || 0,
+        p3: parseInt(j.p3, 10) || 0,
+        total: parseInt(j.total, 10) || 0,
+      })),
       destination,
     });
   };
