@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
-import LoadingState, { ErrorState } from '../components/LoadingState';
+import LoadingState from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 
 interface Partido {
@@ -20,12 +20,19 @@ export default function ListaEquipos() {
   const [fechas, setFechas] = useState<Fecha[]>([]);
   const [fechaActiva, setFechaActiva] = useState(0);
   const [loading, setLoading] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    fetch('/api/sheets?sheet=ListaEquipos')
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
+    fetch('/api/sheets?sheet=ListaEquipos', { signal })
       .then(r => r.json())
       .then(data => {
-        if (data.success) {
+        if (signal.aborted) return;
+        if (data.success && Array.isArray(data.data)) {
           const rows = data.data;
           const result: Fecha[] = [];
           let fechaActual: Fecha | null = null;
@@ -55,8 +62,17 @@ export default function ListaEquipos() {
           setFechas(result.filter(f => f.partidos.length > 0));
         }
         setLoading(false);
+      })
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const fecha = fechas[fechaActiva];
 
@@ -83,11 +99,11 @@ export default function ListaEquipos() {
         ) : fecha ? (
           <div className="flex flex-col gap-3">
             {fecha.partidos.map((p, i) => {
-              const ganA = parseInt(p.totalA) > parseInt(p.totalB);
-              const ganB = parseInt(p.totalB) > parseInt(p.totalA);
+              const ganA = parseInt(p.totalA, 10) > parseInt(p.totalB, 10);
+              const ganB = parseInt(p.totalB, 10) > parseInt(p.totalA, 10);
               return (
                 <div
-                  key={i}
+                  key={`${fecha.fecha}-${p.equipoA}-${p.equipoB}-${i}`}
                   className="bg-bg-secondary rounded-xl overflow-hidden border border-border-light transition-all duration-150 hover:border-gold/15"
                 >
                   <div className="overflow-x-auto">

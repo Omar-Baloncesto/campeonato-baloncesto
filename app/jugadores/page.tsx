@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TEAMS } from '../lib/constants';
-import LoadingState, { ErrorState } from '../components/LoadingState';
+import { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
 import SearchInput from '../components/SearchInput';
@@ -65,14 +65,22 @@ export default function Jugadores() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [statsCache, setStatsCache] = useState<Record<string, PlayerStats>>({});
   const [loadingStats, setLoadingStats] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const statsAbortRef = useRef<AbortController | null>(null);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setLoading(true);
     setError(false);
-    fetch('/api/sheets?sheet=JUGADORES')
+    fetch('/api/sheets?sheet=JUGADORES', { signal })
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.data.length > 1) {
+        if (signal.aborted) return;
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows = data.data.slice(1).filter((r: string[]) => r[1]);
           setJugadores(rows.map((r: string[]) => ({
             id: r[0], nombre: r[1], equipoId: r[2],
@@ -82,10 +90,20 @@ export default function Jugadores() {
         } else if (!data.success) setError(true);
         setLoading(false);
       })
-      .catch(() => { setError(true); setLoading(false); });
-  };
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    return () => {
+      abortRef.current?.abort();
+      statsAbortRef.current?.abort();
+    };
+  }, [fetchData]);
 
   const toggleExpand = async (j: Jugador) => {
     if (expanded === j.id) {
@@ -99,11 +117,18 @@ export default function Jugadores() {
     const teamName = TEAMS[j.equipoId]?.name || '';
     setLoadingStats(j.id);
 
+    statsAbortRef.current?.abort();
+    const controller = new AbortController();
+    statsAbortRef.current = controller;
+    const { signal } = controller;
+
     try {
       const [ptsRes, attRes] = await Promise.all([
-        fetch('/api/sheets?sheet=PuntosJugadores').then(r => r.json()),
-        fetch('/api/sheets?sheet=AsistenciasJugadores').then(r => r.json()),
+        fetch('/api/sheets?sheet=PuntosJugadores', { signal }).then(r => r.json()),
+        fetch('/api/sheets?sheet=AsistenciasJugadores', { signal }).then(r => r.json()),
       ]);
+
+      if (signal.aborted) return;
 
       const stats: PlayerStats = {
         totalPuntos: 0, asistencias: 0, promedio: 0,
@@ -111,7 +136,7 @@ export default function Jugadores() {
         fechas: [], asistenciaCount: 0, totalFechas: 0, porcentaje: '0%',
       };
 
-      if (ptsRes.success) {
+      if (ptsRes.success && Array.isArray(ptsRes.data)) {
         const rows = ptsRes.data;
         const statsRow = rows.slice(1).find(
           (r: string[]) => r[7] && r[7].trim() === j.nombre.trim()
@@ -128,15 +153,15 @@ export default function Jugadores() {
             (r: string[]) => r[0] && r[0].trim() === j.nombre.trim()
           );
           if (playerRow) {
-            stats.p1 = parseInt(playerRow[1]) || 0;
-            stats.p2 = parseInt(playerRow[2]) || 0;
-            stats.p3 = parseInt(playerRow[3]) || 0;
-            stats.totalBreakdown = parseInt(playerRow[4]) || 0;
+            stats.p1 = parseInt(playerRow[1], 10) || 0;
+            stats.p2 = parseInt(playerRow[2], 10) || 0;
+            stats.p3 = parseInt(playerRow[3], 10) || 0;
+            stats.totalBreakdown = parseInt(playerRow[4], 10) || 0;
           }
         }
       }
 
-      if (attRes.success) {
+      if (attRes.success && Array.isArray(attRes.data)) {
         const rows = attRes.data;
         const ac = EQUIPOS_ASIST[teamName];
         if (ac) {
@@ -146,8 +171,8 @@ export default function Jugadores() {
           if (playerRow) {
             stats.fechas = [playerRow[1], playerRow[2], playerRow[3], playerRow[4], playerRow[5],
                             playerRow[6], playerRow[7], playerRow[8], playerRow[9], playerRow[10]];
-            stats.asistenciaCount = parseInt(playerRow[11]) || 0;
-            stats.totalFechas = parseInt(playerRow[12]) || 0;
+            stats.asistenciaCount = parseInt(playerRow[11], 10) || 0;
+            stats.totalFechas = parseInt(playerRow[12], 10) || 0;
             stats.porcentaje = playerRow[14] || '0%';
           }
         }
@@ -155,9 +180,11 @@ export default function Jugadores() {
 
       setStatsCache(prev => ({ ...prev, [j.id]: stats }));
     } catch (e) {
+      const name = (e as { name?: string })?.name;
+      if (name === 'AbortError' || signal.aborted) return;
       console.error('Error fetching stats:', e);
     } finally {
-      setLoadingStats(null);
+      if (!signal.aborted) setLoadingStats(null);
     }
   };
 
@@ -203,7 +230,7 @@ export default function Jugadores() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="glass-card rounded-xl overflow-hidden">
+              <div key={`sk-${i}`} className="glass-card rounded-xl overflow-hidden">
                 <div className="p-4 flex items-center gap-3.5">
                   <div className="skeleton w-14 h-14 rounded-full shrink-0" />
                   <div className="flex-1 space-y-2">
@@ -330,7 +357,7 @@ export default function Jugadores() {
                               </div>
                               <div className="flex gap-1">
                                 {st.fechas.map((f, i) => (
-                                  <div key={i} className="flex-1 text-center">
+                                  <div key={`${j.id}-f-${i}`} className="flex-1 text-center">
                                     <div
                                       className={`aspect-square rounded flex items-center justify-center text-[10px] font-bold ${
                                         f === '1' ? 'bg-positive/20 text-positive' :

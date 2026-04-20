@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
@@ -22,14 +22,21 @@ export default function Posiciones() {
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setLoading(true);
     setError(false);
-    fetch('/api/sheets?sheet=TablaPosiciones')
+    fetch('/api/sheets?sheet=TablaPosiciones', { signal })
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.data.length > 1) {
+        if (signal.aborted) return;
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows = data.data.slice(1).filter((r: string[]) => r[0]);
           setEquipos(rows.map((r: string[]) => ({
             nombre: r[0], pj: r[1], pg: r[2], pp: r[3],
@@ -42,10 +49,17 @@ export default function Posiciones() {
         }
         setLoading(false);
       })
-      .catch(() => { setError(true); setLoading(false); });
-  };
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const medallon = (puesto: string, i: number) => {
     const text = ['1°', '2°', '3°', '4°', '5°', '6°'][i] || puesto;
