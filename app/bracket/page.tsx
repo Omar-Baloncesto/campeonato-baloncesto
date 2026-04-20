@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getTeamColorRaw, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
+import ExportButton from '../components/ExportButton';
+import { buildFilename } from '../lib/export';
+import { exportVisualPdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 
 interface Match {
   date: string;
@@ -235,6 +239,77 @@ export default function BracketPage() {
     return null;
   }, [finalMatch]);
 
+  const handleExportPdf = async () => {
+    await exportVisualPdf({
+      title: 'Campeonato Baloncesto · Cúcuta 2026',
+      subtitle: 'Fase eliminatoria · Bracket',
+      filename: buildFilename('bracket'),
+      elementId: 'bracket-export-root',
+    });
+  };
+
+  const handleExportExcel = async () => {
+    type BracketRow = {
+      fase: string;
+      fecha: string;
+      equipo1: string;
+      q1_1: string; q2_1: string; q3_1: string; q4_1: string; ta_1: string;
+      total1: number;
+      equipo2: string;
+      q1_2: string; q2_2: string; q3_2: string; q4_2: string; ta_2: string;
+      total2: number;
+      ganador: string;
+    };
+    const toRow = (fase: string, m: Match): BracketRow => ({
+      fase,
+      fecha: m.date,
+      equipo1: m.team1,
+      q1_1: m.q1_1, q2_1: m.q2_1, q3_1: m.q3_1, q4_1: m.q4_1, ta_1: m.ta_1,
+      total1: m.total1,
+      equipo2: m.team2,
+      q1_2: m.q1_2, q2_2: m.q2_2, q3_2: m.q3_2, q4_2: m.q4_2, ta_2: m.ta_2,
+      total2: m.total2,
+      ganador:
+        m.total1 > m.total2 ? m.team1 :
+        m.total2 > m.total1 ? m.team2 : '',
+    });
+
+    const rows: BracketRow[] = [];
+    if (hasPlayIn) playIn.forEach((m) => rows.push(toRow('Play In', m)));
+    semis.forEach((m) => rows.push(toRow('Semifinal', m)));
+    if (finalMatch) rows.push(toRow('Final', finalMatch));
+
+    const columns = [
+      { header: 'Fase',      cell: (r: BracketRow) => r.fase,     width: 14 },
+      { header: 'Fecha',     cell: (r: BracketRow) => r.fecha,    width: 14 },
+      { header: 'Equipo 1',  cell: (r: BracketRow) => r.equipo1,  width: 22 },
+      { header: 'Q1',        cell: (r: BracketRow) => r.q1_1,     width: 8 },
+      { header: 'Q2',        cell: (r: BracketRow) => r.q2_1,     width: 8 },
+      { header: 'Q3',        cell: (r: BracketRow) => r.q3_1,     width: 8 },
+      { header: 'Q4',        cell: (r: BracketRow) => r.q4_1,     width: 8 },
+      { header: 'TA',        cell: (r: BracketRow) => r.ta_1,     width: 8 },
+      { header: 'Total 1',   cell: (r: BracketRow) => r.total1,   width: 10 },
+      { header: 'Equipo 2',  cell: (r: BracketRow) => r.equipo2,  width: 22 },
+      { header: 'Q1 ',       cell: (r: BracketRow) => r.q1_2,     width: 8 },
+      { header: 'Q2 ',       cell: (r: BracketRow) => r.q2_2,     width: 8 },
+      { header: 'Q3 ',       cell: (r: BracketRow) => r.q3_2,     width: 8 },
+      { header: 'Q4 ',       cell: (r: BracketRow) => r.q4_2,     width: 8 },
+      { header: 'TA ',       cell: (r: BracketRow) => r.ta_2,     width: 8 },
+      { header: 'Total 2',   cell: (r: BracketRow) => r.total2,   width: 10 },
+      { header: 'Ganador',   cell: (r: BracketRow) => r.ganador,  width: 22 },
+    ];
+
+    await exportTableXlsx({
+      filename: buildFilename('bracket'),
+      sheetName: 'Bracket',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Fase eliminatoria · Bracket'],
+      columns,
+      rows,
+    });
+  };
+
+  const hasBracketData = semis.length > 0 || !!finalMatch || playIn.length > 0;
+
   const colH = (n: number) => n * CARD_H + (n - 1) * CARD_GAP;
   const cardCenterY = (i: number) => i * (CARD_H + CARD_GAP) + CARD_H / 2;
   const { semiH, finalOffsetTop } = useMemo(() => {
@@ -245,6 +320,14 @@ export default function BracketPage() {
 
   return (
     <div className="animate-fade-in">
+      <div className="flex justify-end px-4 md:px-6 pt-4">
+        <ExportButton
+          onExportPdf={handleExportPdf}
+          onExportExcel={handleExportExcel}
+          disabled={loading || !hasBracketData}
+        />
+      </div>
+      <div id="bracket-export-root">
       <div className="text-center py-8 md:py-12">
         <h2 className="text-2xl md:text-3xl font-black text-text-primary tracking-[0.14em] uppercase mb-2">
           <span role="img" aria-label="trofeo">🏆</span> Fase Eliminatoria
@@ -350,6 +433,7 @@ export default function BracketPage() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

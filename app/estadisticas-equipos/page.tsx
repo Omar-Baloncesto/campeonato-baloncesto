@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
+import ExportButton from '../components/ExportButton';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 
 interface JugadorEquipo {
   nombre: string;
@@ -87,13 +91,73 @@ export default function EstadisticasEquipos() {
 
   const eq = equipos[equipoActivo];
 
+  // Build a flat table across all teams for export: one "team" section per
+  // row group, then an aggregated TOTAL row for each team.
+  type FlatRow = {
+    equipo: string;
+    jugador: string;
+    p1: number;
+    p2: number;
+    p3: number;
+    total: number;
+    isTotal?: boolean;
+  };
+  const flatRows: FlatRow[] = [];
+  equipos.forEach((team) => {
+    let sum1 = 0, sum2 = 0, sum3 = 0, sumT = 0;
+    team.jugadores.forEach((j) => {
+      const p1 = parseInt(j.p1, 10) || 0;
+      const p2 = parseInt(j.p2, 10) || 0;
+      const p3 = parseInt(j.p3, 10) || 0;
+      const tot = parseInt(j.total, 10) || 0;
+      sum1 += p1; sum2 += p2; sum3 += p3; sumT += tot;
+      flatRows.push({ equipo: team.nombre, jugador: j.nombre, p1, p2, p3, total: tot });
+    });
+    if (team.jugadores.length > 0) {
+      flatRows.push({ equipo: team.nombre, jugador: 'TOTAL EQUIPO', p1: sum1, p2: sum2, p3: sum3, total: sumT, isTotal: true });
+    }
+  });
+
+  const exportColumns = [
+    { header: 'Equipo',     cell: (r: FlatRow) => r.equipo,                     align: 'left'   as const, width: 28 },
+    { header: 'Jugador',    cell: (r: FlatRow) => r.jugador,                    align: 'left'   as const, width: 30 },
+    { header: 'Puntos de 1',cell: (r: FlatRow) => r.p1,                         align: 'center' as const, width: 16 },
+    { header: 'Puntos de 2',cell: (r: FlatRow) => r.p2,                         align: 'center' as const, width: 16 },
+    { header: 'Puntos de 3',cell: (r: FlatRow) => r.p3,                         align: 'center' as const, width: 16 },
+    { header: 'Total',      cell: (r: FlatRow) => r.total,                      align: 'center' as const, width: 14 },
+  ];
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: 'Estadísticas por equipo',
+      filename: buildFilename('estadisticas-equipos'),
+      columns: exportColumns,
+      rows: flatRows,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename('estadisticas-equipos'),
+      sheetName: 'Estadísticas por equipo',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Estadísticas por equipo'],
+      columns: exportColumns,
+      rows: flatRows,
+    });
+  };
+
   return (
     <div className="animate-fade-in">
-      <div className="px-4 md:px-6 pt-4">
+      <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
         <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
           <span className="w-1 h-4 bg-gold rounded-full" />
           Estadísticas por equipo
         </h2>
+        <ExportButton
+          onExportPdf={handleExportPdf}
+          onExportExcel={handleExportExcel}
+          disabled={loading || flatRows.length === 0}
+        />
       </div>
 
       <div className="px-4 md:px-6 py-4">

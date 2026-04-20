@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
+import ExportButton from '../components/ExportButton';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 
 interface Partido {
   equipoA: string; q1A: string; q2A: string; q3A: string; q4A: string; taA: string; totalA: string;
@@ -76,13 +80,82 @@ export default function ListaEquipos() {
 
   const fecha = fechas[fechaActiva];
 
+  // Flatten every fecha → partido → 2 rows (local + visita) for a simple
+  // export. Users typically want the whole tournament, not a single fecha.
+  type MarcadorRow = {
+    fecha: string;
+    equipo: string;
+    q1: string;
+    q2: string;
+    q3: string;
+    q4: string;
+    ta: string;
+    total: string;
+    resultado: string;
+  };
+  const flatRows: MarcadorRow[] = [];
+  fechas.forEach((f) => {
+    f.partidos.forEach((p) => {
+      const totA = parseInt(p.totalA, 10) || 0;
+      const totB = parseInt(p.totalB, 10) || 0;
+      const resA = totA === totB ? 'Empate' : totA > totB ? 'Ganador' : '';
+      const resB = totA === totB ? 'Empate' : totB > totA ? 'Ganador' : '';
+      flatRows.push({
+        fecha: f.fecha, equipo: p.equipoA,
+        q1: p.q1A, q2: p.q2A, q3: p.q3A, q4: p.q4A, ta: p.taA,
+        total: p.totalA || '0', resultado: resA,
+      });
+      flatRows.push({
+        fecha: f.fecha, equipo: p.equipoB,
+        q1: p.q1B, q2: p.q2B, q3: p.q3B, q4: p.q4B, ta: p.taB,
+        total: p.totalB || '0', resultado: resB,
+      });
+    });
+  });
+
+  const exportColumns = [
+    { header: 'Fecha',     cell: (r: MarcadorRow) => r.fecha,     align: 'center' as const, width: 18 },
+    { header: 'Equipo',    cell: (r: MarcadorRow) => r.equipo,    align: 'left'   as const, width: 28 },
+    { header: '1°',        cell: (r: MarcadorRow) => r.q1 || '-', align: 'center' as const, width: 10 },
+    { header: '2°',        cell: (r: MarcadorRow) => r.q2 || '-', align: 'center' as const, width: 10 },
+    { header: '3°',        cell: (r: MarcadorRow) => r.q3 || '-', align: 'center' as const, width: 10 },
+    { header: '4°',        cell: (r: MarcadorRow) => r.q4 || '-', align: 'center' as const, width: 10 },
+    { header: 'TA',        cell: (r: MarcadorRow) => r.ta || '-', align: 'center' as const, width: 10 },
+    { header: 'Total',     cell: (r: MarcadorRow) => r.total,     align: 'center' as const, width: 12 },
+    { header: 'Resultado', cell: (r: MarcadorRow) => r.resultado, align: 'center' as const, width: 16 },
+  ];
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: 'Marcadores por cuarto',
+      filename: buildFilename('marcadores'),
+      columns: exportColumns,
+      rows: flatRows,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename('marcadores'),
+      sheetName: 'Marcadores',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Marcadores por cuarto'],
+      columns: exportColumns,
+      rows: flatRows,
+    });
+  };
+
   return (
     <div className="animate-fade-in">
-      <div className="px-4 md:px-6 pt-4">
+      <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
         <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
           <span className="w-1 h-4 bg-gold rounded-full" />
           Marcadores por cuarto
         </h2>
+        <ExportButton
+          onExportPdf={handleExportPdf}
+          onExportExcel={handleExportExcel}
+          disabled={loading || flatRows.length === 0}
+        />
       </div>
 
       <div className="px-4 md:px-6 py-4">
