@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import miamiHeatPhoto from '../public/teams/miami-heat.jpg';
 import brooklynNetsPhoto from '../public/teams/brooklyn-nets.jpg';
@@ -49,20 +49,27 @@ export default function Dashboard() {
   const [statsMap, setStatsMap] = useState<Record<string, TeamStats>>({});
   const [topScorers, setTopScorers] = useState<Record<string, { nombre: string; puntos: number }>>({});
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setLoading(true);
     setError(false);
 
     Promise.all([
-      fetch('/api/sheets?sheet=EQUIPOS').then(r => r.json()),
-      fetch('/api/sheets?sheet=JUGADORES').then(r => r.json()),
-      fetch('/api/sheets?sheet=TablaPosiciones').then(r => r.json()),
-      fetch('/api/sheets?sheet=PuntosJugadores').then(r => r.json()),
+      fetch('/api/sheets?sheet=EQUIPOS', { signal }).then(r => r.json()),
+      fetch('/api/sheets?sheet=JUGADORES', { signal }).then(r => r.json()),
+      fetch('/api/sheets?sheet=TablaPosiciones', { signal }).then(r => r.json()),
+      fetch('/api/sheets?sheet=PuntosJugadores', { signal }).then(r => r.json()),
     ])
       .then(([eqData, jugData, posData, ptsData]) => {
+        if (signal.aborted) return;
         let teamNames: Record<string, string> = {};
-        if (eqData.success && eqData.data.length > 1) {
+        if (eqData.success && Array.isArray(eqData.data) && eqData.data.length > 1) {
           const rows = eqData.data.slice(1).filter((r: string[]) => r[1]);
           setEquipos(rows.map((r: string[]) => ({
             id: r[0], nombre: r[1], hexColor: r[5] || '#888888',
@@ -71,7 +78,7 @@ export default function Dashboard() {
         }
         // Build player->team map from JUGADORES
         const playerTeam: Record<string, string> = {};
-        if (jugData.success && jugData.data.length > 1) {
+        if (jugData.success && Array.isArray(jugData.data) && jugData.data.length > 1) {
           const jugRows = jugData.data.slice(1).filter((r: string[]) => r[1]);
           setTotalJugadores(jugRows.length);
           jugRows.forEach((r: string[]) => {
@@ -80,7 +87,7 @@ export default function Dashboard() {
             }
           });
         }
-        if (posData.success && posData.data.length > 1) {
+        if (posData.success && Array.isArray(posData.data) && posData.data.length > 1) {
           const map: Record<string, TeamStats> = {};
           posData.data.slice(1).filter((r: string[]) => r[0]).forEach((r: string[]) => {
             map[r[0]] = {
@@ -98,7 +105,7 @@ export default function Dashboard() {
           setStatsMap(map);
         }
         // Find top scorer per team
-        if (ptsData.success && ptsData.data.length > 1) {
+        if (ptsData.success && Array.isArray(ptsData.data) && ptsData.data.length > 1) {
           const scorers: Record<string, { nombre: string; puntos: number }> = {};
           ptsData.data.slice(1)
             .filter((r: string[]) => r[7] && r[7] !== 'NOMBRE JUGADOR')
@@ -116,10 +123,17 @@ export default function Dashboard() {
         else setLastUpdated(new Date());
         setLoading(false);
       })
-      .catch(() => { setError(true); setLoading(false); });
-  };
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const badgeColor = (eq: Equipo) => TEAMS[eq.id]?.safeColor || eq.hexColor;
 

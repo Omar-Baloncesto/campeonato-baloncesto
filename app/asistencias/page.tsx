@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
@@ -36,6 +36,7 @@ export default function Asistencias() {
   const [fechas, setFechas] = useState<string[]>(Array(10).fill(''));
   const [jugadas, setJugadas] = useState<boolean[]>(Array(10).fill(false));
   const [isLight, setIsLight] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const check = () => setIsLight(document.documentElement.classList.contains('light'));
@@ -45,12 +46,19 @@ export default function Asistencias() {
     return () => obs.disconnect();
   }, []);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
+    setLoading(true);
     Promise.all([
-      fetch('/api/sheets?sheet=AsistenciasJugadores').then(r => r.json()),
-      fetch('/api/sheets?sheet=FIXTURE').then(r => r.json()),
+      fetch('/api/sheets?sheet=AsistenciasJugadores', { signal }).then(r => r.json()),
+      fetch('/api/sheets?sheet=FIXTURE', { signal }).then(r => r.json()),
     ])
       .then(([data, fixtureData]) => {
+        if (signal.aborted) return;
         // Extract dates and played status from FIXTURE via the shared parser
         if (fixtureData.success && Array.isArray(fixtureData.data)) {
           const partidos = parseFixtureRows(fixtureData.data);
@@ -69,7 +77,7 @@ export default function Asistencias() {
           setJugadas(Array.from({ length: 10 }, (_, i) => jornadaPlayed.has(String(i + 1))));
         }
 
-        if (data.success && data.data.length > 1) {
+        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows: string[][] = data.data;
           const titleIndices: number[] = [];
           rows.forEach((r, i) => {
@@ -102,8 +110,17 @@ export default function Asistencias() {
           setEquipos(result);
         }
         setLoading(false);
+      })
+      .catch((err) => {
+        if (err?.name === 'AbortError' || signal.aborted) return;
+        setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchData]);
 
   const eq = equipos[equipoActivo];
   const color = eq ? getTeamColor(eq.nombre) : '#888';
