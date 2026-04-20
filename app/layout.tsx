@@ -70,7 +70,7 @@ export default function RootLayout({
                 <span>Campeonato · Baloncesto · Cucuta 2026</span>
                 <a
                   href="/admin"
-                  aria-label="V"
+                  aria-label="Acceder al panel de administración"
                   className="text-text-muted/40 hover:text-gold transition-colors font-mono text-[11px] leading-none"
                 >
                   V

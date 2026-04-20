@@ -8,7 +8,7 @@ import oklahomaCityThunderPhoto from '../public/teams/oklahoma-city-thunder.jpg'
 import losAngelesLakersPhoto from '../public/teams/los-angeles-lakers.jpg';
 import torontoRaptorsPhoto from '../public/teams/toronto-raptors.jpg';
 import { TEAMS } from './lib/constants';
-import { ErrorState } from './components/LoadingState';
+import LoadingState, { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
 
 // Static imports give Next/Image the intrinsic width/height so we get no
@@ -178,10 +178,7 @@ export default function Dashboard() {
           </div>
 
           {loading ? (
-            <div className="text-text-muted text-center py-12">
-              <div className="spinner mx-auto mb-4" />
-              <span className="text-sm tracking-wide">Cargando equipos...</span>
-            </div>
+            <LoadingState message="Cargando equipos..." />
           ) : error ? (
             <ErrorState
               message="No se pudieron cargar los equipos. Verifica tu conexión a internet."

@@ -20,7 +20,7 @@ export default function LoadingState({ message = 'Cargando...', variant = 'spinn
           {/* Row skeletons */}
           {Array.from({ length: rows }).map((_, i) => (
             <div
-              key={i}
+              key={`sk-${i}`}
               className="flex items-center gap-4 px-5 py-4 border-b border-border-subtle"
               style={{ opacity: 1 - (i * 0.12) }}
             >
@@ -55,7 +55,16 @@ export default function LoadingState({ message = 'Cargando...', variant = 'spinn
   );
 }
 
-export function ErrorState({ message = 'No se pudieron cargar los datos', onRetry }: { message?: string; onRetry?: () => void }) {
+export function ErrorState({
+  message = 'No se pudieron cargar los datos',
+  onRetry,
+  error,
+}: {
+  message?: string;
+  onRetry?: () => void;
+  error?: { message?: string } | null;
+}) {
+  const detail = error?.message;
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-4 animate-fade-in">
       <div className="text-4xl bounce">
@@ -74,6 +83,38 @@ export function ErrorState({ message = 'No se pudieron cargar los datos', onRetr
           Reintentar
         </button>
       )}
+      {detail && (
+        <details className="text-[11px] text-text-muted/70 max-w-xs w-full text-left mt-1">
+          <summary className="cursor-pointer select-none uppercase tracking-wider">
+            Detalles técnicos
+          </summary>
+          <pre className="mt-2 p-2 rounded bg-bg-darkest border border-border-subtle whitespace-pre-wrap break-words font-mono text-[10px]">
+            {detail}
+          </pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+export function EmptyState({
+  message,
+  icon,
+}: {
+  message: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-4 animate-fade-in">
+      <div className="text-4xl">
+        {icon ?? (
+          <svg viewBox="0 0 24 24" className="w-12 h-12 text-text-muted" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M3 10h18" strokeLinecap="round" />
+          </svg>
+        )}
+      </div>
+      <p className="text-text-muted text-sm text-center max-w-xs">{message}</p>
     </div>
   );
 }

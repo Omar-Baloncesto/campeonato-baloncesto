@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
-import LoadingState from '../components/LoadingState';
+import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 
 interface Partido {
@@ -96,6 +96,8 @@ export default function ListaEquipos() {
       <div className="px-4 md:px-6 pb-8">
         {loading ? (
           <LoadingState message="Cargando marcadores..." />
+        ) : fechas.length === 0 ? (
+          <EmptyState message="Aún no hay marcadores publicados." />
         ) : fecha ? (
           <div className="flex flex-col gap-3">
             {fecha.partidos.map((p, i) => {

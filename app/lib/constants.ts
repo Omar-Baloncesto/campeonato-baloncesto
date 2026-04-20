@@ -36,17 +36,17 @@ export function isWhiteTeam(nameOrId: string): boolean {
 }
 
 export const NAV_ITEMS = [
-  { label: 'Equipos',      href: '/',                    icon: '🏀' },
-  { label: 'Posiciones',   href: '/posiciones',          icon: '🏆' },
-  { label: 'Fixture',      href: '/fixture',             icon: '🗓' },
-  { label: 'Jugadores',    href: '/jugadores',           icon: '👤' },
-  { label: 'Estadísticas', href: '/estadisticas',        icon: '📊' },
-  { label: 'Est. Equipos', href: '/estadisticas-equipos', icon: '📊' },
-  { label: 'Est. Jugadores', href: '/estadistica-jugadores', icon: '📋' },
-  { label: 'Asistencias',  href: '/asistencias',         icon: '📋' },
-  { label: 'Marcadores',   href: '/lista-equipos',       icon: '🏀' },
-  { label: 'Predicciones', href: '/predicciones',        icon: '🎯' },
-  { label: 'Bracket',      href: '/bracket',             icon: '🏆' },
+  { label: 'Equipos',              href: '/',                       icon: '🏀' },
+  { label: 'Posiciones',           href: '/posiciones',             icon: '🏆' },
+  { label: 'Fixture',              href: '/fixture',                icon: '🗓' },
+  { label: 'Jugadores',            href: '/jugadores',              icon: '👤' },
+  { label: 'Estadísticas',         href: '/estadisticas',           icon: '📊' },
+  { label: 'Stats por equipo',     href: '/estadisticas-equipos',   icon: '📊' },
+  { label: 'Ranking de jugadores', href: '/estadistica-jugadores',  icon: '📋' },
+  { label: 'Asistencias',          href: '/asistencias',            icon: '📋' },
+  { label: 'Marcadores',           href: '/lista-equipos',          icon: '🏀' },
+  { label: 'Predicciones',         href: '/predicciones',           icon: '🎯' },
+  { label: 'Bracket',              href: '/bracket',                icon: '🏆' },
 ];
 
 export const APP_CONFIG = {

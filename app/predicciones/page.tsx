@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
-import LoadingState, { ErrorState } from '../components/LoadingState';
+import LoadingState, { ErrorState, EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
 import { useToast } from '../components/ToastProvider';
@@ -117,6 +117,8 @@ export default function Predicciones() {
           <LoadingState message="Cargando partidos..." />
         ) : error ? (
           <ErrorState onRetry={refetch} />
+        ) : filtrados.length === 0 ? (
+          <EmptyState message="No hay partidos para esta jornada." />
         ) : (
           <div className="flex flex-col gap-3 stagger-children">
             {filtrados.map(p => {

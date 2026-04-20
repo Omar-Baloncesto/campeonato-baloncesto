@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
-import LoadingState, { ErrorState } from '../components/LoadingState';
+import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import { parseFixtureRows, isJugado } from '../lib/fixture';
 
@@ -160,7 +160,9 @@ export default function Asistencias() {
       <div className="px-4 md:px-6 pb-8">
         {loading ? (
           <LoadingState message="Cargando asistencias..." variant="skeleton" rows={8} />
-        ) : eq ? (
+        ) : !eq || eq.jugadores.length === 0 ? (
+          <EmptyState message="No hay datos de asistencia para este equipo todavía." />
+        ) : (
           <>
             {/* Mobile: card layout */}
             <div className="lg:hidden space-y-3">
@@ -280,7 +282,7 @@ export default function Asistencias() {
               </div>
             </div>
           </>
-        ) : null}
+        )}
       </div>
     </div>
   );
