@@ -401,6 +401,161 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface EstadisticaJugadorPdfRow {
+  nombre: string;
+  totalPuntos: number;
+  asistencias: number;
+  /** Accept raw string so we can display "25,4" verbatim (Spanish locale). */
+  promedio: string;
+}
+
+export type EstadisticaOrden = 'totalPuntos' | 'asistencias' | 'promedio';
+
+export interface ExportEstadisticasPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  /** Already sorted list. */
+  jugadores: EstadisticaJugadorPdfRow[];
+  /** Which column the web is currently sorting by — we'll highlight it gold. */
+  orden: EstadisticaOrden;
+  destination?: Destination;
+}
+
+/**
+ * Render the "Estadísticas" ranking as a Letter portrait PDF.
+ * Mirrors the web layout: positions 1°..N in medal colors for the
+ * top 3, all three metric columns visible, and the active sort column
+ * printed in gold bold. Keeps the Spanish-locale comma in the Promedio
+ * column instead of forcing a parseFloat that would render 0.
+ */
+export async function exportEstadisticasPdf(
+  opts: ExportEstadisticasPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 12;
+
+  const title = opts.title ?? SITE_TITLE;
+  const ordenLabel =
+    opts.orden === 'totalPuntos' ? 'Puntos'
+    : opts.orden === 'asistencias' ? 'Asistencias'
+    : 'Promedio';
+  const subtitle = opts.subtitle ?? `Estadísticas · Ordenado por ${ordenLabel}`;
+  const generatedAt = formatDateTime(new Date());
+
+  const medalColor = (i: number): RGB => {
+    if (i === 0) return POS_GOLD;
+    if (i === 1) return POS_MEDAL_SILVER;
+    if (i === 2) return POS_MEDAL_BRONZE;
+    return [120, 120, 120];
+  };
+
+  const head: CellDef[][] = [[
+    { content: '#',           styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'JUGADOR',     styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'left',   fontSize: 9 } },
+    { content: 'PUNTOS',      styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'ASISTENCIAS', styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'PROMEDIO',    styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+  ]];
+
+  const goldText = (active: boolean): RGB => (active ? POS_GOLD : ([22, 22, 22] as RGB));
+
+  const body: RowInput[] = opts.jugadores.map((r, i) => [
+    {
+      content: `${i + 1}°`,
+      styles: { fontStyle: 'bold', halign: 'center', fontSize: 10, textColor: medalColor(i) },
+    } as CellDef,
+    {
+      content: r.nombre,
+      styles: { fontStyle: 'bold', halign: 'left', fontSize: 9, textColor: [22, 22, 22] as RGB },
+    } as CellDef,
+    {
+      content: String(r.totalPuntos),
+      styles: {
+        halign: 'center',
+        fontStyle: 'bold',
+        fontSize: 10,
+        textColor: goldText(opts.orden === 'totalPuntos'),
+      },
+    } as CellDef,
+    {
+      content: String(r.asistencias),
+      styles: {
+        halign: 'center',
+        fontStyle: opts.orden === 'asistencias' ? 'bold' : 'normal',
+        fontSize: 10,
+        textColor: goldText(opts.orden === 'asistencias'),
+      },
+    } as CellDef,
+    {
+      content: r.promedio || '0',
+      styles: {
+        halign: 'center',
+        fontStyle: opts.orden === 'promedio' ? 'bold' : 'normal',
+        fontSize: 10,
+        textColor: goldText(opts.orden === 'promedio'),
+      },
+    } as CellDef,
+  ]);
+
+  const columnStyles: Record<number, { cellWidth: number }> = {
+    0: { cellWidth: 14 },
+    1: { cellWidth: 82 },
+    2: { cellWidth: 28 },
+    3: { cellWidth: 32 },
+    4: { cellWidth: 28 },
+  };
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: 28,
+    margin: { top: 28, bottom: 14, left: marginX, right: marginX },
+    styles: {
+      font: 'helvetica',
+      fontSize: 10,
+      cellPadding: 2.5,
+      lineColor: [225, 225, 225],
+      lineWidth: 0.2,
+      valign: 'middle',
+    },
+    alternateRowStyles: { fillColor: POS_ROW_ALT },
+    columnStyles,
+    theme: 'grid',
+    didDrawPage: () => {
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, 22, pageW - marginX, 22);
+
+      const page = doc.getCurrentPageInfo().pageNumber;
+      const total = doc.getNumberOfPages();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${page} de ${total}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    },
+  });
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
 export interface PartidoFixturePdfRow {
   jornada: string;
   /** "21/02/2026" */
