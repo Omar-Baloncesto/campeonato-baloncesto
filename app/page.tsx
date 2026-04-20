@@ -10,6 +10,9 @@ import torontoRaptorsPhoto from '../public/teams/toronto-raptors.jpg';
 import { TEAMS } from './lib/constants';
 import LoadingState, { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
+import ExportButton from './components/ExportButton';
+import { buildFilename } from './lib/export';
+import { exportVisualPdf } from './lib/export-pdf';
 
 // Static imports give Next/Image the intrinsic width/height so we get no
 // layout shift while the optimized version is loading.
@@ -49,6 +52,7 @@ export default function Dashboard() {
   const [statsMap, setStatsMap] = useState<Record<string, TeamStats>>({});
   const [topScorers, setTopScorers] = useState<Record<string, { nombre: string; puntos: number }>>({});
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [expandAllForExport, setExpandAllForExport] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(() => {
@@ -146,6 +150,29 @@ export default function Dashboard() {
 
   // Pre-compute the derived rates per team once instead of inside the map
   // body, so a re-render that doesn't change equipos / statsMap is free.
+  const handleExportPdf = useCallback(async () => {
+    // Temporarily expand every team card so the capture shows all stats,
+    // not just whichever one the user happened to have open. We wait two
+    // animation frames so the CSS expand transition settles and the full
+    // layout has paint-completed before html2canvas measures it.
+    setExpandAllForExport(true);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    // Extra small delay for the CSS max-height transition to finish.
+    await new Promise((r) => setTimeout(r, 350));
+    try {
+      await exportVisualPdf({
+        title: 'Campeonato Baloncesto · Cúcuta 2026',
+        subtitle: 'Equipos participantes',
+        filename: buildFilename('equipos'),
+        elementId: 'equipos-export-root',
+      });
+    } finally {
+      setExpandAllForExport(false);
+    }
+  }, []);
+
   const equiposConStats = useMemo(() => equipos.map((eq, idx) => {
     const st = statsMap[eq.nombre];
     const pj = st?.pj || 1;
@@ -192,7 +219,13 @@ export default function Dashboard() {
               <span className="w-1 h-4 bg-gold rounded-full" />
               Equipos participantes
             </h2>
-            <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+            <div className="flex items-center gap-3">
+              <ExportButton
+                onExportPdf={handleExportPdf}
+                disabled={loading || error || equipos.length === 0}
+              />
+              <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+            </div>
           </div>
 
           {loading ? (
@@ -203,11 +236,11 @@ export default function Dashboard() {
               onRetry={fetchData}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 stagger-children">
+            <div id="equipos-export-root" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 stagger-children">
               {equiposConStats.map(({ eq, idx, st, ppgOff, ppgDef, ratio, winPct }) => {
                 const color = badgeColor(eq);
                 const photo = TEAM_PHOTOS[eq.id];
-                const isExpanded = expandedTeam === eq.nombre;
+                const isExpanded = expandAllForExport || expandedTeam === eq.nombre;
                 const scorer = topScorers[eq.nombre];
 
                 return (

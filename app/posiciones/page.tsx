@@ -3,6 +3,10 @@ import { useMemo, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
+import ExportButton from '../components/ExportButton';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 
 interface Equipo {
@@ -61,12 +65,48 @@ export default function Posiciones() {
     };
   }), [lista]);
 
+  const exportColumns = useMemo(() => ([
+    { header: '#',       cell: (e: Equipo) => e.puesto || '',               align: 'center' as const, width: 10 },
+    { header: 'Equipo',  cell: (e: Equipo) => e.nombre,                      align: 'left' as const,   width: 60 },
+    { header: 'PJ',      cell: (e: Equipo) => Number(e.pj) || 0,              align: 'center' as const, width: 14 },
+    { header: 'PG',      cell: (e: Equipo) => Number(e.pg) || 0,              align: 'center' as const, width: 14 },
+    { header: 'PP',      cell: (e: Equipo) => Number(e.pp) || 0,              align: 'center' as const, width: 14 },
+    { header: 'P. Ano.', cell: (e: Equipo) => Number(e.puntosAnotados) || 0,  align: 'center' as const, width: 20 },
+    { header: 'P. Rec.', cell: (e: Equipo) => Number(e.puntosRecibidos) || 0, align: 'center' as const, width: 20 },
+    { header: 'Dif.',    cell: (e: Equipo) => Number(e.diferencia) || 0,      align: 'center' as const, width: 16 },
+    { header: 'Pts',     cell: (e: Equipo) => Number(e.puntos) || 0,          align: 'center' as const, width: 14 },
+  ]), []);
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: 'Tabla de posiciones',
+      filename: buildFilename('posiciones'),
+      columns: exportColumns,
+      rows: lista,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename('posiciones'),
+      sheetName: 'Posiciones',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Tabla de posiciones'],
+      columns: exportColumns,
+      rows: lista,
+    });
+  };
+
   return (
     <section className="p-4 md:p-6 animate-fade-in" aria-label="Tabla de posiciones">
       <div className="flex items-center gap-2 mb-4">
         <span className="w-1 h-5 bg-gold rounded-full" />
         <h2 className="text-sm text-text-muted uppercase tracking-widest">Tabla de posiciones</h2>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          <ExportButton
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportExcel}
+            disabled={loading || error || lista.length === 0}
+          />
           <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
         </div>
       </div>

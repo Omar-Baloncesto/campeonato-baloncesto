@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
+import ExportButton from '../components/ExportButton';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 import { parseFixtureRows, isJugado } from '../lib/fixture';
 
 interface Jugador {
@@ -125,6 +129,52 @@ export default function Asistencias() {
   const eq = equipos[equipoActivo];
   const color = eq ? getTeamColor(eq.nombre) : '#888';
 
+  // Convert the attendance "0/1" strings into the same ✓/✗ glyphs the table
+  // shows on-screen. Empty cells (fechas that weren't played yet) render as "-".
+  const cellFor = (f: string, i: number) => {
+    if (jugadas[i]) return f === '1' ? '✓' : '✗';
+    return '-';
+  };
+
+  const exportColumns = eq
+    ? [
+        { header: 'Jugador', cell: (j: Jugador) => j.nombre, align: 'left' as const, width: 28 },
+        ...fechas.map((f, i) => ({
+          header: f ? `F${i + 1} (${f})` : `F${i + 1}`,
+          cell: (j: Jugador) => cellFor(j.fechas[i] ?? '', i),
+          align: 'center' as const,
+          width: 12,
+        })),
+        { header: 'Asist.',  cell: (j: Jugador) => j.asistencia,  align: 'center' as const, width: 12 },
+        { header: 'Fechas',  cell: (j: Jugador) => j.totalFechas, align: 'center' as const, width: 12 },
+        { header: 'Fracción',cell: (j: Jugador) => j.fraccion,    align: 'center' as const, width: 14 },
+        { header: '%',       cell: (j: Jugador) => j.porcentaje,  align: 'center' as const, width: 10 },
+      ]
+    : [];
+
+  const equipoNombre = eq?.nombre ?? '';
+
+  const handleExportPdf = async () => {
+    if (!eq) return;
+    await exportTablePdf({
+      subtitle: `Asistencias · ${equipoNombre}`,
+      filename: buildFilename(`asistencias-${equipoNombre}`),
+      columns: exportColumns,
+      rows: eq.jugadores,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    if (!eq) return;
+    await exportTableXlsx({
+      filename: buildFilename(`asistencias-${equipoNombre}`),
+      sheetName: (equipoNombre || 'Asistencias').substring(0, 31),
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', `Asistencias · ${equipoNombre}`],
+      columns: exportColumns,
+      rows: eq.jugadores,
+    });
+  };
+
   // High-contrast colors for both themes
   const checkColor = isLight ? '#0a7a2a' : '#5eff80';
   const crossColor = isLight ? '#c41818' : '#ff6b6b';
@@ -137,11 +187,16 @@ export default function Asistencias() {
 
   return (
     <div className="animate-fade-in">
-      <div className="px-4 md:px-6 pt-4">
+      <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
         <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
           <span className="w-1 h-4 bg-gold rounded-full" />
           Asistencias
         </h2>
+        <ExportButton
+          onExportPdf={handleExportPdf}
+          onExportExcel={handleExportExcel}
+          disabled={loading || !eq || eq.jugadores.length === 0}
+        />
       </div>
 
       <div className="px-4 md:px-6 py-4">

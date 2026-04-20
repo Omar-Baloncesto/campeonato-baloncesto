@@ -4,7 +4,11 @@ import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState, EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
+import ExportButton from '../components/ExportButton';
 import { useToast } from '../components/ToastProvider';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
 
@@ -52,6 +56,47 @@ export default function Predicciones() {
   const jornadas = ['Todos', ...Array.from(new Set(partidos.map(p => p.jornada)))];
   const filtrados = jornada === 'Todos' ? partidos : partidos.filter(p => p.jornada === jornada);
 
+  const resultadoFor = (p: Partido): string => {
+    const pred = predictions[p.id];
+    if (!pred) return 'Sin predicción';
+    if (!jugado(p)) return 'Pendiente';
+    return pred === ganador(p) ? 'Acertó' : 'Falló';
+  };
+
+  const marcadorFor = (p: Partido): string => {
+    if (!jugado(p)) return '';
+    return `${p.marcadorLocal} - ${p.marcadorVisitante}`;
+  };
+
+  const exportColumns = [
+    { header: 'Jornada',        cell: (p: Partido) => p.jornada,                           align: 'center' as const, width: 12 },
+    { header: 'Fecha',          cell: (p: Partido) => p.fecha,                             align: 'center' as const, width: 18 },
+    { header: 'Local',          cell: (p: Partido) => p.local,                             align: 'left'   as const, width: 26 },
+    { header: 'Visitante',      cell: (p: Partido) => p.visitante,                         align: 'left'   as const, width: 26 },
+    { header: 'Marcador',       cell: (p: Partido) => marcadorFor(p),                      align: 'center' as const, width: 16 },
+    { header: 'Mi predicción',  cell: (p: Partido) => predictions[p.id] || '',             align: 'left'   as const, width: 22 },
+    { header: 'Resultado',      cell: (p: Partido) => resultadoFor(p),                     align: 'center' as const, width: 18 },
+  ];
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: 'Predicciones',
+      filename: buildFilename('predicciones'),
+      columns: exportColumns,
+      rows: filtrados,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename('predicciones'),
+      sheetName: 'Predicciones',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Predicciones'],
+      columns: exportColumns,
+      rows: filtrados,
+    });
+  };
+
   // Stats
   const totalPredicted = Object.keys(predictions).length;
   const played = partidos.filter(jugado);
@@ -68,7 +113,14 @@ export default function Predicciones() {
           <span className="w-1 h-4 bg-gold rounded-full" />
           Predicciones
         </h2>
-        <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
+        <div className="flex items-center gap-3">
+          <ExportButton
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportExcel}
+            disabled={loading || error || filtrados.length === 0}
+          />
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
+        </div>
       </div>
 
       {/* Stats bar - always visible */}

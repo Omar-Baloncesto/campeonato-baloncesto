@@ -4,7 +4,11 @@ import { TEAMS } from '../lib/constants';
 import { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
+import ExportButton from '../components/ExportButton';
 import SearchInput from '../components/SearchInput';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 import { normalizeText } from '../lib/utils';
 
 function getInitials(nombre: string): string {
@@ -200,6 +204,36 @@ export default function Jugadores() {
     })),
   ];
 
+  const exportColumns = [
+    { header: '#',        cell: (j: Jugador) => j.numero || '',                                  align: 'center' as const, width: 10 },
+    { header: 'Jugador',  cell: (j: Jugador) => j.nombre,                                         align: 'left'   as const, width: 34 },
+    { header: 'Equipo',   cell: (j: Jugador) => TEAMS[j.equipoId]?.name || `Equipo ${j.equipoId}`, align: 'left'   as const, width: 26 },
+    { header: 'Posición', cell: (j: Jugador) => j.posicion || '',                                 align: 'left'   as const, width: 18 },
+  ];
+
+  const equipoLabel = equipoFiltro === 'Todos'
+    ? 'Todos los equipos'
+    : (TEAMS[equipoFiltro]?.name || `Equipo ${equipoFiltro}`);
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: `Jugadores · ${equipoLabel}`,
+      filename: buildFilename('jugadores'),
+      columns: exportColumns,
+      rows: filtrados,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename('jugadores'),
+      sheetName: 'Jugadores',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', `Jugadores · ${equipoLabel}`],
+      columns: exportColumns,
+      rows: filtrados,
+    });
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
@@ -209,6 +243,11 @@ export default function Jugadores() {
         </h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-muted">{filtrados.length} jugadores</span>
+          <ExportButton
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportExcel}
+            disabled={loading || error || filtrados.length === 0}
+          />
           <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
         </div>
       </div>

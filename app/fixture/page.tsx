@@ -4,6 +4,10 @@ import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
+import ExportButton from '../components/ExportButton';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
 
@@ -17,6 +21,38 @@ export default function Fixture() {
   const filtrados = jornada === 'Todos' ? partidos : partidos.filter(p => p.jornada === jornada);
   const jugado = isJugado;
 
+  const exportColumns = [
+    { header: 'Jornada',    cell: (p: Partido) => p.jornada,                                              align: 'center' as const, width: 14 },
+    { header: 'Fecha',      cell: (p: Partido) => p.fecha,                                                align: 'center' as const, width: 18 },
+    { header: 'Hora',       cell: (p: Partido) => p.hora,                                                 align: 'center' as const, width: 14 },
+    { header: 'Local',      cell: (p: Partido) => p.local,                                                align: 'left'   as const, width: 28 },
+    { header: 'Marc. Local',cell: (p: Partido) => isJugado(p) ? p.marcadorLocal : '',                    align: 'center' as const, width: 14 },
+    { header: 'Marc. Vis.', cell: (p: Partido) => isJugado(p) ? p.marcadorVisitante : '',                align: 'center' as const, width: 14 },
+    { header: 'Visitante',  cell: (p: Partido) => p.visitante,                                            align: 'left'   as const, width: 28 },
+    { header: 'Estado',     cell: (p: Partido) => isJugado(p) ? 'Jugado' : 'Pendiente',                  align: 'center' as const, width: 18 },
+  ];
+
+  const subtitleSuffix = jornada === 'Todos' ? '' : ` · Jornada ${jornada}`;
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: `Fixture${subtitleSuffix}`,
+      filename: buildFilename(`fixture${jornada === 'Todos' ? '' : '-j' + jornada}`),
+      columns: exportColumns,
+      rows: filtrados,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename(`fixture${jornada === 'Todos' ? '' : '-j' + jornada}`),
+      sheetName: 'Fixture',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', `Fixture${subtitleSuffix}`],
+      columns: exportColumns,
+      rows: filtrados,
+    });
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
@@ -28,6 +64,11 @@ export default function Fixture() {
           <span className="text-xs text-text-muted">
             {loading ? '' : `${partidos.filter(jugado).length} jugados · ${partidos.filter(p => !jugado(p)).length} pendientes`}
           </span>
+          <ExportButton
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportExcel}
+            disabled={loading || error || filtrados.length === 0}
+          />
           <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
         </div>
       </div>
