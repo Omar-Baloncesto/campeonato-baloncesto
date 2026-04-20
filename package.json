@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "googleapis": "^171.4.0",
-    "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.0.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "next": "16.2.1",

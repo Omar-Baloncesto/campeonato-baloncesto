@@ -160,7 +160,7 @@ export async function exportVisualPdf(
   opts: ExportVisualPdfOptions,
 ): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
-  const { default: html2canvas } = await import('html2canvas');
+  const { default: html2canvas } = await import('html2canvas-pro');
 
   const el = document.getElementById(opts.elementId);
   if (!el) {
