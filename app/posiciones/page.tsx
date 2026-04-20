@@ -5,7 +5,7 @@ import LoadingState, { ErrorState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportPosicionesPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 
@@ -78,11 +78,20 @@ export default function Posiciones() {
   ]), []);
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
-      subtitle: 'Tabla de posiciones',
+    await exportPosicionesPdf({
       filename: buildFilename('posiciones'),
-      columns: exportColumns,
-      rows: lista,
+      rows: lista.map((e, i) => ({
+        puesto: ['1°', '2°', '3°', '4°', '5°', '6°'][i] || e.puesto || `${i + 1}°`,
+        nombre: e.nombre,
+        color: getTeamColor(e.nombre),
+        pj: Number(e.pj) || 0,
+        pg: Number(e.pg) || 0,
+        pp: Number(e.pp) || 0,
+        puntosAnotados: Number(e.puntosAnotados) || 0,
+        puntosRecibidos: Number(e.puntosRecibidos) || 0,
+        diferencia: Number(e.diferencia) || 0,
+        puntos: Number(e.puntos) || 0,
+      })),
       destination,
     });
   };

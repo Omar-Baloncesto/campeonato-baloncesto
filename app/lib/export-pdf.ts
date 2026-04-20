@@ -401,6 +401,177 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface PosicionPdfRow {
+  /** "1°", "2°", ..., "6°" */
+  puesto: string;
+  nombre: string;
+  /** Hex color for the left team bar (e.g. "#RRGGBB"). */
+  color: string;
+  pj: number;
+  pg: number;
+  pp: number;
+  puntosAnotados: number;
+  puntosRecibidos: number;
+  diferencia: number;
+  puntos: number;
+}
+
+export interface ExportPosicionesPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  rows: PosicionPdfRow[];
+  destination?: Destination;
+}
+
+const POS_HDR_BG: RGB = [24, 24, 28];
+const POS_HDR_TEXT: RGB = [255, 255, 255];
+const POS_ROW_ALT: RGB = [248, 248, 248];
+const POS_GREEN: RGB = [34, 153, 70];
+const POS_RED: RGB = [200, 30, 30];
+const POS_GOLD: RGB = [245, 184, 0];
+const POS_MEDAL_SILVER: RGB = [160, 160, 170];
+const POS_MEDAL_BRONZE: RGB = [176, 120, 60];
+
+/**
+ * Render the "Tabla de posiciones" as a Letter portrait PDF with the
+ * same colored cues the web uses:
+ *   - Position column ("1°..6°") colored gold/silver/bronze for the
+ *     top 3 and muted for the rest
+ *   - Vertical team-color bar to the left of the team name
+ *   - PG in green, PP in red, Dif. in green/red by sign, Pts in gold
+ */
+export async function exportPosicionesPdf(
+  opts: ExportPosicionesPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 10;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle ?? 'Tabla de posiciones';
+  const generatedAt = formatDateTime(new Date());
+
+  const medalColor = (i: number): RGB => {
+    if (i === 0) return POS_GOLD;
+    if (i === 1) return POS_MEDAL_SILVER;
+    if (i === 2) return POS_MEDAL_BRONZE;
+    return [120, 120, 120];
+  };
+
+  const head: CellDef[][] = [[
+    { content: '#',       styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'EQUIPO',  styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'left',   fontSize: 9 } },
+    { content: 'PJ',      styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'PG',      styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'PP',      styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'P. ANO.', styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'P. REC.', styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'DIF.',    styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+    { content: 'PTS',     styles: { fillColor: POS_HDR_BG, textColor: POS_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 } },
+  ]];
+
+  const body: RowInput[] = opts.rows.map((r, i) => {
+    const diffColor: RGB = r.diferencia >= 0 ? POS_GREEN : POS_RED;
+    const diffText = `${r.diferencia > 0 ? '+' : ''}${r.diferencia}`;
+    return [
+      {
+        content: r.puesto || `${i + 1}°`,
+        styles: { fontStyle: 'bold', halign: 'center', fontSize: 11, textColor: medalColor(i) },
+      } as CellDef,
+      // Team name — the color bar is drawn on top via didDrawCell.
+      {
+        content: `    ${r.nombre}`,
+        styles: { fontStyle: 'bold', halign: 'left', fontSize: 10, textColor: [22, 22, 22] as RGB },
+      } as CellDef,
+      { content: String(r.pj), styles: { halign: 'center', fontSize: 10 } } as CellDef,
+      { content: String(r.pg), styles: { halign: 'center', fontStyle: 'bold', fontSize: 10, textColor: POS_GREEN } } as CellDef,
+      { content: String(r.pp), styles: { halign: 'center', fontStyle: 'bold', fontSize: 10, textColor: POS_RED } } as CellDef,
+      { content: String(r.puntosAnotados),  styles: { halign: 'center', fontSize: 10 } } as CellDef,
+      { content: String(r.puntosRecibidos), styles: { halign: 'center', fontSize: 10 } } as CellDef,
+      { content: diffText, styles: { halign: 'center', fontStyle: 'bold', fontSize: 10, textColor: diffColor } } as CellDef,
+      { content: String(r.puntos), styles: { halign: 'center', fontStyle: 'bold', fontSize: 12, textColor: POS_GOLD } } as CellDef,
+    ];
+  });
+
+  const columnStyles: Record<number, { cellWidth: number }> = {
+    0: { cellWidth: 14 },
+    1: { cellWidth: 70 },
+    2: { cellWidth: 14 },
+    3: { cellWidth: 14 },
+    4: { cellWidth: 14 },
+    5: { cellWidth: 20 },
+    6: { cellWidth: 20 },
+    7: { cellWidth: 18 },
+    8: { cellWidth: 16 },
+  };
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: 28,
+    margin: { top: 28, bottom: 14, left: marginX, right: marginX },
+    styles: {
+      font: 'helvetica',
+      fontSize: 10,
+      cellPadding: 3,
+      lineColor: [225, 225, 225],
+      lineWidth: 0.2,
+      valign: 'middle',
+    },
+    alternateRowStyles: { fillColor: POS_ROW_ALT },
+    columnStyles,
+    theme: 'grid',
+    didDrawCell: (data) => {
+      if (data.section !== 'body') return;
+      if (data.column.index !== 1) return;
+      // Draw a thin vertical team-color bar on the left side of the team cell.
+      const row = opts.rows[data.row.index];
+      if (!row) return;
+      const [cr, cg, cb] = hexToRgb(row.color);
+      const isWhiteish = cr > 240 && cg > 240 && cb > 240;
+      const [dr, dg, db]: RGB = isWhiteish ? [204, 204, 204] : [cr, cg, cb];
+      const cell = data.cell;
+      const barW = 1.2;
+      const barH = cell.height - 3;
+      const barX = cell.x + 2;
+      const barY = cell.y + 1.5;
+      doc.setFillColor(dr, dg, db);
+      doc.roundedRect(barX, barY, barW, barH, 0.5, 0.5, 'F');
+    },
+    didDrawPage: () => {
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, 22, pageW - marginX, 22);
+
+      const page = doc.getCurrentPageInfo().pageNumber;
+      const total = doc.getNumberOfPages();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${page} de ${total}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    },
+  });
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
 export interface JugadorPdfRow {
   nombre: string;
   numero: string;
