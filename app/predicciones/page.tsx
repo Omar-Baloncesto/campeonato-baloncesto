@@ -7,7 +7,7 @@ import DataFreshness from '../components/DataFreshness';
 import ExportButton from '../components/ExportButton';
 import { useToast } from '../components/ToastProvider';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportPrediccionesPdf, type PrediccionResultado } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
@@ -79,11 +79,36 @@ export default function Predicciones() {
   ];
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
-      subtitle: 'Predicciones',
-      filename: buildFilename('predicciones'),
-      columns: exportColumns,
-      rows: filtrados,
+    const resultadoCode = (p: Partido): PrediccionResultado => {
+      const pred = predictions[p.id];
+      if (!pred) return 'sin-prediccion';
+      if (!jugado(p)) return 'pendiente';
+      return pred === ganador(p) ? 'acerto' : 'fallo';
+    };
+    await exportPrediccionesPdf({
+      subtitle: jornada === 'Todos' ? 'Predicciones' : `Predicciones · Jornada ${jornada}`,
+      filename: buildFilename(`predicciones${jornada === 'Todos' ? '' : '-j' + jornada}`),
+      stats: {
+        aciertos: correct.length,
+        fallos: wrong.length,
+        pendientes: pending.length,
+        predicciones: totalPredicted,
+        pct,
+      },
+      partidos: filtrados.map((p) => ({
+        jornada: p.jornada,
+        fecha: p.fecha,
+        hora: p.hora,
+        local: p.local,
+        colorLocal: getTeamColor(p.local),
+        visitante: p.visitante,
+        colorVisitante: getTeamColor(p.visitante),
+        marcadorLocal: p.marcadorLocal != null ? String(p.marcadorLocal) : '',
+        marcadorVisitante: p.marcadorVisitante != null ? String(p.marcadorVisitante) : '',
+        jugado: jugado(p),
+        miPrediccion: predictions[p.id] || '',
+        resultado: resultadoCode(p),
+      })),
       destination,
     });
   };

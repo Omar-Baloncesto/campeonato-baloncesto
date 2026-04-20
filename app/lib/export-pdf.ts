@@ -709,6 +709,341 @@ export async function exportEstadisticasPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export type PrediccionResultado = 'acerto' | 'fallo' | 'pendiente' | 'sin-prediccion';
+
+export interface PrediccionPdfRow {
+  jornada: string;
+  /** "21/02/2026" */
+  fecha: string;
+  /** "16:30" */
+  hora: string;
+  local: string;
+  colorLocal: string;
+  visitante: string;
+  colorVisitante: string;
+  marcadorLocal: string;
+  marcadorVisitante: string;
+  jugado: boolean;
+  /** User's prediction — name of the team they picked, or empty. */
+  miPrediccion: string;
+  resultado: PrediccionResultado;
+}
+
+export interface ExportPrediccionesPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  /** Summary counters to render in a stats bar at the top. */
+  stats: {
+    aciertos: number;
+    fallos: number;
+    pendientes: number;
+    predicciones: number;
+    /** 0-100. */
+    pct: number;
+  };
+  partidos: PrediccionPdfRow[];
+  destination?: Destination;
+}
+
+/**
+ * Render the Predicciones view as a Letter portrait PDF mirroring the
+ * web screen: a stats bar with aciertos / fallos / pendientes /
+ * predicciones and the overall %, then one match card per partido with
+ * team-color dots, a VS / score center block, the user's pick, and a
+ * colored ACERTASTE / FALLASTE badge when the match has been played.
+ */
+export async function exportPrediccionesPdf(
+  opts: ExportPrediccionesPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 12;
+  const botY = 12;
+  const usableW = pageW - marginX * 2;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle ?? 'Predicciones';
+  const generatedAt = formatDateTime(new Date());
+
+  const POSITIVE: RGB = [34, 153, 70];
+  const NEGATIVE: RGB = [200, 30, 30];
+  const GOLD: RGB = [245, 184, 0];
+
+  const drawChromeOnEveryPage = () => {
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, 22, pageW - marginX, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${p} de ${pages}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    }
+  };
+
+  // --- Stats bar at the top ---
+  const statsY = 28;
+  const statsH = 24;
+  doc.setFillColor(248, 248, 248);
+  doc.setDrawColor(225, 225, 225);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(marginX, statsY, usableW, statsH, 2, 2, 'FD');
+
+  // Label + percent on top row.
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text('TU RANKING DE ACIERTOS', marginX + 3, statsY + 4.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...GOLD);
+  const pctText = opts.stats.predicciones > 0 ? `${opts.stats.pct}%` : '—';
+  doc.text(pctText, marginX + usableW - 3, statsY + 5.5, { align: 'right' });
+
+  // Progress bar.
+  const barY = statsY + 7.5;
+  const barH = 1.6;
+  const barX = marginX + 3;
+  const barW = usableW - 6;
+  doc.setFillColor(235, 235, 235);
+  doc.roundedRect(barX, barY, barW, barH, 0.6, 0.6, 'F');
+  if (opts.stats.predicciones > 0) {
+    const fillW = Math.max(0.2, (opts.stats.pct / 100) * barW);
+    const barColor: RGB = opts.stats.pct >= 70 ? POSITIVE : opts.stats.pct >= 40 ? GOLD : NEGATIVE;
+    doc.setFillColor(...barColor);
+    doc.roundedRect(barX, barY, fillW, barH, 0.6, 0.6, 'F');
+  }
+
+  // Four counters below the bar.
+  const countersY = barY + 4;
+  const cells: Array<{ label: string; value: number; color: RGB }> = [
+    { label: 'ACIERTOS',     value: opts.stats.aciertos,     color: POSITIVE },
+    { label: 'FALLOS',       value: opts.stats.fallos,       color: NEGATIVE },
+    { label: 'PENDIENTES',   value: opts.stats.pendientes,   color: GOLD },
+    { label: 'PREDICCIONES', value: opts.stats.predicciones, color: [22, 22, 22] },
+  ];
+  const cellW = usableW / cells.length;
+  cells.forEach((c, i) => {
+    const cx = marginX + cellW * (i + 0.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(...c.color);
+    doc.text(String(c.value), cx, countersY + 4, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(c.label, cx, countersY + 7, { align: 'center' });
+  });
+
+  // --- Match cards below the stats bar ---
+  const cardH = 26;
+  const cardGap = 3;
+  const jornadaHeaderH = 7;
+  const jornadaGap = 3;
+  let cy = statsY + statsH + 5;
+  const pageBudget = pageH - botY;
+
+  const ensureSpace = (needed: number) => {
+    if (cy + needed > pageBudget) {
+      doc.addPage();
+      cy = 28;
+    }
+  };
+
+  // Group by jornada so "Todos" remains navigable.
+  const groups: Array<{ jornada: string; partidos: PrediccionPdfRow[] }> = [];
+  for (const p of opts.partidos) {
+    const g = groups[groups.length - 1];
+    if (g && g.jornada === p.jornada) g.partidos.push(p);
+    else groups.push({ jornada: p.jornada, partidos: [p] });
+  }
+
+  const drawJornadaHeader = (label: string) => {
+    ensureSpace(jornadaHeaderH + jornadaGap);
+    doc.setFillColor(24, 24, 28);
+    doc.roundedRect(marginX, cy, usableW, jornadaHeaderH, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(`JORNADA ${label}`, marginX + 4, cy + jornadaHeaderH / 2 + 1.2);
+    cy += jornadaHeaderH + jornadaGap;
+  };
+
+  const drawMatchCard = (p: PrediccionPdfRow) => {
+    ensureSpace(cardH + cardGap);
+    const x = marginX;
+    const y = cy;
+
+    // Card background.
+    doc.setFillColor(252, 252, 252);
+    doc.setDrawColor(
+      p.resultado === 'acerto' ? POSITIVE[0] : p.resultado === 'fallo' ? NEGATIVE[0] : 225,
+      p.resultado === 'acerto' ? POSITIVE[1] : p.resultado === 'fallo' ? NEGATIVE[1] : 225,
+      p.resultado === 'acerto' ? POSITIVE[2] : p.resultado === 'fallo' ? NEGATIVE[2] : 225,
+    );
+    doc.setLineWidth(p.resultado === 'acerto' || p.resultado === 'fallo' ? 0.5 : 0.3);
+    doc.roundedRect(x, y, usableW, cardH, 2, 2, 'FD');
+
+    // Top strip: jornada + fecha, optional result badge on the right.
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    const header = `JORNADA ${p.jornada}  ·  ${p.fecha}`;
+    doc.text(header, x + 4, y + 5);
+
+    if (p.resultado === 'acerto' || p.resultado === 'fallo') {
+      const acerto = p.resultado === 'acerto';
+      const label = acerto ? 'ACERTASTE' : 'FALLASTE';
+      const fill: RGB = acerto ? POSITIVE : NEGATIVE;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      const tw = doc.getTextWidth(label);
+      const pillW = tw + 5;
+      const pillH = 4.5;
+      const pillX = x + usableW - pillW - 3;
+      const pillY = y + 2;
+      doc.setFillColor(...fill);
+      doc.roundedRect(pillX, pillY, pillW, pillH, 1, 1, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text(label, pillX + pillW / 2, pillY + pillH - 1.2, { align: 'center' });
+    }
+
+    // Teams row: local (left), VS + score (center), visitante (right).
+    const [lr, lg, lb] = hexToRgb(p.colorLocal);
+    const [vr, vg, vb] = hexToRgb(p.colorVisitante);
+    const localAccent: RGB = lr > 240 && lg > 240 && lb > 240 ? [204, 204, 204] : [lr, lg, lb];
+    const visitAccent: RGB = vr > 240 && vg > 240 && vb > 240 ? [204, 204, 204] : [vr, vg, vb];
+
+    const localWin = p.jugado && parseInt(p.marcadorLocal, 10) > parseInt(p.marcadorVisitante, 10);
+    const visitWin = p.jugado && parseInt(p.marcadorVisitante, 10) > parseInt(p.marcadorLocal, 10);
+
+    // Local dot + name (left).
+    doc.setFillColor(...localAccent);
+    doc.circle(x + 6, y + 13.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(22, 22, 22);
+    doc.text(p.local, x + 10, y + 14.5);
+
+    // Visitante dot + name (right).
+    doc.setFillColor(...visitAccent);
+    doc.circle(x + usableW - 6, y + 13.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(22, 22, 22);
+    doc.text(p.visitante, x + usableW - 10, y + 14.5, { align: 'right' });
+
+    // Center block: VS or score.
+    const centerX = x + usableW / 2;
+    if (p.jugado) {
+      const localStr = p.marcadorLocal || '0';
+      const visitStr = p.marcadorVisitante || '0';
+      const sep = ' : ';
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      const lW = doc.getTextWidth(localStr);
+      const vW = doc.getTextWidth(visitStr);
+      const sW = doc.getTextWidth(sep);
+      const total = lW + sW + vW;
+      let sx = centerX - total / 2;
+      doc.setTextColor(...(localWin ? GOLD : ([140, 140, 140] as RGB)));
+      doc.text(localStr, sx, y + 14.5);
+      sx += lW;
+      doc.setTextColor(140, 140, 140);
+      doc.setFont('helvetica', 'normal');
+      doc.text(sep, sx, y + 14.5);
+      sx += sW;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...(visitWin ? GOLD : ([140, 140, 140] as RGB)));
+      doc.text(visitStr, sx, y + 14.5);
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...GOLD);
+      doc.text(p.hora || 'VS', centerX, y + 14.5, { align: 'center' });
+    }
+
+    // Footer row: "Ganador" under winning team + "Tu pick" / status under predicted team.
+    const footerY = y + 20;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+
+    // Local label.
+    let localLabel = '';
+    let localLabelColor: RGB = TEXT_MUTED;
+    if (localWin) { localLabel = 'GANADOR'; localLabelColor = GOLD; }
+    if (p.miPrediccion === p.local) {
+      if (p.resultado === 'acerto') { localLabel = '✓ ACERTASTE'.replace('✓', 'OK:'); localLabelColor = POSITIVE; }
+      else if (p.resultado === 'fallo') { localLabel = 'FALLASTE'; localLabelColor = NEGATIVE; }
+      else localLabel = localLabel ? `${localLabel} · TU PICK` : 'TU PICK';
+    }
+    if (localLabel) {
+      doc.setTextColor(...localLabelColor);
+      doc.text(localLabel, x + 10, footerY);
+    }
+
+    // Visitante label.
+    let visitLabel = '';
+    let visitLabelColor: RGB = TEXT_MUTED;
+    if (visitWin) { visitLabel = 'GANADOR'; visitLabelColor = GOLD; }
+    if (p.miPrediccion === p.visitante) {
+      if (p.resultado === 'acerto') { visitLabel = 'OK: ACERTASTE'; visitLabelColor = POSITIVE; }
+      else if (p.resultado === 'fallo') { visitLabel = 'FALLASTE'; visitLabelColor = NEGATIVE; }
+      else visitLabel = visitLabel ? `${visitLabel} · TU PICK` : 'TU PICK';
+    }
+    if (visitLabel) {
+      doc.setTextColor(...visitLabelColor);
+      doc.text(visitLabel, x + usableW - 10, footerY, { align: 'right' });
+    }
+
+    // Status line below teams.
+    let statusText = '';
+    if (p.jugado && !p.miPrediccion) statusText = 'Partido jugado · sin predicción';
+    else if (!p.jugado && !p.miPrediccion) statusText = 'Partido pendiente · sin predicción';
+    else if (!p.jugado && p.miPrediccion) statusText = `Pendiente · tu pick: ${p.miPrediccion}`;
+    if (statusText) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(statusText, centerX, y + cardH - 2.5, { align: 'center' });
+    }
+
+    cy += cardH + cardGap;
+  };
+
+  for (const group of groups) {
+    drawJornadaHeader(group.jornada);
+    for (const p of group.partidos) {
+      drawMatchCard(p);
+    }
+    cy += 2;
+  }
+
+  drawChromeOnEveryPage();
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
 export interface PartidoFixturePdfRow {
   jornada: string;
   /** "21/02/2026" */
