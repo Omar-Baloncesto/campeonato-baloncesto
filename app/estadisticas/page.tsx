@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
@@ -86,9 +86,12 @@ export default function Estadisticas() {
     return () => { abortRef.current?.abort(); };
   }, [fetchData]);
 
-  const ordenados = [...jugadores]
-    .filter(j => j.nombre && (!searchTerm || normalizeText(j.nombre).includes(normalizeText(searchTerm))))
-    .sort((a, b) => parseFloat(b[orden]) - parseFloat(a[orden]));
+  const ordenados = useMemo(() => {
+    const norm = normalizeText(searchTerm);
+    return [...jugadores]
+      .filter((j) => j.nombre && (!searchTerm || normalizeText(j.nombre).includes(norm)))
+      .sort((a, b) => parseFloat(b[orden]) - parseFloat(a[orden]));
+  }, [jugadores, orden, searchTerm]);
 
   const medalClass = (i: number) =>
     i === 0 ? 'medal-gold' : i === 1 ? 'medal-silver' : i === 2 ? 'medal-bronze' : 'text-text-muted';

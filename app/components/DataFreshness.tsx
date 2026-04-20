@@ -9,15 +9,17 @@ interface DataFreshnessProps {
   loading: boolean;
 }
 
+const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
+
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return 'hace un momento';
+  if (seconds < 60) return rtf.format(-seconds, 'second');
   const minutes = Math.floor(seconds / 60);
-  if (minutes === 1) return 'hace 1 min';
-  if (minutes < 60) return `hace ${minutes} min`;
+  if (minutes < 60) return rtf.format(-minutes, 'minute');
   const hours = Math.floor(minutes / 60);
-  if (hours === 1) return 'hace 1 hora';
-  return `hace ${hours} horas`;
+  if (hours < 24) return rtf.format(-hours, 'hour');
+  const days = Math.floor(hours / 24);
+  return rtf.format(-days, 'day');
 }
 
 export default function DataFreshness({ lastUpdated, onRefresh, loading }: DataFreshnessProps) {
@@ -25,11 +27,39 @@ export default function DataFreshness({ lastUpdated, onRefresh, loading }: DataF
   const manualRefresh = useRef(false);
   const { showToast } = useToast();
 
-  // Re-render every 30s to update the "ago" text
+  // Re-render every 30s to update the "ago" text — but only while the
+  // tab is visible. Hidden tabs (background, minimised, locked screen)
+  // don't need to recompute the label.
   useEffect(() => {
     if (!lastUpdated) return;
-    const interval = setInterval(() => setTick(t => t + 1), 30000);
-    return () => clearInterval(interval);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (intervalId == null) {
+        intervalId = setInterval(() => setTick((t) => t + 1), 30000);
+      }
+    };
+    const stop = () => {
+      if (intervalId != null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // Force one immediate re-render so the text catches up after
+        // the tab was hidden, then resume the interval.
+        setTick((t) => t + 1);
+        start();
+      } else {
+        stop();
+      }
+    };
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [lastUpdated]);
 
   // Show toast after manual refresh completes
