@@ -439,17 +439,30 @@ function hexToRgb(hex: string, fallback: RGB = [136, 136, 136]): RGB {
   return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
 }
 
-async function fetchAsDataUrl(src: string): Promise<string | null> {
+interface LoadedPhoto {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+async function fetchPhoto(src: string): Promise<LoadedPhoto | null> {
   try {
     const res = await fetch(src);
     if (!res.ok) return null;
     const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(blob);
     });
+    const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => reject(new Error('image load failed'));
+      img.src = dataUrl;
+    });
+    return { dataUrl, ...dims };
   } catch {
     return null;
   }
@@ -457,10 +470,9 @@ async function fetchAsDataUrl(src: string): Promise<string | null> {
 
 /**
  * Render the Equipos page as a 3×2 grid of team cards drawn natively with
- * jsPDF on landscape A4 (6 teams per page). Photos are pre-fetched and
- * embedded as JPEG data URLs. Layout is fixed so the output is identical
- * regardless of the user's viewport or whether Next/Image has finished
- * optimising.
+ * jsPDF on Letter landscape (6 teams per page). Photos are pre-fetched
+ * with their intrinsic dimensions and drawn with aspect ratio preserved
+ * (letterboxed within their box) so they never look stretched.
  *
  * The card design mirrors the web screen: photo on top, team name +
  * "Cúcuta" subtitle, PUESTO pill, PUNTOS, PJ/PG/PP row, P.ANO/P.REC/DIF
@@ -472,15 +484,15 @@ export async function exportEquiposPdf(
 ): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
 
-  // Pre-load every photo as a data URL in parallel so addImage() below is
-  // synchronous and can't race against image decoding.
+  // Pre-load every photo as a data URL in parallel, along with its
+  // intrinsic dimensions so we can preserve aspect ratio when drawing.
   const photos = await Promise.all(
-    opts.rows.map((r) => (r.photoSrc ? fetchAsDataUrl(r.photoSrc) : Promise.resolve(null))),
+    opts.rows.map((r) => (r.photoSrc ? fetchPhoto(r.photoSrc) : Promise.resolve(null))),
   );
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();   // 297
-  const pageH = doc.internal.pageSize.getHeight();  // 210
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();   // 279.4
+  const pageH = doc.internal.pageSize.getHeight();  // 215.9
   const marginX = 10;
   const topY = 24;
   const botY = 12;
@@ -553,7 +565,7 @@ function drawTeamCard(
   w: number,
   h: number,
   team: EquipoPdfRow,
-  photoDataUrl: string | null,
+  photo: LoadedPhoto | null,
 ) {
   // Card background + border.
   doc.setFillColor(252, 252, 252);
@@ -561,18 +573,32 @@ function drawTeamCard(
   doc.setLineWidth(0.3);
   doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
 
-  // --- Photo (top ~48% of card) ---
-  const photoH = h * 0.48;
-  if (photoDataUrl) {
-    try {
-      doc.addImage(photoDataUrl, 'JPEG', x, y, w, photoH, undefined, 'FAST');
-    } catch {
-      doc.setFillColor(235, 235, 235);
-      doc.rect(x, y, w, photoH, 'F');
+  // --- Photo (top ~40% of card, aspect ratio preserved) ---
+  // The box is full card width, but the image itself is letterboxed so it
+  // never stretches. Background fill shows through on the sides when the
+  // source is narrower than the box.
+  const photoBoxH = h * 0.40;
+  doc.setFillColor(238, 238, 238);
+  doc.rect(x, y, w, photoBoxH, 'F');
+  if (photo) {
+    const srcAspect = photo.width / photo.height;
+    const boxAspect = w / photoBoxH;
+    let drawW: number;
+    let drawH: number;
+    if (srcAspect > boxAspect) {
+      drawW = w;
+      drawH = w / srcAspect;
+    } else {
+      drawH = photoBoxH;
+      drawW = photoBoxH * srcAspect;
     }
-  } else {
-    doc.setFillColor(235, 235, 235);
-    doc.rect(x, y, w, photoH, 'F');
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + (photoBoxH - drawH) / 2;
+    try {
+      doc.addImage(photo.dataUrl, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'FAST');
+    } catch {
+      // leave the gray placeholder in place
+    }
   }
 
   // Thin color bar just under the photo for team accent.
@@ -580,37 +606,36 @@ function drawTeamCard(
   const isWhiteish = dr > 240 && dg > 240 && db > 240;
   const accent: RGB = isWhiteish ? [204, 204, 204] : [dr, dg, db];
   doc.setFillColor(...accent);
-  doc.rect(x, y + photoH, w, 0.8, 'F');
+  doc.rect(x, y + photoBoxH, w, 0.8, 'F');
 
   // --- Name row: color dot + team name + "Cúcuta" subtitle ---
-  const nameTopY = y + photoH + 4;
+  const nameTopY = y + photoBoxH + 3.5;
   doc.setFillColor(...accent);
-  doc.roundedRect(x + 3, nameTopY, 1.2, 4.5, 0.4, 0.4, 'F');
+  doc.roundedRect(x + 3, nameTopY, 1, 4.2, 0.3, 0.3, 'F');
 
   doc.setTextColor(...TEXT_DARK);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(team.nombre, x + 6, nameTopY + 3);
+  doc.setFontSize(9);
+  doc.text(team.nombre, x + 5.5, nameTopY + 2.8);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(...TEXT_MUTED);
-  doc.text('Cúcuta', x + 6, nameTopY + 6.5);
+  doc.text('Cúcuta', x + 5.5, nameTopY + 6);
 
-  // --- Stats area begins just below the name block ---
+  // --- Stats area begins below the name block ---
   const statsStartY = nameTopY + 8.5;
-  const statsEndY = y + h - 2.5;
+  const statsEndY = y + h - 2;
   const statsH = statsEndY - statsStartY;
 
-  // Vertical layout (in mm): rows roughly proportional to statsH.
-  // If the card is shorter on a smaller page, everything scales.
-  const R = statsH / 100; // "percent unit" → mm
+  // Row vertical budget (weights sum to 100, so heights scale with statsH).
+  const R = statsH / 100;
   const heights = {
-    puesto: 10 * R,
-    puntos: 9  * R,
-    pjpgpp: 14 * R,
-    panoRecDif: 14 * R,
-    promBoxes: 33 * R,
-    maxScorer: 20 * R,
+    puesto:     12 * R,
+    puntos:     12 * R,
+    pjpgpp:     15 * R,
+    panoRecDif: 15 * R,
+    promBoxes:  31 * R,
+    maxScorer:  15 * R,
   };
 
   const drawSeparator = (atY: number) => {
@@ -621,43 +646,43 @@ function drawTeamCard(
 
   let curY = statsStartY;
 
-  // PUESTO row: label left, gold pill right.
+  // PUESTO row — label on the left, gold pill on the right.
   drawSeparator(curY);
   {
-    const midY = curY + heights.puesto / 2 + 1.1;
+    const midBaseline = curY + heights.puesto / 2 + 1.3;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(...TEXT_MUTED);
-    doc.text('PUESTO', x + 4, midY);
+    doc.text('PUESTO', x + 4, midBaseline);
     if (team.puesto) {
       const puestoText = `${team.puesto}°`;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       const tw = doc.getTextWidth(puestoText);
-      const pillW = tw + 4.5;
-      const pillH = 5;
+      const pillW = tw + 4;
+      const pillH = Math.min(heights.puesto - 1.5, 4.5);
       const pillX = x + w - pillW - 3;
-      const pillY = midY - 3.7;
+      const pillY = curY + (heights.puesto - pillH) / 2;
       doc.setFillColor(...GOLD_RGB);
-      doc.roundedRect(pillX, pillY, pillW, pillH, 1.2, 1.2, 'F');
+      doc.roundedRect(pillX, pillY, pillW, pillH, 1, 1, 'F');
       doc.setTextColor(22, 22, 22);
-      doc.text(puestoText, pillX + pillW / 2, pillY + pillH - 1.4, { align: 'center' });
+      doc.text(puestoText, pillX + pillW / 2, pillY + pillH - 1.2, { align: 'center' });
     }
   }
   curY += heights.puesto;
 
-  // PUNTOS row: label left, gold value right.
+  // PUNTOS row — label on the left, gold value on the right.
   drawSeparator(curY);
   {
-    const midY = curY + heights.puntos / 2 + 1.1;
+    const midBaseline = curY + heights.puntos / 2 + 1.4;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(...TEXT_MUTED);
-    doc.text('PUNTOS', x + 4, midY);
+    doc.text('PUNTOS', x + 4, midBaseline);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...GOLD_RGB);
-    doc.text(String(team.puntos ?? '—'), x + w - 4, midY, { align: 'right' });
+    doc.text(String(team.puntos ?? '—'), x + w - 4, midBaseline, { align: 'right' });
   }
   curY += heights.puntos;
 
@@ -684,7 +709,7 @@ function drawTeamCard(
 
   // 2×2 grid of stat boxes (Prom. Pts, Prom. Pts Rec., Ratio, % Victorias).
   drawSeparator(curY);
-  drawStatBoxGrid(doc, x + 3, curY + 1.5, w - 6, heights.promBoxes - 2, [
+  drawStatBoxGrid(doc, x + 3, curY + 1.3, w - 6, heights.promBoxes - 2, [
     { label: 'PROM. PTS/PART.',      value: team.ppgOff ?? '—',     color: [34, 197, 94] },
     { label: 'PROM. PTS REC./PART.', value: team.ppgDef ?? '—',     color: [220, 38, 38] },
     { label: 'RATIO PF/PC',          value: team.ratio ?? '—',      color: [245, 184, 0] },
@@ -692,29 +717,35 @@ function drawTeamCard(
   ]);
   curY += heights.promBoxes;
 
-  // Máx. anotador row — name left, "<pts> pts" right.
+  // Máx. anotador row — label + name on the left, "<pts> pts" on the right.
   drawSeparator(curY);
   {
-    const labelY = curY + 3.2;
+    const labelBaseline = curY + heights.maxScorer * 0.38;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(5.5);
     doc.setTextColor(...TEXT_MUTED);
-    doc.text('MÁX. ANOTADOR', x + 4, labelY);
+    doc.text('MÁX. ANOTADOR', x + 4, labelBaseline);
 
+    const nameBaseline = curY + heights.maxScorer * 0.88;
     const scorerName = team.topScorer?.nombre ?? '—';
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(7.5);
     doc.setTextColor(...TEXT_DARK);
-    doc.text(scorerName, x + 4, labelY + 5.5);
+    // If there's a points value, reserve space on the right so the name
+    // doesn't collide with it.
+    const rightReserve = team.topScorer ? 16 : 4;
+    const nameMaxW = w - rightReserve - 6;
+    const nameLines = doc.splitTextToSize(scorerName, nameMaxW) as string[];
+    doc.text(nameLines[0] ?? scorerName, x + 4, nameBaseline);
 
     if (team.topScorer) {
       const rightX = x + w - 4;
-      doc.setFontSize(11);
+      doc.setFontSize(9.5);
       doc.setTextColor(...GOLD_RGB);
-      doc.text(String(team.topScorer.puntos), rightX, labelY + 3.5, { align: 'right' });
-      doc.setFontSize(6);
+      doc.text(String(team.topScorer.puntos), rightX, nameBaseline - 1.5, { align: 'right' });
+      doc.setFontSize(5.5);
       doc.setTextColor(...TEXT_MUTED);
-      doc.text('pts', rightX, labelY + 6.5, { align: 'right' });
+      doc.text('pts', rightX, nameBaseline + 1.8, { align: 'right' });
     }
   }
 }
@@ -742,14 +773,14 @@ function drawStatBoxGrid(
     doc.roundedRect(bx, by, bw, bh, 1, 1, 'FD');
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(5.5);
+    doc.setFontSize(5);
     doc.setTextColor(...TEXT_MUTED);
     doc.text(c.label, bx + bw / 2, by + bh * 0.38, { align: 'center' });
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(...c.color);
-    doc.text(c.value, bx + bw / 2, by + bh * 0.85, { align: 'center' });
+    doc.text(c.value, bx + bw / 2, by + bh * 0.88, { align: 'center' });
   });
 }
 
@@ -761,19 +792,21 @@ function drawThreeStat(
   rowH: number,
   cells: Array<{ label: string; value: string; color: RGB }>,
 ) {
+  // Label near the top of the row, value bold near the bottom. Keep the
+  // label + value at small sizes so they don't collide when rowH is tight.
   const n = cells.length;
+  const labelBaseline = y + rowH * 0.40;
+  const valueBaseline = y + rowH * 0.92;
   for (let i = 0; i < n; i++) {
     const cx = x + (w / n) * (i + 0.5);
-    const labelY = y + rowH * 0.35;
-    const valueY = y + rowH * 0.85;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(5.5);
     doc.setTextColor(...TEXT_MUTED);
-    doc.text(cells[i].label, cx, labelY, { align: 'center' });
+    doc.text(cells[i].label, cx, labelBaseline, { align: 'center' });
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(8.5);
     doc.setTextColor(...cells[i].color);
-    doc.text(cells[i].value, cx, valueY, { align: 'center' });
+    doc.text(cells[i].value, cx, valueBaseline, { align: 'center' });
   }
 }
 
