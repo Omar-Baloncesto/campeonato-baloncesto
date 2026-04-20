@@ -1,8 +1,9 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
+import { useSheetData } from '../lib/useSheetData';
 
 interface Equipo {
   nombre: string;
@@ -16,50 +17,23 @@ interface Equipo {
   puesto: string;
 }
 
+function parsePosiciones(rows: string[][]): Equipo[] {
+  if (rows.length < 2) return [];
+  return rows
+    .slice(1)
+    .filter((r) => r[0])
+    .map((r) => ({
+      nombre: r[0], pj: r[1], pg: r[2], pp: r[3],
+      puntosAnotados: r[4], puntosRecibidos: r[5],
+      diferencia: r[6], puntos: r[7], puesto: r[8],
+    }));
+}
+
 export default function Posiciones() {
-  const [equipos, setEquipos] = useState<Equipo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const { data: equipos, loading, error, lastUpdated, refetch } =
+    useSheetData('TablaPosiciones', parsePosiciones);
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchData = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const { signal } = controller;
-
-    setLoading(true);
-    setError(false);
-    fetch('/api/sheets?sheet=TablaPosiciones', { signal })
-      .then(r => r.json())
-      .then(data => {
-        if (signal.aborted) return;
-        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
-          const rows = data.data.slice(1).filter((r: string[]) => r[0]);
-          setEquipos(rows.map((r: string[]) => ({
-            nombre: r[0], pj: r[1], pg: r[2], pp: r[3],
-            puntosAnotados: r[4], puntosRecibidos: r[5],
-            diferencia: r[6], puntos: r[7], puesto: r[8],
-          })));
-          setLastUpdated(new Date());
-        } else if (!data.success) {
-          setError(true);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError' || signal.aborted) return;
-        setError(true);
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    return () => { abortRef.current?.abort(); };
-  }, [fetchData]);
+  const lista = equipos ?? [];
 
   const medallon = (puesto: string, i: number) => {
     const text = ['1°', '2°', '3°', '4°', '5°', '6°'][i] || puesto;
@@ -77,14 +51,14 @@ export default function Posiciones() {
         <span className="w-1 h-5 bg-gold rounded-full" />
         <h2 className="text-sm text-text-muted uppercase tracking-widest">Tabla de posiciones</h2>
         <div className="ml-auto">
-          <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
         </div>
       </div>
 
       {loading ? (
         <LoadingState message="Cargando posiciones..." variant="skeleton" rows={6} />
       ) : error ? (
-        <ErrorState onRetry={fetchData} />
+        <ErrorState onRetry={refetch} />
       ) : (
         <div className="glass-card rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -104,7 +78,7 @@ export default function Posiciones() {
                 </tr>
               </thead>
               <tbody>
-                {equipos.map((eq, i) => {
+                {lista.map((eq, i) => {
                   const color = getTeamColor(eq.nombre);
                   const white = isWhiteTeam(eq.nombre);
                   const isTop3 = i < 3;
