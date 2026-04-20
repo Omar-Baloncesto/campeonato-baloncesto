@@ -9,6 +9,7 @@ import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConnectionStatus from "./components/ConnectionStatus";
 import VisitTracker from "./components/VisitTracker";
+import { SITE_URL } from "./lib/constants";
 
 const geistSans = localFont({
   src: "../public/fonts/GeistVF.woff2",
@@ -21,8 +22,13 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Campeonato Baloncesto - Cucuta 2026",
-  description: "Campeonato de Baloncesto de Cucuta - Primer Semestre 2026. Posiciones, fixture, estadísticas y más.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Campeonato Baloncesto Cúcuta 2026",
+    template: "%s · Campeonato Baloncesto Cúcuta 2026",
+  },
+  description:
+    "Campeonato de Baloncesto de Cúcuta - Primer Semestre 2026. Posiciones, fixture, estadísticas, asistencias y bracket.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
