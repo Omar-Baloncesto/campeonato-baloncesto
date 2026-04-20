@@ -216,6 +216,55 @@ export default function Jugadores() {
     : (TEAMS[equipoFiltro]?.name || `Equipo ${equipoFiltro}`);
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
+    // Fetch points + attendance once and map each filtered player to its
+    // full stats block so the PDF mirrors the expanded web card.
+    const [ptsRes, attRes] = await Promise.all([
+      fetch('/api/sheets?sheet=PuntosJugadores').then((r) => r.json()),
+      fetch('/api/sheets?sheet=AsistenciasJugadores').then((r) => r.json()),
+    ]);
+
+    const ptsRows: string[][] = ptsRes.success && Array.isArray(ptsRes.data) ? ptsRes.data : [];
+    const attRows: string[][] = attRes.success && Array.isArray(attRes.data) ? attRes.data : [];
+
+    // Build a lookup: nombre trimmed → summary stats (totalPuntos/asist/promedio).
+    const summaryByName = new Map<string, { totalPuntos: number; asistencias: number; promedio: number }>();
+    ptsRows.slice(1).forEach((r) => {
+      const n = (r[7] || '').trim();
+      if (!n || n === 'NOMBRE JUGADOR') return;
+      summaryByName.set(n, {
+        totalPuntos: parseFloat(r[8]) || 0,
+        asistencias: parseFloat(r[9]) || 0,
+        promedio: parseFloat(r[10]) || 0,
+      });
+    });
+
+    // Per-team breakdown (p1/p2/p3) and attendance rows, keyed by trimmed name.
+    const breakdownByName = new Map<string, { p1: number; p2: number; p3: number }>();
+    Object.entries(EQUIPOS_PUNTOS).forEach(([, cfg]) => {
+      ptsRows.slice(cfg.filaInicio - 1, cfg.filaFin).forEach((r) => {
+        const n = (r[0] || '').trim();
+        if (!n) return;
+        breakdownByName.set(n, {
+          p1: parseInt(r[1], 10) || 0,
+          p2: parseInt(r[2], 10) || 0,
+          p3: parseInt(r[3], 10) || 0,
+        });
+      });
+    });
+
+    const asistByName = new Map<string, { fechas: string[]; totalFechas: number; porcentaje: string }>();
+    Object.entries(EQUIPOS_ASIST).forEach(([, cfg]) => {
+      attRows.slice(cfg.inicio - 1, cfg.fin).forEach((r) => {
+        const n = (r[0] || '').trim();
+        if (!n) return;
+        asistByName.set(n, {
+          fechas: [r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]].map((v) => v ?? ''),
+          totalFechas: parseInt(r[12], 10) || 0,
+          porcentaje: r[14] || '0%',
+        });
+      });
+    });
+
     await exportJugadoresPdf({
       subtitle: `Jugadores · ${equipoLabel}`,
       filename: buildFilename(
@@ -223,13 +272,29 @@ export default function Jugadores() {
           ? 'jugadores'
           : `jugadores-${TEAMS[equipoFiltro]?.name || equipoFiltro}`,
       ),
-      jugadores: filtrados.map((j) => ({
-        nombre: j.nombre,
-        numero: j.numero,
-        equipo: TEAMS[j.equipoId]?.name || `Equipo ${j.equipoId}`,
-        equipoColor: TEAMS[j.equipoId]?.safeColor || '#888888',
-        posicion: j.posicion,
-      })),
+      jugadores: filtrados.map((j) => {
+        const key = j.nombre.trim();
+        const summary = summaryByName.get(key);
+        const breakdown = breakdownByName.get(key);
+        const asist = asistByName.get(key);
+        return {
+          nombre: j.nombre,
+          numero: j.numero,
+          equipo: TEAMS[j.equipoId]?.name || `Equipo ${j.equipoId}`,
+          equipoColor: TEAMS[j.equipoId]?.safeColor || '#888888',
+          posicion: j.posicion,
+          totalPuntos: summary?.totalPuntos ?? 0,
+          asistencias: summary?.asistencias ?? 0,
+          promedio: summary?.promedio ?? 0,
+          p1: breakdown?.p1 ?? 0,
+          p2: breakdown?.p2 ?? 0,
+          p3: breakdown?.p3 ?? 0,
+          fechas: asist?.fechas ?? Array(10).fill(''),
+          fechasLabels: FECHAS_LABELS,
+          totalFechas: asist?.totalFechas ?? 0,
+          porcentaje: asist?.porcentaje ?? '0%',
+        };
+      }),
       destination,
     });
   };

@@ -408,6 +408,22 @@ export interface JugadorPdfRow {
   /** Hex color for the team (e.g. "#FFFFFF"). */
   equipoColor: string;
   posicion: string;
+  // ---- Optional stats (omit to render a compact card without stats) ----
+  totalPuntos?: number;
+  asistencias?: number;
+  promedio?: number;
+  /** Point breakdown: shots worth 1 / 2 / 3 pts. */
+  p1?: number;
+  p2?: number;
+  p3?: number;
+  /** Length 10. "1" = presente, "0" = ausente, "" = sin datos. */
+  fechas?: string[];
+  /** Length 10 — short "DD/MM" labels. */
+  fechasLabels?: string[];
+  /** Up to which fecha index (exclusive) has already been played. */
+  totalFechas?: number;
+  /** e.g. "71%" */
+  porcentaje?: string;
 }
 
 export interface ExportJugadoresPdfOptions {
@@ -425,15 +441,14 @@ function initialsOf(nombre: string): string {
 }
 
 /**
- * Render the "Jugadores" roster as a 3-column grid of compact player
- * cards (Letter portrait), mirroring the web design:
- *   - colored circle at the left with initials + "#<numero>"
- *   - name in bold
- *   - team name in the team's color
- *   - position muted below
- * The caller decides what subset to export — passing all 58 players
- * when "Todos" is selected or only the filtered team when a specific
- * team is selected.
+ * Render the "Jugadores" roster as a 2-column grid of full-stat player
+ * cards (Letter portrait), mirroring what the web shows when a card is
+ * expanded: colored avatar with initials + number, Puntos/Asistencias/
+ * Promedio trio, "Desglose de puntos" bars (P. de 1/2/3), and the
+ * Asistencia strip with 10 colored check/cross dots + date labels.
+ *
+ * If a player has no stats yet (totalPuntos undefined), only the header
+ * block is rendered and the rest of the card stays empty.
  */
 export async function exportJugadoresPdf(
   opts: ExportJugadoresPdfOptions,
@@ -449,13 +464,14 @@ export async function exportJugadoresPdf(
   const usableW = pageW - marginX * 2;
   const usableH = pageH - topY - botY;
 
-  const cols = 3;
-  const gapX = 4;
-  const gapY = 3;
+  const cols = 2;
+  const gapX = 5;
+  const gapY = 5;
   const cardW = (usableW - gapX * (cols - 1)) / cols;
-  const cardH = 22;
+  const cardH = 78;
   const rowsPerPage = Math.max(1, Math.floor((usableH + gapY) / (cardH + gapY)));
   const perPage = cols * rowsPerPage;
+
 
   const title = opts.title ?? SITE_TITLE;
   const subtitle = opts.subtitle;
@@ -519,53 +535,228 @@ function drawJugadorCard(
   const [r, g, b] = hexToRgb(player.equipoColor);
   const isWhiteish = r > 240 && g > 240 && b > 240;
   const [cr, cg, cb]: RGB = isWhiteish ? [170, 170, 170] : [r, g, b];
+  const teamColor: RGB = [cr, cg, cb];
+
   doc.setFillColor(252, 252, 252);
   doc.setDrawColor(cr, cg, cb);
   doc.setLineWidth(0.35);
-  doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+  doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
 
-  // Left circle with initials + #numero, using the team color as fill.
-  const circleR = 6.5;
-  const circleCx = x + circleR + 2;
-  const circleCy = y + h / 2;
+  // --- Header block (avatar + name + team + position) ---
+  const circleR = 6;
+  const circleCx = x + circleR + 3;
+  const circleCy = y + circleR + 4;
   doc.setFillColor(cr, cg, cb);
   doc.circle(circleCx, circleCy, circleR, 'F');
 
-  const initials = initialsOf(player.nombre);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(255, 255, 255);
-  doc.text(initials, circleCx, circleCy - 0.3, { align: 'center' });
+  doc.text(initialsOf(player.nombre), circleCx, circleCy - 0.2, { align: 'center' });
 
   if (player.numero) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6);
-    // Number in a contrasting dark color so it reads on light team colors.
+    doc.setFontSize(5.5);
     doc.setTextColor(22, 22, 22);
-    doc.text(`#${player.numero}`, circleCx, circleCy + 3.2, { align: 'center' });
+    doc.text(`#${player.numero}`, circleCx, circleCy + 3, { align: 'center' });
   }
 
-  // Text block to the right of the circle.
   const textX = circleCx + circleR + 3;
-  const textMaxW = x + w - textX - 2;
+  const textMaxW = x + w - textX - 3;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setTextColor(22, 22, 22);
   const nameLines = doc.splitTextToSize(player.nombre, textMaxW) as string[];
-  doc.text(nameLines[0] ?? player.nombre, textX, y + 7);
+  doc.text(nameLines[0] ?? player.nombre, textX, y + 6.5);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(cr, cg, cb);
   const teamLines = doc.splitTextToSize(player.equipo, textMaxW) as string[];
-  doc.text(teamLines[0] ?? player.equipo, textX, y + 12.5);
+  doc.text(teamLines[0] ?? player.equipo, textX, y + 11);
 
   if (player.posicion) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
     doc.setTextColor(...TEXT_MUTED);
-    doc.text(player.posicion, textX, y + 17.5);
+    doc.text(player.posicion, textX, y + 14.5);
+  }
+
+  // Separator under header.
+  const sepY = y + 17.5;
+  doc.setDrawColor(228, 228, 228);
+  doc.setLineWidth(0.15);
+  doc.line(x + 3, sepY, x + w - 3, sepY);
+
+  // --- Stats block (only if we have data) ---
+  if (player.totalPuntos === undefined) return;
+
+  // Row 1: PUNTOS / ASISTENCIAS / PROMEDIO
+  const statsY = sepY + 2;
+  const statsH = 9;
+  drawThreeStatJugador(doc, x + 3, statsY, w - 6, statsH, [
+    { label: 'PUNTOS',      value: String(player.totalPuntos ?? 0),          color: teamColor },
+    { label: 'ASISTENCIAS', value: String(player.asistencias ?? 0),          color: teamColor },
+    { label: 'PROMEDIO',    value: (player.promedio ?? 0).toFixed(1),        color: teamColor },
+  ]);
+
+  // Separator.
+  const sep2Y = statsY + statsH + 1.5;
+  doc.setDrawColor(228, 228, 228);
+  doc.line(x + 3, sep2Y, x + w - 3, sep2Y);
+
+  // Row 2: DESGLOSE DE PUNTOS with 3 horizontal bars.
+  const descY = sep2Y + 2;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text('DESGLOSE DE PUNTOS', x + 3, descY + 1);
+
+  const bars = [
+    { label: 'P. de 1', val: player.p1 ?? 0 },
+    { label: 'P. de 2', val: player.p2 ?? 0 },
+    { label: 'P. de 3', val: player.p3 ?? 0 },
+  ];
+  const barMax = Math.max(bars[0].val, bars[1].val, bars[2].val, 1);
+  const barAreaX = x + 3;
+  const barAreaW = w - 6;
+  const barAreaY = descY + 3;
+  const rowGap = 1.2;
+  const barRowH = 5;
+  bars.forEach((b, i) => {
+    const by = barAreaY + i * (barRowH + rowGap);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(b.label, barAreaX, by + 2.3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(22, 22, 22);
+    doc.text(String(b.val), barAreaX + barAreaW, by + 2.3, { align: 'right' });
+
+    // Bar track + filled portion.
+    const trackY = by + 3.4;
+    const trackH = 1.6;
+    const trackW = barAreaW;
+    doc.setFillColor(235, 235, 235);
+    doc.roundedRect(barAreaX, trackY, trackW, trackH, 0.6, 0.6, 'F');
+    const fillW = Math.max(0.2, (b.val / barMax) * trackW);
+    doc.setFillColor(cr, cg, cb);
+    doc.roundedRect(barAreaX, trackY, fillW, trackH, 0.6, 0.6, 'F');
+  });
+  const barsEndY = barAreaY + bars.length * (barRowH + rowGap) - rowGap;
+
+  // Separator.
+  const sep3Y = barsEndY + 1.5;
+  doc.setDrawColor(228, 228, 228);
+  doc.line(x + 3, sep3Y, x + w - 3, sep3Y);
+
+  // Row 3: ASISTENCIA strip with 10 check/cross tiles + date labels.
+  if (player.fechas && player.fechas.length > 0) {
+    const asisTopY = sep3Y + 2;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text('ASISTENCIA', x + 3, asisTopY + 1);
+
+    if (player.porcentaje) {
+      const pctNum = parseFloat(player.porcentaje);
+      const pctColor: RGB = isNaN(pctNum)
+        ? teamColor
+        : pctNum >= 80 ? [10, 130, 45]
+        : pctNum >= 50 ? [180, 130, 0]
+        : [200, 30, 30];
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...pctColor);
+      doc.text(player.porcentaje, x + w - 3, asisTopY + 1, { align: 'right' });
+    }
+
+    const tilesY = asisTopY + 3;
+    const tileGap = 0.8;
+    const tilesAreaW = w - 6;
+    const tileW = (tilesAreaW - tileGap * 9) / 10;
+    const tileH = Math.min(6.5, cardH_tile_fallback(y, h, tilesY));
+    const totalFechas = player.totalFechas ?? 0;
+
+    for (let i = 0; i < 10; i++) {
+      const tx = x + 3 + i * (tileW + tileGap);
+      const ty = tilesY;
+      const f = player.fechas?.[i] ?? '';
+      const played = i < totalFechas;
+
+      // Tile background.
+      let fillColor: RGB;
+      if (played && f === '1') fillColor = [226, 245, 232]; // light green
+      else if (played && f === '0') fillColor = [252, 226, 226]; // light red
+      else fillColor = [238, 238, 238]; // gray for future fechas
+
+      doc.setFillColor(...fillColor);
+      doc.roundedRect(tx, ty, tileW, tileH, 0.8, 0.8, 'F');
+
+      // Draw ✓ / ✗ shape (Helvetica lacks the Unicode glyph).
+      const cx = tx + tileW / 2;
+      const cy = ty + tileH / 2;
+      if (played && f === '1') {
+        doc.setDrawColor(10, 130, 45);
+        doc.setLineWidth(0.5);
+        doc.line(cx - 1.4, cy + 0.2, cx - 0.3, cy + 1.3);
+        doc.line(cx - 0.3, cy + 1.3, cx + 1.6, cy - 1.2);
+      } else if (played && f === '0') {
+        doc.setDrawColor(200, 30, 30);
+        doc.setLineWidth(0.5);
+        doc.line(cx - 1.3, cy - 1.3, cx + 1.3, cy + 1.3);
+        doc.line(cx - 1.3, cy + 1.3, cx + 1.3, cy - 1.3);
+      } else {
+        // em-dash for unplayed fechas
+        doc.setDrawColor(170, 170, 170);
+        doc.setLineWidth(0.4);
+        doc.line(cx - 1.2, cy, cx + 1.2, cy);
+      }
+
+      // Date label below the tile.
+      const lbl = player.fechasLabels?.[i] ?? '';
+      if (lbl) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(4.8);
+        doc.setTextColor(...TEXT_MUTED);
+        doc.text(lbl, cx, ty + tileH + 2, { align: 'center' });
+      }
+    }
+  }
+}
+
+/**
+ * Tiny helper used by drawJugadorCard: clamp tile height so the date
+ * labels below still fit within the card.
+ */
+function cardH_tile_fallback(cardY: number, cardH: number, tilesY: number): number {
+  const bottomBudget = cardY + cardH - tilesY - 3.5;
+  return Math.max(3, bottomBudget);
+}
+
+function drawThreeStatJugador(
+  doc: JsPDF,
+  x: number,
+  y: number,
+  w: number,
+  rowH: number,
+  cells: Array<{ label: string; value: string; color: RGB }>,
+) {
+  const n = cells.length;
+  const labelBaseline = y + rowH * 0.40;
+  const valueBaseline = y + rowH * 0.95;
+  for (let i = 0; i < n; i++) {
+    const cx = x + (w / n) * (i + 0.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5.8);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(cells[i].label, cx, labelBaseline, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...cells[i].color);
+    doc.text(cells[i].value, cx, valueBaseline, { align: 'center' });
   }
 }
 
