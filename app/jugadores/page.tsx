@@ -238,30 +238,32 @@ export default function Jugadores() {
       });
     });
 
-    // Per-team breakdown (p1/p2/p3) and attendance rows, keyed by trimmed name.
+    // Per-player breakdown (p1/p2/p3). Scan every row and accept any with a
+    // non-header name at col 0 so we don't miss a player if the hardcoded
+    // team range constants drift by one.
+    const isHeaderName = (n: string) => {
+      const lo = n.toLowerCase();
+      return lo === 'jugador' || lo === 'nombre jugador' || lo.startsWith('equipo');
+    };
     const breakdownByName = new Map<string, { p1: number; p2: number; p3: number }>();
-    Object.entries(EQUIPOS_PUNTOS).forEach(([, cfg]) => {
-      ptsRows.slice(cfg.filaInicio - 1, cfg.filaFin).forEach((r) => {
-        const n = (r[0] || '').trim();
-        if (!n) return;
-        breakdownByName.set(n, {
-          p1: parseInt(r[1], 10) || 0,
-          p2: parseInt(r[2], 10) || 0,
-          p3: parseInt(r[3], 10) || 0,
-        });
+    ptsRows.forEach((r) => {
+      const n = (r[0] || '').trim();
+      if (!n || isHeaderName(n)) return;
+      breakdownByName.set(n, {
+        p1: parseInt(r[1], 10) || 0,
+        p2: parseInt(r[2], 10) || 0,
+        p3: parseInt(r[3], 10) || 0,
       });
     });
 
     const asistByName = new Map<string, { fechas: string[]; totalFechas: number; porcentaje: string }>();
-    Object.entries(EQUIPOS_ASIST).forEach(([, cfg]) => {
-      attRows.slice(cfg.inicio - 1, cfg.fin).forEach((r) => {
-        const n = (r[0] || '').trim();
-        if (!n) return;
-        asistByName.set(n, {
-          fechas: [r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]].map((v) => v ?? ''),
-          totalFechas: parseInt(r[12], 10) || 0,
-          porcentaje: r[14] || '0%',
-        });
+    attRows.forEach((r) => {
+      const n = (r[0] || '').trim();
+      if (!n || isHeaderName(n)) return;
+      asistByName.set(n, {
+        fechas: [r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]].map((v) => v ?? ''),
+        totalFechas: parseInt(r[12], 10) || 0,
+        porcentaje: r[14] || '0%',
       });
     });
 
