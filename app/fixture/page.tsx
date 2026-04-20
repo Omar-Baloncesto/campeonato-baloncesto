@@ -1,68 +1,21 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
-
-interface Partido {
-  id: string;
-  jornada: string;
-  local: string;
-  visitante: string;
-  fecha: string;
-  hora: string;
-  marcadorLocal: number;
-  marcadorVisitante: number;
-}
+import { useSheetData } from '../lib/useSheetData';
+import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
 
 export default function Fixture() {
-  const [partidos, setPartidos] = useState<Partido[]>([]);
+  const { data, loading, error, lastUpdated, refetch } =
+    useSheetData('FIXTURE', parseFixtureRows);
   const [jornada, setJornada] = useState('Todos');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchData = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const { signal } = controller;
-
-    setLoading(true);
-    setError(false);
-    fetch('/api/sheets?sheet=FIXTURE', { signal })
-      .then(r => r.json())
-      .then(data => {
-        if (signal.aborted) return;
-        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
-          const rows = data.data.slice(1).filter((r: string[]) => r[0]);
-          setPartidos(rows.map((r: string[]) => ({
-            id: r[0], jornada: r[1], local: r[2],
-            visitante: r[4], fecha: r[5], hora: r[6],
-            marcadorLocal: parseInt(r[7], 10) || 0,
-            marcadorVisitante: parseInt(r[8], 10) || 0,
-          })));
-          setLastUpdated(new Date());
-        } else if (!data.success) setError(true);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError' || signal.aborted) return;
-        setError(true);
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    return () => { abortRef.current?.abort(); };
-  }, [fetchData]);
+  const partidos: Partido[] = data ?? [];
 
   const jornadas = ['Todos', ...Array.from(new Set(partidos.map(p => p.jornada)))];
   const filtrados = jornada === 'Todos' ? partidos : partidos.filter(p => p.jornada === jornada);
-  const jugado = (p: Partido) => p.marcadorLocal > 0 || p.marcadorVisitante > 0;
+  const jugado = isJugado;
 
   return (
     <div className="animate-fade-in">
@@ -75,7 +28,7 @@ export default function Fixture() {
           <span className="text-xs text-text-muted">
             {loading ? '' : `${partidos.filter(jugado).length} jugados · ${partidos.filter(p => !jugado(p)).length} pendientes`}
           </span>
-          <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
         </div>
       </div>
 
@@ -94,7 +47,7 @@ export default function Fixture() {
         {loading ? (
           <LoadingState message="Cargando fixture..." />
         ) : error ? (
-          <ErrorState onRetry={fetchData} />
+          <ErrorState onRetry={refetch} />
         ) : (
           <div className="flex flex-col gap-3 stagger-children">
             {filtrados.map(p => {

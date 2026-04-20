@@ -1,21 +1,12 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
 import { useToast } from '../components/ToastProvider';
-
-interface Partido {
-  id: string;
-  jornada: string;
-  local: string;
-  visitante: string;
-  fecha: string;
-  hora: string;
-  marcadorLocal: number;
-  marcadorVisitante: number;
-}
+import { useSheetData } from '../lib/useSheetData';
+import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
 
 type Predictions = Record<string, string>;
 
@@ -30,54 +21,16 @@ function savePredictions(p: Predictions) {
 }
 
 export default function Predicciones() {
-  const [partidos, setPartidos] = useState<Partido[]>([]);
+  const { data, loading, error, lastUpdated, refetch } =
+    useSheetData('FIXTURE', parseFixtureRows);
   const [jornada, setJornada] = useState('Todos');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [predictions, setPredictions] = useState<Predictions>(() =>
     typeof window !== 'undefined' ? loadPredictions() : {}
   );
   const { showToast } = useToast();
-  const abortRef = useRef<AbortController | null>(null);
+  const partidos: Partido[] = data ?? [];
 
-  const fetchData = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const { signal } = controller;
-
-    setLoading(true);
-    setError(false);
-    fetch('/api/sheets?sheet=FIXTURE', { signal })
-      .then(r => r.json())
-      .then(data => {
-        if (signal.aborted) return;
-        if (data.success && Array.isArray(data.data) && data.data.length > 1) {
-          const rows = data.data.slice(1).filter((r: string[]) => r[0]);
-          setPartidos(rows.map((r: string[]) => ({
-            id: r[0], jornada: r[1], local: r[2],
-            visitante: r[4], fecha: r[5], hora: r[6],
-            marcadorLocal: parseInt(r[7], 10) || 0,
-            marcadorVisitante: parseInt(r[8], 10) || 0,
-          })));
-          setLastUpdated(new Date());
-        } else if (!data.success) setError(true);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError' || signal.aborted) return;
-        setError(true);
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    return () => { abortRef.current?.abort(); };
-  }, [fetchData]);
-
-  const jugado = (p: Partido) => p.marcadorLocal > 0 || p.marcadorVisitante > 0;
+  const jugado = isJugado;
   const ganador = (p: Partido) => p.marcadorLocal > p.marcadorVisitante ? p.local : p.visitante;
 
   const predict = (matchId: string, team: string) => {
@@ -115,7 +68,7 @@ export default function Predicciones() {
           <span className="w-1 h-4 bg-gold rounded-full" />
           Predicciones
         </h2>
-        <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
+        <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
       </div>
 
       {/* Stats bar - always visible */}
@@ -163,7 +116,7 @@ export default function Predicciones() {
         {loading ? (
           <LoadingState message="Cargando partidos..." />
         ) : error ? (
-          <ErrorState onRetry={fetchData} />
+          <ErrorState onRetry={refetch} />
         ) : (
           <div className="flex flex-col gap-3 stagger-children">
             {filtrados.map(p => {

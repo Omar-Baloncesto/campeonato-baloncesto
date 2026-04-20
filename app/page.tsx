@@ -1,8 +1,26 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Image, { type StaticImageData } from 'next/image';
+import miamiHeatPhoto from '../public/teams/miami-heat.jpg';
+import brooklynNetsPhoto from '../public/teams/brooklyn-nets.jpg';
+import bostonCelticsPhoto from '../public/teams/boston-celtics.jpg';
+import oklahomaCityThunderPhoto from '../public/teams/oklahoma-city-thunder.jpg';
+import losAngelesLakersPhoto from '../public/teams/los-angeles-lakers.jpg';
+import torontoRaptorsPhoto from '../public/teams/toronto-raptors.jpg';
 import { TEAMS } from './lib/constants';
 import { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
+
+// Static imports give Next/Image the intrinsic width/height so we get no
+// layout shift while the optimized version is loading.
+const TEAM_PHOTOS: Record<string, StaticImageData> = {
+  '1': miamiHeatPhoto,
+  '2': brooklynNetsPhoto,
+  '3': bostonCelticsPhoto,
+  '4': oklahomaCityThunderPhoto,
+  '5': losAngelesLakersPhoto,
+  '6': torontoRaptorsPhoto,
+};
 
 interface Equipo {
   id: string;
@@ -50,7 +68,7 @@ export default function Dashboard() {
     ])
       .then(([eqData, jugData, posData, ptsData]) => {
         if (signal.aborted) return;
-        const teamNames: Record<string, string> = {};
+        let teamNames: Record<string, string> = {};
         if (eqData.success && Array.isArray(eqData.data) && eqData.data.length > 1) {
           const rows = eqData.data.slice(1).filter((r: string[]) => r[1]);
           setEquipos(rows.map((r: string[]) => ({
@@ -171,9 +189,9 @@ export default function Dashboard() {
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 stagger-children">
-              {equipos.map(eq => {
+              {equipos.map((eq, idx) => {
                 const color = badgeColor(eq);
-                const team = TEAMS[eq.id];
+                const photo = TEAM_PHOTOS[eq.id];
                 const isExpanded = expandedTeam === eq.nombre;
                 const st = statsMap[eq.nombre];
                 const scorer = topScorers[eq.nombre];
@@ -189,13 +207,14 @@ export default function Dashboard() {
                     className="bg-bg-card rounded-xl border border-border-light glow-hover cursor-pointer group"
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
-                    {team?.photo && (
+                    {photo && (
                       <div className="relative w-full">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={team.photo}
+                        <Image
+                          src={photo}
                           alt={`Foto del equipo ${eq.nombre}`}
                           className="w-full h-auto block rounded-t-xl"
+                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          priority={idx < 3}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-t-xl" />
                       </div>
