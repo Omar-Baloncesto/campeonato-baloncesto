@@ -7,7 +7,7 @@ import DataFreshness from '../components/DataFreshness';
 import ExportButton from '../components/ExportButton';
 import SearchInput from '../components/SearchInput';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportJugadoresPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { normalizeText } from '../lib/utils';
 
@@ -216,11 +216,21 @@ export default function Jugadores() {
     : (TEAMS[equipoFiltro]?.name || `Equipo ${equipoFiltro}`);
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
+    await exportJugadoresPdf({
       subtitle: `Jugadores · ${equipoLabel}`,
-      filename: buildFilename('jugadores'),
-      columns: exportColumns,
-      rows: filtrados,
+      filename: buildFilename(
+        equipoFiltro === 'Todos'
+          ? 'jugadores'
+          : `jugadores-${TEAMS[equipoFiltro]?.name || equipoFiltro}`,
+      ),
+      jugadores: filtrados.map((j) => ({
+        nombre: j.nombre,
+        numero: j.numero,
+        equipo: TEAMS[j.equipoId]?.name || `Equipo ${j.equipoId}`,
+        equipoColor: TEAMS[j.equipoId]?.safeColor || '#888888',
+        posicion: j.posicion,
+      })),
+      destination,
     });
   };
 
