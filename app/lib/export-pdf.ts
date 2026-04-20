@@ -24,6 +24,7 @@ import {
   type Destination,
 } from './export';
 import type { jsPDF as JsPDF } from 'jspdf';
+import type { CellDef, RowInput } from 'jspdf-autotable';
 
 const GOLD = '#F5B800';
 const GOLD_RGB: [number, number, number] = [245, 184, 0];
@@ -141,6 +142,258 @@ export async function exportTablePdf<T>(
       const rightText = `Página ${page} de ${total}`;
       const rightW = doc.getTextWidth(rightText);
       doc.text(rightText, pageW - marginX - rightW, pageH - 8);
+    },
+  });
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
+export interface JugadorPuntosPdfRow {
+  nombre: string;
+  /** Length 10 — points scored in each of the 10 fechas for 1-point shots. */
+  p1: number[];
+  sumaP1: number;
+  /** Length 10 — 2-point shots. */
+  p2: number[];
+  sumaP2: number;
+  /** Length 10 — 3-point shots. */
+  p3: number[];
+  sumaP3: number;
+  subtotal: number;
+}
+
+export interface ExportPuntosJugadoresPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  /** Team name shown in the team-banner row above the table. */
+  equipo: string;
+  /** Hex color for the team banner accent. */
+  equipoColor: string;
+  /** Length 10 — short "DD/MM" date labels for F1..F10. Empty strings if unknown. */
+  fechasDates: string[];
+  jugadores: JugadorPuntosPdfRow[];
+  destination?: Destination;
+}
+
+// Section band colors — mirror the web palette so the PDF reads like a
+// light-mode version of the same screen.
+const PJ_HDR_TEXT: RGB = [255, 255, 255];
+const PJ_MUTED: RGB = [170, 170, 170];
+
+const PJ_P1_HDR: RGB = [160, 120, 0];
+const PJ_P1_BG:  RGB = [255, 244, 204];
+const PJ_P1_TXT: RGB = [122, 92, 0];
+
+const PJ_P2_HDR: RGB = [20, 70, 190];
+const PJ_P2_BG:  RGB = [227, 237, 255];
+const PJ_P2_TXT: RGB = [14, 63, 158];
+
+const PJ_P3_HDR: RGB = [170, 15, 95];
+const PJ_P3_BG:  RGB = [255, 228, 240];
+const PJ_P3_TXT: RGB = [150, 0, 88];
+
+const PJ_SUMA_HDR: RGB = [10, 130, 45];
+const PJ_SUMA_BG:  RGB = [217, 245, 224];
+const PJ_SUMA_TXT: RGB = [10, 90, 32];
+
+const PJ_SUB_HDR: RGB = [160, 85, 0];
+const PJ_SUB_BG:  RGB = [252, 232, 208];
+const PJ_SUB_TXT: RGB = [122, 63, 0];
+
+const PJ_NAME_HDR: RGB = [24, 24, 28];
+const PJ_TOTAL_BG: RGB = [24, 24, 28];
+const PJ_TOTAL_ACC: RGB = [255, 220, 80];
+
+/**
+ * Render the "Puntos de Jugadores" table for one team as a landscape A4 PDF
+ * with the same colored section bands as the web (yellow/blue/pink/green/
+ * orange) and a TOTAL row at the bottom. Uses jspdf-autotable so pagination
+ * and page-wrapping Just Work if a team has more rows than fit.
+ *
+ * Note: the Greek Σ glyph isn't available in jsPDF's default Helvetica, so
+ * the "Σ P1/P2/P3" column from the web becomes "TOT. P1/P2/P3" here.
+ */
+export async function exportPuntosJugadoresPdf(
+  opts: ExportPuntosJugadoresPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();   // 297
+  const pageH = doc.internal.pageSize.getHeight();  // 210
+  const marginX = 8;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle;
+  const generatedAt = formatDateTime(new Date());
+
+  // --- Build header rows ---
+  // Row 1: Jugador (rowSpan 2) + 3 colSpan-11 section labels + SUBTOTAL (rowSpan 2)
+  const head1: CellDef[] = [
+    {
+      content: 'JUGADOR', rowSpan: 2,
+      styles: { fillColor: PJ_NAME_HDR, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', valign: 'middle', fontSize: 9 },
+    },
+    {
+      content: 'PUNTOS DE 1', colSpan: 11,
+      styles: { fillColor: PJ_P1_HDR, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 },
+    },
+    {
+      content: 'PUNTOS DE 2', colSpan: 11,
+      styles: { fillColor: PJ_P2_HDR, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 },
+    },
+    {
+      content: 'PUNTOS DE 3', colSpan: 11,
+      styles: { fillColor: PJ_P3_HDR, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 9 },
+    },
+    {
+      content: 'SUBTOTAL', rowSpan: 2,
+      styles: { fillColor: PJ_SUB_HDR, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', valign: 'middle', fontSize: 8 },
+    },
+  ];
+
+  // Row 2: F1..F10 + TOT. per section.
+  const fechaCell = (section: 'P1' | 'P2' | 'P3', i: number): CellDef => {
+    const fill = section === 'P1' ? PJ_P1_HDR : section === 'P2' ? PJ_P2_HDR : PJ_P3_HDR;
+    const date = opts.fechasDates[i];
+    return {
+      content: date ? `F${i + 1}\n${date}` : `F${i + 1}`,
+      styles: { fillColor: fill, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 6.5 },
+    };
+  };
+  const totCell = (): CellDef => ({
+    content: 'TOT.',
+    styles: { fillColor: PJ_SUMA_HDR, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 7.5 },
+  });
+  const head2: CellDef[] = [
+    ...[0,1,2,3,4,5,6,7,8,9].map((i) => fechaCell('P1', i)),
+    totCell(),
+    ...[0,1,2,3,4,5,6,7,8,9].map((i) => fechaCell('P2', i)),
+    totCell(),
+    ...[0,1,2,3,4,5,6,7,8,9].map((i) => fechaCell('P3', i)),
+    totCell(),
+  ];
+
+  // --- Body rows: mirror web's "-" for empty cells and per-section text color ---
+  const cellForValue = (v: number, bg: RGB, txt: RGB): CellDef => ({
+    content: v > 0 ? String(v) : '-',
+    styles: {
+      fillColor: bg,
+      textColor: v > 0 ? txt : PJ_MUTED,
+      fontStyle: v > 0 ? 'bold' : 'normal',
+      halign: 'center',
+      fontSize: 8,
+    },
+  });
+
+  const body: RowInput[] = opts.jugadores.map((j) => [
+    {
+      content: j.nombre,
+      styles: { fontStyle: 'bold', halign: 'left', textColor: [22, 22, 22] as RGB, fontSize: 8.5 },
+    } as CellDef,
+    ...j.p1.map((v) => cellForValue(v, PJ_P1_BG, PJ_P1_TXT)),
+    cellForValue(j.sumaP1, PJ_SUMA_BG, PJ_SUMA_TXT),
+    ...j.p2.map((v) => cellForValue(v, PJ_P2_BG, PJ_P2_TXT)),
+    cellForValue(j.sumaP2, PJ_SUMA_BG, PJ_SUMA_TXT),
+    ...j.p3.map((v) => cellForValue(v, PJ_P3_BG, PJ_P3_TXT)),
+    cellForValue(j.sumaP3, PJ_SUMA_BG, PJ_SUMA_TXT),
+    cellForValue(j.subtotal, PJ_SUB_BG, PJ_SUB_TXT),
+  ]);
+
+  // --- Foot: TOTAL row ---
+  const sumBy = (f: (j: JugadorPuntosPdfRow) => number) =>
+    opts.jugadores.reduce((s, j) => s + f(j), 0);
+
+  const totalCell = (val: number, bg: RGB): CellDef => ({
+    content: val > 0 ? String(val) : '-',
+    styles: { fillColor: bg, textColor: PJ_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
+  });
+
+  const foot: RowInput[] = [[
+    {
+      content: 'TOTAL',
+      styles: { fillColor: PJ_TOTAL_BG, textColor: PJ_TOTAL_ACC, fontStyle: 'bold', halign: 'left', fontSize: 9 },
+    } as CellDef,
+    ...[0,1,2,3,4,5,6,7,8,9].map((i) => totalCell(sumBy((j) => j.p1[i] || 0), PJ_P1_HDR)),
+    totalCell(sumBy((j) => j.sumaP1), PJ_SUMA_HDR),
+    ...[0,1,2,3,4,5,6,7,8,9].map((i) => totalCell(sumBy((j) => j.p2[i] || 0), PJ_P2_HDR)),
+    totalCell(sumBy((j) => j.sumaP2), PJ_SUMA_HDR),
+    ...[0,1,2,3,4,5,6,7,8,9].map((i) => totalCell(sumBy((j) => j.p3[i] || 0), PJ_P3_HDR)),
+    totalCell(sumBy((j) => j.sumaP3), PJ_SUMA_HDR),
+    totalCell(sumBy((j) => j.subtotal), PJ_SUB_HDR),
+  ]];
+
+  // --- Column widths ---
+  // Landscape A4 usable width = 297 - 16 = 281mm.
+  // 1 name + 30 narrow + 3 TOT + 1 SUBTOTAL = 35 cols
+  // name=32, narrow=6.6, tot=9, sub=11 → 32 + 30*6.6 + 3*9 + 11 = 32 + 198 + 27 + 11 = 268mm.
+  const columnStyles: Record<number, { cellWidth: number }> = {};
+  columnStyles[0] = { cellWidth: 32 };
+  for (let i = 1; i <= 10; i++)  columnStyles[i]     = { cellWidth: 6.6 };
+  columnStyles[11] = { cellWidth: 9 };
+  for (let i = 12; i <= 21; i++) columnStyles[i]     = { cellWidth: 6.6 };
+  columnStyles[22] = { cellWidth: 9 };
+  for (let i = 23; i <= 32; i++) columnStyles[i]     = { cellWidth: 6.6 };
+  columnStyles[33] = { cellWidth: 9 };
+  columnStyles[34] = { cellWidth: 11 };
+
+  autoTable(doc, {
+    head: [head1, head2],
+    body,
+    foot,
+    startY: subtitle ? 32 : 26,
+    margin: { top: subtitle ? 32 : 26, bottom: 14, left: marginX, right: marginX },
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 1.2,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.15,
+      textColor: [22, 22, 22],
+    },
+    columnStyles,
+    theme: 'grid',
+    didDrawPage: () => {
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 12);
+      if (subtitle) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...TEXT_MUTED);
+        doc.text(subtitle, marginX, 18);
+      }
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, subtitle ? 21 : 15, pageW - marginX, subtitle ? 21 : 15);
+
+      // Team banner under the underline.
+      if (opts.equipo) {
+        const [er, eg, eb] = hexToRgb(opts.equipoColor);
+        const isWhiteish = er > 240 && eg > 240 && eb > 240;
+        const [dr, dg, db]: RGB = isWhiteish ? [204, 204, 204] : [er, eg, eb];
+        doc.setFillColor(dr, dg, db);
+        doc.circle(marginX + 2, (subtitle ? 25 : 19) + 0.3, 1.3, 'F');
+        doc.setTextColor(...TEXT_DARK);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(opts.equipo, marginX + 5, subtitle ? 26 : 20);
+      }
+
+      // Footer.
+      const page = doc.getCurrentPageInfo().pageNumber;
+      const total = doc.getNumberOfPages();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${page} de ${total}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
     },
   });
 
