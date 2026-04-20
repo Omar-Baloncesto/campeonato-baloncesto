@@ -401,6 +401,182 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface PartidoPdfRow {
+  equipoA: string;
+  q1A: string; q2A: string; q3A: string; q4A: string; taA: string; totalA: string;
+  equipoB: string;
+  q1B: string; q2B: string; q3B: string; q4B: string; taB: string; totalB: string;
+  /** Hex color for the left dot of equipoA (e.g. "#RRGGBB"). */
+  colorA: string;
+  /** Hex color for the left dot of equipoB. */
+  colorB: string;
+}
+
+export interface ExportMarcadoresPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  /** Fecha label to include in the subtitle and filename, e.g. "21/02/2026". */
+  fecha: string;
+  partidos: PartidoPdfRow[];
+  destination?: Destination;
+}
+
+const MC_HDR_BG: RGB = [24, 24, 28];
+const MC_HDR_TEXT: RGB = [170, 170, 175];
+const MC_WIN_GOLD: RGB = [245, 184, 0];
+const MC_ROW_ALT: RGB = [248, 248, 248];
+
+/**
+ * Render the "Marcadores por cuarto" view for a SINGLE fecha as a Letter
+ * portrait PDF. Each partido renders as its own mini-table with the two
+ * teams as rows, a colored dot next to each team name, and the winning
+ * team's total printed in gold (matching the web).
+ */
+export async function exportMarcadoresPdf(
+  opts: ExportMarcadoresPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();   // 215.9
+  const pageH = doc.internal.pageSize.getHeight();  // 279.4
+  const marginX = 12;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle ?? `Marcadores por cuarto · ${opts.fecha}`;
+  const generatedAt = formatDateTime(new Date());
+
+  const drawChromeOnEveryPage = () => {
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(subtitle, marginX, 19.5);
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, 22, pageW - marginX, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 8);
+      const rightText = `Página ${p} de ${pages}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 8);
+    }
+  };
+
+  // ---- Render one match-card per partido ----
+  // Each card is a 2-row autoTable (equipoA + equipoB) with a 7-col layout:
+  // [Equipo | 1° | 2° | 3° | 4° | TA | Total]. The first column reserves
+  // padding on the left for the color dot that we overlay in didDrawCell.
+  // Column widths sum to pageW - 2*marginX (191.9mm on Letter).
+  const columnStyles: Record<number, { cellWidth: number; halign?: 'left' | 'center' | 'right' }> = {
+    0: { cellWidth: 62, halign: 'left' },
+    1: { cellWidth: 18, halign: 'center' },
+    2: { cellWidth: 18, halign: 'center' },
+    3: { cellWidth: 18, halign: 'center' },
+    4: { cellWidth: 18, halign: 'center' },
+    5: { cellWidth: 18, halign: 'center' },
+    6: { cellWidth: 40, halign: 'center' },
+  };
+
+  const headRow: CellDef[] = [
+    { content: 'EQUIPO', styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'left',   fontSize: 8 } },
+    { content: '1°',     styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: '2°',     styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: '3°',     styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: '4°',     styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: 'TA',     styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+    { content: 'TOTAL',  styles: { fillColor: MC_HDR_BG, textColor: MC_HDR_TEXT, fontStyle: 'bold', halign: 'center', fontSize: 8 } },
+  ];
+
+  for (const p of opts.partidos) {
+    const totA = parseInt(p.totalA, 10) || 0;
+    const totB = parseInt(p.totalB, 10) || 0;
+    const aWon = totA > totB;
+    const bWon = totB > totA;
+
+    const quartersCell = (v: string): CellDef => ({
+      content: v && v !== '' ? v : '-',
+      styles: { halign: 'center', fontSize: 10 },
+    });
+
+    const totalCell = (v: string, won: boolean): CellDef => ({
+      content: v || '0',
+      styles: {
+        halign: 'center',
+        fontStyle: 'bold',
+        fontSize: 12,
+        textColor: won ? MC_WIN_GOLD : ([22, 22, 22] as RGB),
+      },
+    });
+
+    const body: RowInput[] = [
+      [
+        { content: `    ${p.equipoA}`, styles: { halign: 'left', fontStyle: 'bold', fontSize: 10 } } as CellDef,
+        quartersCell(p.q1A), quartersCell(p.q2A), quartersCell(p.q3A), quartersCell(p.q4A), quartersCell(p.taA),
+        totalCell(p.totalA, aWon),
+      ],
+      [
+        { content: `    ${p.equipoB}`, styles: { halign: 'left', fontStyle: 'bold', fontSize: 10 } } as CellDef,
+        quartersCell(p.q1B), quartersCell(p.q2B), quartersCell(p.q3B), quartersCell(p.q4B), quartersCell(p.taB),
+        totalCell(p.totalB, bWon),
+      ],
+    ];
+
+    // Starting Y: first match under the title, subsequent ones below the
+    // previous match's finalY with a 6mm gap.
+    const prev = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
+    const startY = prev?.finalY ? prev.finalY + 6 : 28;
+
+    autoTable(doc, {
+      head: [headRow],
+      body,
+      startY,
+      margin: { top: 28, bottom: 14, left: marginX, right: marginX },
+      styles: {
+        font: 'helvetica',
+        fontSize: 10,
+        cellPadding: 2.5,
+        lineColor: [225, 225, 225],
+        lineWidth: 0.2,
+        valign: 'middle',
+      },
+      alternateRowStyles: { fillColor: MC_ROW_ALT },
+      columnStyles,
+      theme: 'grid',
+      didDrawCell: (data) => {
+        if (data.section !== 'body') return;
+        if (data.column.index !== 0) return;
+        // Draw the team color dot just inside the left padding of the cell.
+        const isA = data.row.index === 0;
+        const colorHex = isA ? p.colorA : p.colorB;
+        const [cr, cg, cb] = hexToRgb(colorHex);
+        const isWhiteish = cr > 240 && cg > 240 && cb > 240;
+        const [dr, dg, db]: RGB = isWhiteish ? [204, 204, 204] : [cr, cg, cb];
+        doc.setFillColor(dr, dg, db);
+        const cx = data.cell.x + 3.5;
+        const cy = data.cell.y + data.cell.height / 2;
+        doc.circle(cx, cy, 1.4, 'F');
+      },
+    });
+  }
+
+  drawChromeOnEveryPage();
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
 export interface AsistenciaPdfRow {
   nombre: string;
   /** Length 10. '1' = presente, '0' = ausente, '' = sin datos. */
