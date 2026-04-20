@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import miamiHeatPhoto from '../public/teams/miami-heat.jpg';
 import brooklynNetsPhoto from '../public/teams/brooklyn-nets.jpg';
@@ -137,12 +137,30 @@ export default function Dashboard() {
 
   const badgeColor = (eq: Equipo) => TEAMS[eq.id]?.safeColor || eq.hexColor;
 
-  const stats = [
+  const stats = useMemo(() => ([
     { value: '6', label: 'Equipos', icon: '🏀' },
     { value: '10', label: 'Partidos', icon: '🗓' },
     { value: loading ? '...' : String(totalJugadores), label: 'Jugadores', icon: '👥' },
     { value: '2', label: 'Rondas', icon: '🏆' },
-  ];
+  ]), [loading, totalJugadores]);
+
+  // Pre-compute the derived rates per team once instead of inside the map
+  // body, so a re-render that doesn't change equipos / statsMap is free.
+  const equiposConStats = useMemo(() => equipos.map((eq, idx) => {
+    const st = statsMap[eq.nombre];
+    const pj = st?.pj || 1;
+    return {
+      eq,
+      idx,
+      st,
+      ppgOff: st ? (st.puntosAnotados / pj).toFixed(1) : '—',
+      ppgDef: st ? (st.puntosRecibidos / pj).toFixed(1) : '—',
+      ratio: st && st.puntosRecibidos > 0
+        ? (st.puntosAnotados / st.puntosRecibidos).toFixed(2)
+        : '—',
+      winPct: st ? ((st.pg / pj) * 100).toFixed(0) : '—',
+    };
+  }), [equipos, statsMap]);
 
   return (
     <div className="animate-fade-in">
@@ -186,17 +204,11 @@ export default function Dashboard() {
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 stagger-children">
-              {equipos.map((eq, idx) => {
+              {equiposConStats.map(({ eq, idx, st, ppgOff, ppgDef, ratio, winPct }) => {
                 const color = badgeColor(eq);
                 const photo = TEAM_PHOTOS[eq.id];
                 const isExpanded = expandedTeam === eq.nombre;
-                const st = statsMap[eq.nombre];
                 const scorer = topScorers[eq.nombre];
-                const pj = st?.pj || 1;
-                const ppgOff = st ? (st.puntosAnotados / pj).toFixed(1) : '—';
-                const ppgDef = st ? (st.puntosRecibidos / pj).toFixed(1) : '—';
-                const ratio = st && st.puntosRecibidos > 0 ? (st.puntosAnotados / st.puntosRecibidos).toFixed(2) : '—';
-                const winPct = st ? ((st.pg / pj) * 100).toFixed(0) : '—';
 
                 return (
                   <div

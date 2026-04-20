@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
@@ -45,6 +45,22 @@ export default function Posiciones() {
     setExpandedTeam(prev => prev === nombre ? null : nombre);
   };
 
+  // Pre-compute the per-team derived rates so we don't redo the math on
+  // every re-render (e.g. opening / closing a row only changes
+  // expandedTeam state).
+  const equiposConRates = useMemo(() => lista.map((eq) => {
+    const pj = Number(eq.pj) || 1;
+    const pa = Number(eq.puntosAnotados) || 0;
+    const pr = Number(eq.puntosRecibidos) || 0;
+    return {
+      eq,
+      ppgOff: (pa / pj).toFixed(1),
+      ppgDef: (pr / pj).toFixed(1),
+      ratio: pr > 0 ? (pa / pr).toFixed(2) : '—',
+      winPct: ((Number(eq.pg) / pj) * 100).toFixed(0),
+    };
+  }), [lista]);
+
   return (
     <section className="p-4 md:p-6 animate-fade-in" aria-label="Tabla de posiciones">
       <div className="flex items-center gap-2 mb-4">
@@ -78,18 +94,11 @@ export default function Posiciones() {
                 </tr>
               </thead>
               <tbody>
-                {lista.map((eq, i) => {
+                {equiposConRates.map(({ eq, ppgOff, ppgDef, ratio, winPct }, i) => {
                   const color = getTeamColor(eq.nombre);
                   const white = isWhiteTeam(eq.nombre);
                   const isTop3 = i < 3;
                   const isExpanded = expandedTeam === eq.nombre;
-                  const pj = Number(eq.pj) || 1;
-                  const pa = Number(eq.puntosAnotados) || 0;
-                  const pr = Number(eq.puntosRecibidos) || 0;
-                  const ppgOff = (pa / pj).toFixed(1);
-                  const ppgDef = (pr / pj).toFixed(1);
-                  const ratio = pr > 0 ? (pa / pr).toFixed(2) : '—';
-                  const winPct = ((Number(eq.pg) / pj) * 100).toFixed(0);
 
                   return [
                     <tr

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getTeamColorRaw, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 
@@ -228,14 +228,19 @@ export default function BracketPage() {
     return () => { controller.abort(); };
   }, []);
 
-  const champion =
-    finalMatch && finalMatch.total1 > finalMatch.total2 ? finalMatch.team1 :
-    finalMatch && finalMatch.total2 > finalMatch.total1 ? finalMatch.team2 : null;
+  const champion = useMemo(() => {
+    if (!finalMatch) return null;
+    if (finalMatch.total1 > finalMatch.total2) return finalMatch.team1;
+    if (finalMatch.total2 > finalMatch.total1) return finalMatch.team2;
+    return null;
+  }, [finalMatch]);
 
   const colH = (n: number) => n * CARD_H + (n - 1) * CARD_GAP;
   const cardCenterY = (i: number) => i * (CARD_H + CARD_GAP) + CARD_H / 2;
-  const semiH = colH(Math.max(semis.length, 2));
-  const finalOffsetTop = (semiH - CARD_H) / 2;
+  const { semiH, finalOffsetTop } = useMemo(() => {
+    const sH = colH(Math.max(semis.length, 2));
+    return { semiH: sH, finalOffsetTop: (sH - CARD_H) / 2 };
+  }, [semis.length]);
   const HDR_H = 51;
 
   return (
