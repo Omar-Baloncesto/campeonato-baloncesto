@@ -6,7 +6,7 @@ import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
-import { exportTablePdf } from '../lib/export-pdf';
+import { exportFixturePdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
@@ -35,11 +35,22 @@ export default function Fixture() {
   const subtitleSuffix = jornada === 'Todos' ? '' : ` · Jornada ${jornada}`;
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
-    await exportTablePdf({
+    await exportFixturePdf({
       subtitle: `Fixture${subtitleSuffix}`,
       filename: buildFilename(`fixture${jornada === 'Todos' ? '' : '-j' + jornada}`),
-      columns: exportColumns,
-      rows: filtrados,
+      partidos: filtrados.map((p) => ({
+        jornada: p.jornada,
+        fecha: p.fecha,
+        hora: p.hora,
+        local: p.local,
+        colorLocal: getTeamColor(p.local),
+        visitante: p.visitante,
+        colorVisitante: getTeamColor(p.visitante),
+        marcadorLocal: p.marcadorLocal != null ? String(p.marcadorLocal) : '',
+        marcadorVisitante: p.marcadorVisitante != null ? String(p.marcadorVisitante) : '',
+        jugado: isJugado(p),
+      })),
+      destination,
     });
   };
 
