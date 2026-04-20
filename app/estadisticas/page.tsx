@@ -3,7 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
+import ExportButton from '../components/ExportButton';
 import SearchInput from '../components/SearchInput';
+import { buildFilename } from '../lib/export';
+import { exportTablePdf } from '../lib/export-pdf';
+import { exportTableXlsx } from '../lib/export-excel';
 import { normalizeText } from '../lib/utils';
 
 interface Jugador {
@@ -96,6 +100,36 @@ export default function Estadisticas() {
   const medalClass = (i: number) =>
     i === 0 ? 'medal-gold' : i === 1 ? 'medal-silver' : i === 2 ? 'medal-bronze' : 'text-text-muted';
 
+  // Attach the rank first so columns don't need to know the row index.
+  const ranked = ordenados.map((j, i) => ({ ...j, rank: i + 1 }));
+  type Ranked = typeof ranked[number];
+  const exportColumns = [
+    { header: '#',          cell: (r: Ranked) => r.rank,                        align: 'center' as const, width: 10 },
+    { header: 'Jugador',    cell: (r: Ranked) => r.nombre,                      align: 'left'   as const, width: 40 },
+    { header: 'Puntos',     cell: (r: Ranked) => Number(r.totalPuntos) || 0,    align: 'center' as const, width: 18 },
+    { header: 'Asistencias',cell: (r: Ranked) => Number(r.asistencias) || 0,    align: 'center' as const, width: 22 },
+    { header: 'Promedio',   cell: (r: Ranked) => Number(r.promedio) || 0,       align: 'center' as const, width: 18 },
+  ];
+
+  const handleExportPdf = async () => {
+    await exportTablePdf({
+      subtitle: 'Estadísticas',
+      filename: buildFilename('estadisticas'),
+      columns: exportColumns,
+      rows: ranked,
+    });
+  };
+
+  const handleExportExcel = async () => {
+    await exportTableXlsx({
+      filename: buildFilename('estadisticas'),
+      sheetName: 'Estadísticas',
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Estadísticas'],
+      columns: exportColumns,
+      rows: ranked,
+    });
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
@@ -105,6 +139,11 @@ export default function Estadisticas() {
         </h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-muted">{jugadores.length} jugadores</span>
+          <ExportButton
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportExcel}
+            disabled={loading || error || ordenados.length === 0}
+          />
           <DataFreshness lastUpdated={lastUpdated} onRefresh={fetchData} loading={loading} />
         </div>
       </div>
