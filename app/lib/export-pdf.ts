@@ -401,6 +401,174 @@ export async function exportPuntosJugadoresPdf(
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
 
+export interface JugadorPdfRow {
+  nombre: string;
+  numero: string;
+  equipo: string;
+  /** Hex color for the team (e.g. "#FFFFFF"). */
+  equipoColor: string;
+  posicion: string;
+}
+
+export interface ExportJugadoresPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  jugadores: JugadorPdfRow[];
+  destination?: Destination;
+}
+
+function initialsOf(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return nombre.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Render the "Jugadores" roster as a 3-column grid of compact player
+ * cards (Letter portrait), mirroring the web design:
+ *   - colored circle at the left with initials + "#<numero>"
+ *   - name in bold
+ *   - team name in the team's color
+ *   - position muted below
+ * The caller decides what subset to export — passing all 58 players
+ * when "Todos" is selected or only the filtered team when a specific
+ * team is selected.
+ */
+export async function exportJugadoresPdf(
+  opts: ExportJugadoresPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();   // 215.9
+  const pageH = doc.internal.pageSize.getHeight();  // 279.4
+  const marginX = 12;
+  const topY = 26;
+  const botY = 12;
+  const usableW = pageW - marginX * 2;
+  const usableH = pageH - topY - botY;
+
+  const cols = 3;
+  const gapX = 4;
+  const gapY = 3;
+  const cardW = (usableW - gapX * (cols - 1)) / cols;
+  const cardH = 22;
+  const rowsPerPage = Math.max(1, Math.floor((usableH + gapY) / (cardH + gapY)));
+  const perPage = cols * rowsPerPage;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle;
+  const generatedAt = formatDateTime(new Date());
+
+  const drawChromeOnEveryPage = () => {
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setTextColor(...TEXT_DARK);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(title, marginX, 13);
+      if (subtitle) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...TEXT_MUTED);
+        doc.text(subtitle, marginX, 19.5);
+      }
+      doc.setDrawColor(...GOLD_RGB);
+      doc.setLineWidth(0.7);
+      doc.line(marginX, subtitle ? 22 : 16, pageW - marginX, subtitle ? 22 : 16);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+      const rightText = `Página ${p} de ${pages}`;
+      const rightW = doc.getTextWidth(rightText);
+      doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+    }
+  };
+
+  for (let i = 0; i < opts.jugadores.length; i++) {
+    const posInPage = i % perPage;
+    if (i > 0 && posInPage === 0) doc.addPage();
+
+    const col = posInPage % cols;
+    const row = Math.floor(posInPage / cols);
+    const x = marginX + col * (cardW + gapX);
+    const y = topY + row * (cardH + gapY);
+
+    drawJugadorCard(doc, x, y, cardW, cardH, opts.jugadores[i]);
+  }
+
+  drawChromeOnEveryPage();
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}
+
+function drawJugadorCard(
+  doc: JsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  player: JugadorPdfRow,
+) {
+  // Card background + thin border tinted with the team color.
+  const [r, g, b] = hexToRgb(player.equipoColor);
+  const isWhiteish = r > 240 && g > 240 && b > 240;
+  const [cr, cg, cb]: RGB = isWhiteish ? [170, 170, 170] : [r, g, b];
+  doc.setFillColor(252, 252, 252);
+  doc.setDrawColor(cr, cg, cb);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+
+  // Left circle with initials + #numero, using the team color as fill.
+  const circleR = 6.5;
+  const circleCx = x + circleR + 2;
+  const circleCy = y + h / 2;
+  doc.setFillColor(cr, cg, cb);
+  doc.circle(circleCx, circleCy, circleR, 'F');
+
+  const initials = initialsOf(player.nombre);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text(initials, circleCx, circleCy - 0.3, { align: 'center' });
+
+  if (player.numero) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    // Number in a contrasting dark color so it reads on light team colors.
+    doc.setTextColor(22, 22, 22);
+    doc.text(`#${player.numero}`, circleCx, circleCy + 3.2, { align: 'center' });
+  }
+
+  // Text block to the right of the circle.
+  const textX = circleCx + circleR + 3;
+  const textMaxW = x + w - textX - 2;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(22, 22, 22);
+  const nameLines = doc.splitTextToSize(player.nombre, textMaxW) as string[];
+  doc.text(nameLines[0] ?? player.nombre, textX, y + 7);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(cr, cg, cb);
+  const teamLines = doc.splitTextToSize(player.equipo, textMaxW) as string[];
+  doc.text(teamLines[0] ?? player.equipo, textX, y + 12.5);
+
+  if (player.posicion) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(player.posicion, textX, y + 17.5);
+  }
+}
+
 export interface PartidoPdfRow {
   equipoA: string;
   q1A: string; q2A: string; q3A: string; q4A: string; taA: string; totalA: string;
