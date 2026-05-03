@@ -29,7 +29,9 @@ export default function Fixture() {
     { header: 'Marc. Local',cell: (p: Partido) => isJugado(p) ? p.marcadorLocal : '',                    align: 'center' as const, width: 14 },
     { header: 'Marc. Vis.', cell: (p: Partido) => isJugado(p) ? p.marcadorVisitante : '',                align: 'center' as const, width: 14 },
     { header: 'Visitante',  cell: (p: Partido) => p.visitante,                                            align: 'left'   as const, width: 28 },
-    { header: 'Estado',     cell: (p: Partido) => isJugado(p) ? 'Jugado' : 'Pendiente',                  align: 'center' as const, width: 18 },
+    { header: 'W.O.',       cell: (p: Partido) => p.wo ? 'Sí' : '',                                       align: 'center' as const, width: 10 },
+    { header: 'Equipo Ausente', cell: (p: Partido) => p.equipoAusente,                                    align: 'left'   as const, width: 24 },
+    { header: 'Estado',     cell: (p: Partido) => p.wo ? 'W.O.' : (isJugado(p) ? 'Jugado' : 'Pendiente'), align: 'center' as const, width: 18 },
   ];
 
   const subtitleSuffix = jornada === 'Todos' ? '' : ` · Jornada ${jornada}`;
@@ -113,6 +115,7 @@ export default function Fixture() {
                     played ? 'border-gold-dim' : ''
                   }`}
                 >
+                  {p.wo && <WalkoverBanner equipoAusente={p.equipoAusente} />}
                   {/* Mobile */}
                   <div className="flex flex-col sm:hidden gap-3">
                     <div className="flex items-center justify-between">
@@ -187,6 +190,21 @@ function TeamDot({ name, bold }: { name: string; bold?: boolean }) {
     <div className="flex items-center gap-2.5">
       <TeamColorBar name={name} />
       <span className={`text-sm ${bold ? 'font-bold text-text-primary' : 'font-medium'}`}>{name}</span>
+    </div>
+  );
+}
+
+function WalkoverBanner({ equipoAusente }: { equipoAusente: string }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
+      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold tracking-wider uppercase">
+        W.O.
+      </span>
+      {equipoAusente && (
+        <span className="text-text-muted">
+          Equipo ausente: <span className="text-text-primary font-semibold">{equipoAusente}</span>
+        </span>
+      )}
     </div>
   );
 }
