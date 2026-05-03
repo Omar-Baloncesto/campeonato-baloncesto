@@ -15,6 +15,7 @@ const STATIC_ROUTES: Array<{
   { path: '/estadistica-jugadores',  changeFrequency: 'daily',  priority: 0.7 },
   { path: '/asistencias',            changeFrequency: 'weekly', priority: 0.7 },
   { path: '/lista-equipos',          changeFrequency: 'weekly', priority: 0.6 },
+  { path: '/equipos-empatados',      changeFrequency: 'daily',  priority: 0.6 },
   { path: '/predicciones',           changeFrequency: 'weekly', priority: 0.6 },
   { path: '/bracket',                changeFrequency: 'weekly', priority: 0.7 },
 ];
