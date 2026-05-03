@@ -257,19 +257,15 @@ export default function ListaEquipos() {
         ) : fecha ? (
           <div className="flex flex-col gap-3">
             {fecha.partidos.map((p, i) => {
-              const ganA = !p.wo && parseInt(p.totalA, 10) > parseInt(p.totalB, 10);
-              const ganB = !p.wo && parseInt(p.totalB, 10) > parseInt(p.totalA, 10);
-              const ausenteA = isAbsent(p, p.equipoA);
-              const ausenteB = isAbsent(p, p.equipoB);
+              const ganA = parseInt(p.totalA, 10) > parseInt(p.totalB, 10);
+              const ganB = parseInt(p.totalB, 10) > parseInt(p.totalA, 10);
               return (
                 <div
                   key={`${fecha.fecha}-${p.equipoA}-${p.equipoB}-${i}`}
-                  className={`bg-bg-secondary rounded-xl overflow-hidden border transition-all duration-150 ${
-                    p.wo ? 'border-red-500/30' : 'border-border-light hover:border-gold/15'
-                  }`}
+                  className="bg-bg-secondary rounded-xl overflow-hidden border border-border-light transition-all duration-150 hover:border-gold/15"
                 >
                   {p.wo && (
-                    <div className="px-4 py-2 flex flex-wrap items-center gap-2 text-[11px] bg-red-500/5 border-b border-red-500/15">
+                    <div className="px-4 py-2 flex flex-wrap items-center gap-2 text-[11px] border-b border-border-subtle">
                       <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold tracking-wider uppercase">
                         W.O.
                       </span>
@@ -296,14 +292,14 @@ export default function ListaEquipos() {
                       </thead>
                       <tbody>
                         {[
-                          { name: p.equipoA, quarters: [p.q1A, p.q2A, p.q3A, p.q4A, p.taA], total: p.totalA, won: ganA, ausente: ausenteA },
-                          { name: p.equipoB, quarters: [p.q1B, p.q2B, p.q3B, p.q4B, p.taB], total: p.totalB, won: ganB, ausente: ausenteB },
+                          { name: p.equipoA, quarters: [p.q1A, p.q2A, p.q3A, p.q4A, p.taA], total: p.totalA, won: ganA },
+                          { name: p.equipoB, quarters: [p.q1B, p.q2B, p.q3B, p.q4B, p.taB], total: p.totalB, won: ganB },
                         ].map((team, ei) => (
                           <tr
                             key={ei}
                             className={`transition-colors hover:bg-white/[0.03] ${
                               ei === 0 ? '' : 'border-t border-border-subtle'
-                            } ${team.ausente ? 'opacity-50' : ''}`}
+                            }`}
                           >
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -313,14 +309,7 @@ export default function ListaEquipos() {
                                     background: isWhiteTeam(team.name) ? '#CCCCCC' : getTeamColor(team.name),
                                   }}
                                 />
-                                <span className={`text-xs font-medium truncate ${team.ausente ? 'line-through' : ''}`}>
-                                  {team.name}
-                                </span>
-                                {team.ausente && (
-                                  <span className="ml-1 text-[9px] font-bold uppercase tracking-wider text-red-400">
-                                    Ausente
-                                  </span>
-                                )}
+                                <span className="text-xs font-medium truncate">{team.name}</span>
                               </div>
                             </td>
                             {team.quarters.map((q, qi) => (
@@ -329,7 +318,7 @@ export default function ListaEquipos() {
                             <td className={`text-center py-3 text-[15px] font-bold ${
                               team.won ? 'text-gold' : 'text-text-primary'
                             }`}>
-                              {p.wo && (!team.total || team.total === '0') ? '-' : (team.total || '0')}
+                              {team.total || '0'}
                             </td>
                           </tr>
                         ))}
