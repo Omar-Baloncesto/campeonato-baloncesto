@@ -7,10 +7,13 @@ import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
 import { exportMarcadoresPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
+import { parseFixtureRows } from '../lib/fixture';
 
 interface Partido {
   equipoA: string; q1A: string; q2A: string; q3A: string; q4A: string; taA: string; totalA: string;
   equipoB: string; q1B: string; q2B: string; q3B: string; q4B: string; taB: string; totalB: string;
+  wo?: boolean;
+  equipoAusente?: string;
 }
 
 interface Fecha {
@@ -19,6 +22,16 @@ interface Fecha {
 }
 
 const esEquipo = (nombre: string) => !!TEAM_BY_NAME[nombre?.trim()];
+
+const pairKey = (a: string, b: string) =>
+  [a.trim().toLowerCase(), b.trim().toLowerCase()].sort().join('||');
+
+/** "DD/MM/YYYY" → comparable timestamp for sorting fechas chronologically. */
+const parseFecha = (s: string): number => {
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  return new Date(`${m[3]}-${m[2]}-${m[1]}`).getTime();
+};
 
 export default function ListaEquipos() {
   const [fechas, setFechas] = useState<Fecha[]>([]);
@@ -32,13 +45,16 @@ export default function ListaEquipos() {
     abortRef.current = controller;
     const { signal } = controller;
 
-    fetch('/api/sheets?sheet=ListaEquipos', { signal })
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      fetch('/api/sheets?sheet=ListaEquipos', { signal }).then((r) => r.json()),
+      fetch('/api/sheets?sheet=FIXTURE', { signal }).then((r) => r.json()),
+    ])
+      .then(([listaJson, fixtureJson]) => {
         if (signal.aborted) return;
-        if (data.success && Array.isArray(data.data)) {
-          const rows = data.data;
-          const result: Fecha[] = [];
+        const fechasMap = new Map<string, Fecha>();
+
+        if (listaJson?.success && Array.isArray(listaJson.data)) {
+          const rows = listaJson.data;
           let fechaActual: Fecha | null = null;
           let equipoA: string[] | null = null;
 
@@ -47,8 +63,8 @@ export default function ListaEquipos() {
             const f = (r[5] || '').toString().trim();
 
             if (f.match(/\d{2}\/\d{2}\/\d{4}/)) {
-              if (fechaActual) result.push(fechaActual);
-              fechaActual = { fecha: f, partidos: [] };
+              fechaActual = fechasMap.get(f) ?? { fecha: f, partidos: [] };
+              fechasMap.set(f, fechaActual);
               equipoA = null;
             } else if (esEquipo(f) && fechaActual) {
               if (!equipoA) {
@@ -62,9 +78,40 @@ export default function ListaEquipos() {
               }
             }
           }
-          if (fechaActual) result.push(fechaActual);
-          setFechas(result.filter(f => f.partidos.length > 0));
         }
+
+        // Cross-reference FIXTURE so W.O. matches show up here too — either by
+        // flagging an existing marcador or by injecting a synthetic one when
+        // the game has no quarter-by-quarter row.
+        if (fixtureJson?.success && Array.isArray(fixtureJson.data)) {
+          for (const fp of parseFixtureRows(fixtureJson.data)) {
+            if (!fp.wo) continue;
+            const fecha = fechasMap.get(fp.fecha) ?? { fecha: fp.fecha, partidos: [] };
+            const key = pairKey(fp.local, fp.visitante);
+            const existing = fecha.partidos.find(
+              (pp) => pairKey(pp.equipoA, pp.equipoB) === key,
+            );
+            if (existing) {
+              existing.wo = true;
+              existing.equipoAusente = fp.equipoAusente;
+            } else {
+              fecha.partidos.push({
+                equipoA: fp.local,
+                q1A: '', q2A: '', q3A: '', q4A: '', taA: '', totalA: '',
+                equipoB: fp.visitante,
+                q1B: '', q2B: '', q3B: '', q4B: '', taB: '', totalB: '',
+                wo: true,
+                equipoAusente: fp.equipoAusente,
+              });
+            }
+            fechasMap.set(fp.fecha, fecha);
+          }
+        }
+
+        const result = Array.from(fechasMap.values())
+          .filter((f) => f.partidos.length > 0)
+          .sort((a, b) => parseFecha(a.fecha) - parseFecha(b.fecha));
+        setFechas(result);
         setLoading(false);
       })
       .catch((err) => {
@@ -93,23 +140,34 @@ export default function ListaEquipos() {
     ta: string;
     total: string;
     resultado: string;
+    wo: boolean;
+    ausente: boolean;
   };
+  const isAbsent = (p: Partido, name: string) =>
+    !!p.wo && !!p.equipoAusente &&
+    p.equipoAusente.trim().toLowerCase() === name.trim().toLowerCase();
   const flatRows: MarcadorRow[] = [];
   fechas.forEach((f) => {
     f.partidos.forEach((p) => {
       const totA = parseInt(p.totalA, 10) || 0;
       const totB = parseInt(p.totalB, 10) || 0;
-      const resA = totA === totB ? 'Empate' : totA > totB ? 'Ganador' : '';
-      const resB = totA === totB ? 'Empate' : totB > totA ? 'Ganador' : '';
+      const resA = p.wo
+        ? (isAbsent(p, p.equipoA) ? 'W.O. (ausente)' : 'W.O. (ganador)')
+        : totA === totB ? 'Empate' : totA > totB ? 'Ganador' : '';
+      const resB = p.wo
+        ? (isAbsent(p, p.equipoB) ? 'W.O. (ausente)' : 'W.O. (ganador)')
+        : totA === totB ? 'Empate' : totB > totA ? 'Ganador' : '';
       flatRows.push({
         fecha: f.fecha, equipo: p.equipoA,
         q1: p.q1A, q2: p.q2A, q3: p.q3A, q4: p.q4A, ta: p.taA,
         total: p.totalA || '0', resultado: resA,
+        wo: !!p.wo, ausente: isAbsent(p, p.equipoA),
       });
       flatRows.push({
         fecha: f.fecha, equipo: p.equipoB,
         q1: p.q1B, q2: p.q2B, q3: p.q3B, q4: p.q4B, ta: p.taB,
         total: p.totalB || '0', resultado: resB,
+        wo: !!p.wo, ausente: isAbsent(p, p.equipoB),
       });
     });
   });
@@ -184,13 +242,30 @@ export default function ListaEquipos() {
         ) : fecha ? (
           <div className="flex flex-col gap-3">
             {fecha.partidos.map((p, i) => {
-              const ganA = parseInt(p.totalA, 10) > parseInt(p.totalB, 10);
-              const ganB = parseInt(p.totalB, 10) > parseInt(p.totalA, 10);
+              const ganA = !p.wo && parseInt(p.totalA, 10) > parseInt(p.totalB, 10);
+              const ganB = !p.wo && parseInt(p.totalB, 10) > parseInt(p.totalA, 10);
+              const ausenteA = isAbsent(p, p.equipoA);
+              const ausenteB = isAbsent(p, p.equipoB);
               return (
                 <div
                   key={`${fecha.fecha}-${p.equipoA}-${p.equipoB}-${i}`}
-                  className="bg-bg-secondary rounded-xl overflow-hidden border border-border-light transition-all duration-150 hover:border-gold/15"
+                  className={`bg-bg-secondary rounded-xl overflow-hidden border transition-all duration-150 ${
+                    p.wo ? 'border-red-500/30' : 'border-border-light hover:border-gold/15'
+                  }`}
                 >
+                  {p.wo && (
+                    <div className="px-4 py-2 flex flex-wrap items-center gap-2 text-[11px] bg-red-500/5 border-b border-red-500/15">
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold tracking-wider uppercase">
+                        W.O.
+                      </span>
+                      {p.equipoAusente && (
+                        <span className="text-text-muted">
+                          Equipo ausente:{' '}
+                          <span className="text-text-primary font-semibold">{p.equipoAusente}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[500px]">
                       <thead>
@@ -206,14 +281,14 @@ export default function ListaEquipos() {
                       </thead>
                       <tbody>
                         {[
-                          { name: p.equipoA, quarters: [p.q1A, p.q2A, p.q3A, p.q4A, p.taA], total: p.totalA, won: ganA },
-                          { name: p.equipoB, quarters: [p.q1B, p.q2B, p.q3B, p.q4B, p.taB], total: p.totalB, won: ganB },
+                          { name: p.equipoA, quarters: [p.q1A, p.q2A, p.q3A, p.q4A, p.taA], total: p.totalA, won: ganA, ausente: ausenteA },
+                          { name: p.equipoB, quarters: [p.q1B, p.q2B, p.q3B, p.q4B, p.taB], total: p.totalB, won: ganB, ausente: ausenteB },
                         ].map((team, ei) => (
                           <tr
                             key={ei}
                             className={`transition-colors hover:bg-white/[0.03] ${
                               ei === 0 ? '' : 'border-t border-border-subtle'
-                            }`}
+                            } ${team.ausente ? 'opacity-50' : ''}`}
                           >
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -223,7 +298,14 @@ export default function ListaEquipos() {
                                     background: isWhiteTeam(team.name) ? '#CCCCCC' : getTeamColor(team.name),
                                   }}
                                 />
-                                <span className="text-xs font-medium truncate">{team.name}</span>
+                                <span className={`text-xs font-medium truncate ${team.ausente ? 'line-through' : ''}`}>
+                                  {team.name}
+                                </span>
+                                {team.ausente && (
+                                  <span className="ml-1 text-[9px] font-bold uppercase tracking-wider text-red-400">
+                                    Ausente
+                                  </span>
+                                )}
                               </div>
                             </td>
                             {team.quarters.map((q, qi) => (
@@ -232,7 +314,7 @@ export default function ListaEquipos() {
                             <td className={`text-center py-3 text-[15px] font-bold ${
                               team.won ? 'text-gold' : 'text-text-primary'
                             }`}>
-                              {team.total || '0'}
+                              {p.wo && (!team.total || team.total === '0') ? '-' : (team.total || '0')}
                             </td>
                           </tr>
                         ))}
