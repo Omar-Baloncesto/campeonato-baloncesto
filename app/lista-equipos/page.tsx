@@ -26,6 +26,18 @@ const esEquipo = (nombre: string) => !!TEAM_BY_NAME[nombre?.trim()];
 const pairKey = (a: string, b: string) =>
   [a.trim().toLowerCase(), b.trim().toLowerCase()].sort().join('||');
 
+/**
+ * Normalise "D/M/YYYY" or "DD/MM/YYYY" to a single canonical "DD/MM/YYYY".
+ * The FIXTURE sheet stores dates without leading zeros (e.g. "2/05/2026")
+ * while ListaEquipos zero-pads them — without normalising they look like
+ * different fechas and the W.O. card would land on a duplicate pill.
+ */
+const normalizeFecha = (s: string): string => {
+  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return s.trim();
+  return `${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3]}`;
+};
+
 /** "DD/MM/YYYY" → comparable timestamp for sorting fechas chronologically. */
 const parseFecha = (s: string): number => {
   const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -60,13 +72,15 @@ export default function ListaEquipos() {
 
           for (let i = 0; i < rows.length; i++) {
             const r = rows[i];
-            const f = (r[5] || '').toString().trim();
+            const raw = (r[5] || '').toString().trim();
 
-            if (f.match(/\d{2}\/\d{2}\/\d{4}/)) {
+            if (raw.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+              const f = normalizeFecha(raw);
               fechaActual = fechasMap.get(f) ?? { fecha: f, partidos: [] };
               fechasMap.set(f, fechaActual);
               equipoA = null;
-            } else if (esEquipo(f) && fechaActual) {
+            } else if (esEquipo(raw) && fechaActual) {
+              const f = raw;
               if (!equipoA) {
                 equipoA = [f, r[6] || '', r[7] || '', r[8] || '', r[9] || '', r[10] || '', r[11] || ''];
               } else {
@@ -86,7 +100,8 @@ export default function ListaEquipos() {
         if (fixtureJson?.success && Array.isArray(fixtureJson.data)) {
           for (const fp of parseFixtureRows(fixtureJson.data)) {
             if (!fp.wo) continue;
-            const fecha = fechasMap.get(fp.fecha) ?? { fecha: fp.fecha, partidos: [] };
+            const fechaKey = normalizeFecha(fp.fecha);
+            const fecha = fechasMap.get(fechaKey) ?? { fecha: fechaKey, partidos: [] };
             const key = pairKey(fp.local, fp.visitante);
             const existing = fecha.partidos.find(
               (pp) => pairKey(pp.equipoA, pp.equipoB) === key,
@@ -104,7 +119,7 @@ export default function ListaEquipos() {
                 equipoAusente: fp.equipoAusente,
               });
             }
-            fechasMap.set(fp.fecha, fecha);
+            fechasMap.set(fechaKey, fecha);
           }
         }
 
