@@ -13,6 +13,7 @@ interface Partido {
   equipoA: string; q1A: string; q2A: string; q3A: string; q4A: string; taA: string; totalA: string;
   equipoB: string; q1B: string; q2B: string; q3B: string; q4B: string; taB: string; totalB: string;
   wo?: boolean;
+  retiro?: boolean;
   equipoAusente?: string;
 }
 
@@ -94,12 +95,13 @@ export default function ListaEquipos() {
           }
         }
 
-        // Cross-reference FIXTURE so W.O. matches show up here too — either by
-        // flagging an existing marcador or by injecting a synthetic one when
-        // the game has no quarter-by-quarter row.
+        // Cross-reference FIXTURE so W.O. and retirada matches show up here
+        // too — either by flagging an existing marcador or by injecting a
+        // synthetic one when there's no quarter-by-quarter row (only happens
+        // for true W.O.; a retirada always has at least the played quarters).
         if (fixtureJson?.success && Array.isArray(fixtureJson.data)) {
           for (const fp of parseFixtureRows(fixtureJson.data)) {
-            if (!fp.wo) continue;
+            if (!fp.wo && !fp.retiro) continue;
             const fechaKey = normalizeFecha(fp.fecha);
             const fecha = fechasMap.get(fechaKey) ?? { fecha: fechaKey, partidos: [] };
             const key = pairKey(fp.local, fp.visitante);
@@ -107,7 +109,8 @@ export default function ListaEquipos() {
               (pp) => pairKey(pp.equipoA, pp.equipoB) === key,
             );
             if (existing) {
-              existing.wo = true;
+              existing.wo = fp.wo;
+              existing.retiro = fp.retiro;
               existing.equipoAusente = fp.equipoAusente;
             } else {
               fecha.partidos.push({
@@ -115,7 +118,8 @@ export default function ListaEquipos() {
                 q1A: '', q2A: '', q3A: '', q4A: '', taA: '', totalA: '',
                 equipoB: fp.visitante,
                 q1B: '', q2B: '', q3B: '', q4B: '', taB: '', totalB: '',
-                wo: true,
+                wo: fp.wo,
+                retiro: fp.retiro,
                 equipoAusente: fp.equipoAusente,
               });
             }
@@ -156,33 +160,34 @@ export default function ListaEquipos() {
     total: string;
     resultado: string;
     wo: boolean;
+    retiro: boolean;
     ausente: boolean;
   };
   const isAbsent = (p: Partido, name: string) =>
-    !!p.wo && !!p.equipoAusente &&
+    (!!p.wo || !!p.retiro) && !!p.equipoAusente &&
     p.equipoAusente.trim().toLowerCase() === name.trim().toLowerCase();
+  const labelFor = (p: Partido, name: string, totA: number, totB: number, isA: boolean) => {
+    if (p.wo) return isAbsent(p, name) ? 'W.O. (ausente)' : 'W.O. (ganador)';
+    if (p.retiro) return isAbsent(p, name) ? 'Retirada (abandonó)' : 'Retirada (ganador)';
+    if (totA === totB) return 'Empate';
+    return (isA ? totA > totB : totB > totA) ? 'Ganador' : '';
+  };
   const flatRows: MarcadorRow[] = [];
   fechas.forEach((f) => {
     f.partidos.forEach((p) => {
       const totA = parseInt(p.totalA, 10) || 0;
       const totB = parseInt(p.totalB, 10) || 0;
-      const resA = p.wo
-        ? (isAbsent(p, p.equipoA) ? 'W.O. (ausente)' : 'W.O. (ganador)')
-        : totA === totB ? 'Empate' : totA > totB ? 'Ganador' : '';
-      const resB = p.wo
-        ? (isAbsent(p, p.equipoB) ? 'W.O. (ausente)' : 'W.O. (ganador)')
-        : totA === totB ? 'Empate' : totB > totA ? 'Ganador' : '';
       flatRows.push({
         fecha: f.fecha, equipo: p.equipoA,
         q1: p.q1A, q2: p.q2A, q3: p.q3A, q4: p.q4A, ta: p.taA,
-        total: p.totalA || '0', resultado: resA,
-        wo: !!p.wo, ausente: isAbsent(p, p.equipoA),
+        total: p.totalA || '0', resultado: labelFor(p, p.equipoA, totA, totB, true),
+        wo: !!p.wo, retiro: !!p.retiro, ausente: isAbsent(p, p.equipoA),
       });
       flatRows.push({
         fecha: f.fecha, equipo: p.equipoB,
         q1: p.q1B, q2: p.q2B, q3: p.q3B, q4: p.q4B, ta: p.taB,
-        total: p.totalB || '0', resultado: resB,
-        wo: !!p.wo, ausente: isAbsent(p, p.equipoB),
+        total: p.totalB || '0', resultado: labelFor(p, p.equipoB, totA, totB, false),
+        wo: !!p.wo, retiro: !!p.retiro, ausente: isAbsent(p, p.equipoB),
       });
     });
   });
@@ -264,14 +269,18 @@ export default function ListaEquipos() {
                   key={`${fecha.fecha}-${p.equipoA}-${p.equipoB}-${i}`}
                   className="bg-bg-secondary rounded-xl overflow-hidden border border-border-light transition-all duration-150 hover:border-gold/15"
                 >
-                  {p.wo && (
+                  {(p.wo || p.retiro) && (
                     <div className="px-4 py-2 flex flex-wrap items-center gap-2 text-[11px] border-b border-border-subtle">
-                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold tracking-wider uppercase">
-                        W.O.
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${
+                          p.retiro ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
+                        }`}
+                      >
+                        {p.retiro ? 'Retirada' : 'W.O.'}
                       </span>
                       {p.equipoAusente && (
                         <span className="text-text-muted">
-                          Equipo ausente:{' '}
+                          {p.retiro ? 'Equipo retirado:' : 'Equipo ausente:'}{' '}
                           <span className="text-text-primary font-semibold">{p.equipoAusente}</span>
                         </span>
                       )}

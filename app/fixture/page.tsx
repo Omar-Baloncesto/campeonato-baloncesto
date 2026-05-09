@@ -21,17 +21,20 @@ export default function Fixture() {
   const filtrados = jornada === 'Todos' ? partidos : partidos.filter(p => p.jornada === jornada);
   const jugado = isJugado;
 
+  const estadoOf = (p: Partido) =>
+    p.wo ? 'W.O.' : p.retiro ? 'Retirada' : isJugado(p) ? 'Jugado' : 'Pendiente';
+
   const exportColumns = [
-    { header: 'Jornada',    cell: (p: Partido) => p.jornada,                                              align: 'center' as const, width: 14 },
-    { header: 'Fecha',      cell: (p: Partido) => p.fecha,                                                align: 'center' as const, width: 18 },
-    { header: 'Hora',       cell: (p: Partido) => p.hora,                                                 align: 'center' as const, width: 14 },
-    { header: 'Local',      cell: (p: Partido) => p.local,                                                align: 'left'   as const, width: 28 },
-    { header: 'Marc. Local',cell: (p: Partido) => isJugado(p) ? p.marcadorLocal : '',                    align: 'center' as const, width: 14 },
-    { header: 'Marc. Vis.', cell: (p: Partido) => isJugado(p) ? p.marcadorVisitante : '',                align: 'center' as const, width: 14 },
-    { header: 'Visitante',  cell: (p: Partido) => p.visitante,                                            align: 'left'   as const, width: 28 },
-    { header: 'W.O.',       cell: (p: Partido) => p.wo ? 'Sí' : '',                                       align: 'center' as const, width: 10 },
-    { header: 'Equipo Ausente', cell: (p: Partido) => p.equipoAusente,                                    align: 'left'   as const, width: 24 },
-    { header: 'Estado',     cell: (p: Partido) => p.wo ? 'W.O.' : (isJugado(p) ? 'Jugado' : 'Pendiente'), align: 'center' as const, width: 18 },
+    { header: 'Jornada',    cell: (p: Partido) => p.jornada,                              align: 'center' as const, width: 14 },
+    { header: 'Fecha',      cell: (p: Partido) => p.fecha,                                align: 'center' as const, width: 18 },
+    { header: 'Hora',       cell: (p: Partido) => p.hora,                                 align: 'center' as const, width: 14 },
+    { header: 'Local',      cell: (p: Partido) => p.local,                                align: 'left'   as const, width: 28 },
+    { header: 'Marc. Local',cell: (p: Partido) => isJugado(p) ? p.marcadorLocal : '',     align: 'center' as const, width: 14 },
+    { header: 'Marc. Vis.', cell: (p: Partido) => isJugado(p) ? p.marcadorVisitante : '', align: 'center' as const, width: 14 },
+    { header: 'Visitante',  cell: (p: Partido) => p.visitante,                            align: 'left'   as const, width: 28 },
+    { header: 'W.O./Ret.',  cell: (p: Partido) => p.wo ? 'W.O.' : p.retiro ? 'Retirada' : '', align: 'center' as const, width: 12 },
+    { header: 'Equipo Ausente', cell: (p: Partido) => p.equipoAusente,                    align: 'left'   as const, width: 24 },
+    { header: 'Estado',     cell: estadoOf,                                                align: 'center' as const, width: 18 },
   ];
 
   const subtitleSuffix = jornada === 'Todos' ? '' : ` · Jornada ${jornada}`;
@@ -115,7 +118,9 @@ export default function Fixture() {
                     played ? 'border-gold-dim' : ''
                   }`}
                 >
-                  {p.wo && <WalkoverBanner equipoAusente={p.equipoAusente} />}
+                  {(p.wo || p.retiro) && (
+                    <DefaultBanner kind={p.wo ? 'wo' : 'retiro'} equipoAusente={p.equipoAusente} />
+                  )}
                   {/* Mobile */}
                   <div className="flex flex-col sm:hidden gap-3">
                     <div className="flex items-center justify-between">
@@ -194,15 +199,21 @@ function TeamDot({ name, bold }: { name: string; bold?: boolean }) {
   );
 }
 
-function WalkoverBanner({ equipoAusente }: { equipoAusente: string }) {
+function DefaultBanner({ kind, equipoAusente }: { kind: 'wo' | 'retiro'; equipoAusente: string }) {
+  const isRetiro = kind === 'retiro';
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
-      <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold tracking-wider uppercase">
-        W.O.
+      <span
+        className={`px-2 py-0.5 rounded-full font-bold tracking-wider uppercase ${
+          isRetiro ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
+        }`}
+      >
+        {isRetiro ? 'Retirada' : 'W.O.'}
       </span>
       {equipoAusente && (
         <span className="text-text-muted">
-          Equipo ausente: <span className="text-text-primary font-semibold">{equipoAusente}</span>
+          {isRetiro ? 'Equipo retirado:' : 'Equipo ausente:'}{' '}
+          <span className="text-text-primary font-semibold">{equipoAusente}</span>
         </span>
       )}
     </div>
