@@ -195,30 +195,40 @@ export default function BracketPage() {
           return Array.isArray(json.data) ? json.data : [];
         };
 
+        const readCell = (rows: string[][]): string =>
+          (rows?.[0]?.[0] ?? '').toString().trim();
+
         const titleCell = await fetchRange('L1');
         if (signal.aborted) return;
-        const title = (titleCell?.[0]?.[0] ?? '').toUpperCase();
+        const title = readCell(titleCell).toUpperCase();
         const withPI = title.includes('PLAY');
         setHasPlayIn(withPI);
 
         if (withPI) {
-          const [pi1, pi2, s1, s2, fin] = await Promise.all([
+          const [piDate, semiDate, finalDate, pi1, pi2, s1, s2, fin] = await Promise.all([
+            fetchRange('L2'), fetchRange('L11'), fetchRange('L20'),
             fetchRange('L4:R5'), fetchRange('L7:R8'),
             fetchRange('L13:R14'), fetchRange('L16:R17'),
             fetchRange('L22:R23'),
           ]);
           if (signal.aborted) return;
-          setPlayIn([parseMatch(pi1, '16/05/2026'), parseMatch(pi2, '16/05/2026')]);
-          setSemis([parseMatch(s1, '23/05/2026'), parseMatch(s2, '23/05/2026')]);
-          setFinalMatch(parseMatch(fin, '30/05/2026'));
+          const piD = readCell(piDate) || '16/05/2026';
+          const sD = readCell(semiDate) || '23/05/2026';
+          const fD = readCell(finalDate) || '30/05/2026';
+          setPlayIn([parseMatch(pi1, piD), parseMatch(pi2, piD)]);
+          setSemis([parseMatch(s1, sD), parseMatch(s2, sD)]);
+          setFinalMatch(parseMatch(fin, fD));
         } else {
-          const [s1, s2, fin] = await Promise.all([
+          const [semiDate, finalDate, s1, s2, fin] = await Promise.all([
+            fetchRange('L2'), fetchRange('L11'),
             fetchRange('L4:R5'), fetchRange('L7:R8'),
             fetchRange('L13:R14'),
           ]);
           if (signal.aborted) return;
-          setSemis([parseMatch(s1, '16/05/2026'), parseMatch(s2, '16/05/2026')]);
-          setFinalMatch(parseMatch(fin, '23/05/2026'));
+          const sD = readCell(semiDate) || '16/05/2026';
+          const fD = readCell(finalDate) || '23/05/2026';
+          setSemis([parseMatch(s1, sD), parseMatch(s2, sD)]);
+          setFinalMatch(parseMatch(fin, fD));
         }
       } catch (e) {
         const name = (e as { name?: string })?.name;
