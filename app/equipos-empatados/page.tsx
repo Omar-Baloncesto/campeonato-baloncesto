@@ -2,6 +2,10 @@
 import { getTeamColor, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState, { ErrorState, EmptyState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
+import ExportButton from '../components/ExportButton';
+import { buildFilename, type Destination } from '../lib/export';
+import { exportEquiposEmpatadosPdf } from '../lib/export-pdf';
+import { exportEquiposEmpatadosXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 
 interface Grupo {
@@ -71,14 +75,57 @@ export default function EquiposEmpatados() {
     0,
   );
 
+  const paddedHeaders = Array.from({ length: colCount }, (_, i) => tabla.headers[i] || '');
+
+  const handleExportPdf = async (destination: Destination) => {
+    await exportEquiposEmpatadosPdf({
+      filename: buildFilename('equipos-empatados'),
+      headers: paddedHeaders,
+      grupos: tabla.grupos.map((g) => ({
+        filas: g.filas.map((fila) => {
+          const cells = Array.from({ length: colCount }, (_, i) => (fila[i] ?? '').toString().trim());
+          const teamName = isTeamName(cells[0]) ? cells[0] : '';
+          const color = teamName ? getTeamColor(teamName) : '#888888';
+          return { cells, color };
+        }),
+        notas: g.notas,
+      })),
+      destination,
+    });
+  };
+
+  const handleExportExcel = async (destination: Destination) => {
+    await exportEquiposEmpatadosXlsx({
+      filename: buildFilename('equipos-empatados'),
+      titleRows: ['Campeonato Baloncesto · Cúcuta 2026', 'Equipos Empatados'],
+      headers: paddedHeaders,
+      grupos: tabla.grupos.map((g) => ({
+        filas: g.filas.map((fila) =>
+          Array.from({ length: colCount }, (_, i) => (fila[i] ?? '').toString().trim()),
+        ),
+        notas: g.notas,
+      })),
+      destination,
+    });
+  };
+
+  const hasData = tabla.grupos.some((g) => g.filas.length > 0);
+
   return (
     <div className="animate-fade-in">
-      <div className="px-4 md:px-6 pt-4 flex items-center justify-between">
+      <div className="px-4 md:px-6 pt-4 flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
           <span className="w-1 h-4 bg-gold rounded-full" />
           Equipos Empatados
         </h2>
-        <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
+        <div className="flex items-center gap-3">
+          <DataFreshness lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
+          <ExportButton
+            onExportPdf={handleExportPdf}
+            onExportExcel={handleExportExcel}
+            disabled={loading || !hasData}
+          />
+        </div>
       </div>
 
       <div className="px-4 md:px-6 py-4 pb-8">
