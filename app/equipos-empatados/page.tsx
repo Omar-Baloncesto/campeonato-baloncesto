@@ -99,11 +99,15 @@ export default function EquiposEmpatados() {
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-bg-header text-[11px] text-text-muted uppercase">
+                        <tr
+                          className="bg-bg-header text-[11px] uppercase tracking-wider"
+                          style={{ color: '#ffffff' }}
+                        >
                           {Array.from({ length: colCount }).map((_, i) => (
                             <th
                               key={i}
-                              className="text-left px-4 py-2.5 font-medium whitespace-nowrap"
+                              className="text-left px-4 py-2.5 font-semibold whitespace-nowrap"
+                              style={{ color: '#ffffff' }}
                             >
                               {tabla.headers[i] || ''}
                             </th>
