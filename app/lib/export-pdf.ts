@@ -2682,3 +2682,170 @@ export async function exportVisualPdf(
   const blob = doc.output('blob');
   await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
 }
+
+export interface EquiposEmpatadosPdfRow {
+  /** Each cell aligns with the group's headers. The first column should be the team name. */
+  cells: string[];
+  /** Hex color for the chip drawn before the team name in column 0. */
+  color: string;
+}
+
+export interface EquiposEmpatadosPdfGroup {
+  filas: EquiposEmpatadosPdfRow[];
+  notas: string[];
+}
+
+export interface ExportEquiposEmpatadosPdfOptions {
+  title?: string;
+  subtitle?: string;
+  filename: string;
+  headers: string[];
+  grupos: EquiposEmpatadosPdfGroup[];
+  destination?: Destination;
+}
+
+/**
+ * Render "Equipos Empatados" as a Letter landscape PDF. Each group of
+ * tied teams is its own table with the same header row, followed by the
+ * group's notes (FIBA criterion, "tied at N points") rendered as italic
+ * captions — mirroring the web layout.
+ */
+export async function exportEquiposEmpatadosPdf(
+  opts: ExportEquiposEmpatadosPdfOptions,
+): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 12;
+
+  const title = opts.title ?? SITE_TITLE;
+  const subtitle = opts.subtitle ?? 'Equipos Empatados';
+  const generatedAt = formatDateTime(new Date());
+
+  const HDR_BG: RGB = [24, 24, 28];
+  const HDR_TEXT: RGB = [255, 255, 255];
+  const ROW_ALT_LOCAL: RGB = [248, 248, 248];
+
+  const headers = opts.headers.length > 0
+    ? opts.headers
+    : ['Equipos', 'PJ', 'PG', 'PP', 'Puntos Anotados', 'Puntos Recibidos', 'Diferencia', 'Orden Desempate'];
+  const colCount = headers.length;
+
+  const head: CellDef[][] = [
+    headers.map((h, i) => ({
+      content: h.toUpperCase(),
+      styles: {
+        fillColor: HDR_BG,
+        textColor: HDR_TEXT,
+        fontStyle: 'bold',
+        fontSize: 9,
+        halign: i === 0 ? 'left' : 'center',
+      },
+    })),
+  ];
+
+  type AutoTableDoc = JsPDF & { lastAutoTable?: { finalY: number } };
+
+  for (let gi = 0; gi < opts.grupos.length; gi++) {
+    const grupo = opts.grupos[gi];
+
+    const body: RowInput[] = grupo.filas.map((fila) => {
+      const cells: CellDef[] = [];
+      for (let ci = 0; ci < colCount; ci++) {
+        const raw = (fila.cells[ci] ?? '').toString();
+        if (ci === 0) {
+          // Leading spaces leave room for the team-color chip drawn in didDrawCell.
+          cells.push({
+            content: `   ${raw}`,
+            styles: { fontStyle: 'bold', halign: 'left', fontSize: 10, textColor: [22, 22, 22] as RGB },
+          });
+        } else {
+          cells.push({
+            content: raw,
+            styles: { halign: 'center', fontSize: 10, textColor: [22, 22, 22] as RGB },
+          });
+        }
+      }
+      return cells;
+    });
+
+    const previousY = (doc as AutoTableDoc).lastAutoTable?.finalY;
+    autoTable(doc, {
+      head,
+      body,
+      startY: previousY != null ? previousY + 8 : 28,
+      margin: { top: 28, bottom: 14, left: marginX, right: marginX },
+      styles: {
+        font: 'helvetica',
+        fontSize: 10,
+        cellPadding: 3,
+        lineColor: [225, 225, 225],
+        lineWidth: 0.2,
+        valign: 'middle',
+      },
+      alternateRowStyles: { fillColor: ROW_ALT_LOCAL },
+      theme: 'grid',
+      didDrawCell: (data) => {
+        if (data.section !== 'body') return;
+        if (data.column.index !== 0) return;
+        const row = grupo.filas[data.row.index];
+        if (!row) return;
+        const [cr, cg, cb] = hexToRgb(row.color);
+        const isWhiteish = cr > 240 && cg > 240 && cb > 240;
+        const [dr, dg, db]: RGB = isWhiteish ? [204, 204, 204] : [cr, cg, cb];
+        const cell = data.cell;
+        const r = 1.6;
+        const cx = cell.x + 3.5;
+        const cy = cell.y + cell.height / 2;
+        doc.setFillColor(dr, dg, db);
+        doc.circle(cx, cy, r, 'F');
+      },
+    });
+
+    let cursorY = (doc as AutoTableDoc).lastAutoTable?.finalY ?? 28;
+    if (grupo.notas.length > 0) {
+      cursorY += 4;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(...TEXT_MUTED);
+      for (const nota of grupo.notas) {
+        if (cursorY > pageH - 16) {
+          doc.addPage();
+          cursorY = 28;
+        }
+        doc.text(`•  ${nota}`, marginX + 2, cursorY);
+        cursorY += 5;
+      }
+    }
+  }
+
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setTextColor(...TEXT_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(title, marginX, 13);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(subtitle, marginX, 19.5);
+    doc.setDrawColor(...GOLD_RGB);
+    doc.setLineWidth(0.7);
+    doc.line(marginX, 22, pageW - marginX, 22);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(`Generado el ${generatedAt}`, marginX, pageH - 6);
+    const rightText = `Página ${p} de ${pages}`;
+    const rightW = doc.getTextWidth(rightText);
+    doc.text(rightText, pageW - marginX - rightW, pageH - 6);
+  }
+
+  const blob = doc.output('blob');
+  await shareOrDownload(blob, `${opts.filename}.pdf`, PDF_MIME, opts.destination);
+}

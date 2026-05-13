@@ -80,3 +80,78 @@ export async function exportTableXlsx<T>(
   const blob = new Blob([arrayBuffer], { type: XLSX_MIME });
   await shareOrDownload(blob, `${opts.filename}.xlsx`, XLSX_MIME, opts.destination);
 }
+
+export interface EquiposEmpatadosXlsxGroup {
+  filas: string[][];
+  notas: string[];
+}
+
+export interface ExportEquiposEmpatadosXlsxOptions {
+  filename: string;
+  sheetName?: string;
+  titleRows?: string[];
+  headers: string[];
+  grupos: EquiposEmpatadosXlsxGroup[];
+  destination?: Destination;
+}
+
+/**
+ * Export Equipos Empatados as a single sheet with one block per tied
+ * group: a header row, the team rows, then the notes (FIBA criterion,
+ * "tied at N points") as merged free-text rows. A blank row separates
+ * groups so the sheet stays readable when groups have different shapes.
+ */
+export async function exportEquiposEmpatadosXlsx(
+  opts: ExportEquiposEmpatadosXlsxOptions,
+): Promise<void> {
+  const XLSX = await import('xlsx');
+
+  const titleRows = opts.titleRows ?? [];
+  const headers = opts.headers;
+  const colCount = headers.length;
+
+  const aoa: (string | number)[][] = [];
+  const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
+
+  const padRow = (cells: (string | number)[]): (string | number)[] => {
+    const out = cells.slice(0, colCount);
+    while (out.length < colCount) out.push('');
+    return out;
+  };
+
+  for (const t of titleRows) {
+    merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: Math.max(0, colCount - 1) } });
+    aoa.push(padRow([t]));
+  }
+
+  for (let gi = 0; gi < opts.grupos.length; gi++) {
+    const grupo = opts.grupos[gi];
+    aoa.push(padRow(headers));
+    for (const fila of grupo.filas) {
+      aoa.push(padRow(fila));
+    }
+    for (const nota of grupo.notas) {
+      merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: Math.max(0, colCount - 1) } });
+      aoa.push(padRow([nota]));
+    }
+    if (gi < opts.grupos.length - 1) {
+      aoa.push(padRow([]));
+    }
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  ws['!cols'] = headers.map((h, i) => ({
+    wch: i === 0 ? Math.max(22, h.length + 2) : Math.max(14, h.length + 2),
+  }));
+
+  if (merges.length > 0) ws['!merges'] = merges;
+
+  const wb = XLSX.utils.book_new();
+  const sheetName = (opts.sheetName ?? 'Equipos Empatados').substring(0, 31) || 'Hoja1';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const arrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+  const blob = new Blob([arrayBuffer], { type: XLSX_MIME });
+  await shareOrDownload(blob, `${opts.filename}.xlsx`, XLSX_MIME, opts.destination);
+}
