@@ -28,6 +28,14 @@ function parseMatch(rows: string[][], date: string): Match {
   };
 }
 
+function swapMatchTeams(m: Match): Match {
+  return {
+    date: m.date,
+    team1: m.team2, q1_1: m.q1_2, q2_1: m.q2_2, q3_1: m.q3_2, q4_1: m.q4_2, ta_1: m.ta_2, total1: m.total2,
+    team2: m.team1, q1_2: m.q1_1, q2_2: m.q2_1, q3_2: m.q3_1, q4_2: m.q4_1, ta_2: m.ta_1, total2: m.total1,
+  };
+}
+
 function StatCell({ val, width = 38 }: { val: string; width?: number }) {
   return (
     <div
@@ -131,33 +139,21 @@ function ForkSVG({ topY, bottomY, totalH }: { topY: number; bottomY: number; tot
   );
 }
 
-// Two separate paths from a pair of source cards to a pair of destination cards.
-// When `crossed` is true the top source feeds the bottom destination (and vice
-// versa) — used to visualize the FIBA Play-In → Semifinal cross.
+// Two parallel horizontal lines connecting a pair of source cards to a pair
+// of destination cards (top ↔ top, bottom ↔ bottom). The Play-In → Semifinal
+// FIBA cross is handled by swapping the order of the semifinals at load time,
+// not by crossing the connector — keeps the visual clean.
 function PairConnectorSVG({
-  topY, bottomY, totalH, crossed,
+  topY, bottomY, totalH,
 }: {
-  topY: number; bottomY: number; totalH: number; crossed: boolean;
+  topY: number; bottomY: number; totalH: number;
 }) {
-  const W = 96;
+  const W = 60;
   const stroke = 'var(--color-text-muted)';
-  // Each path: short horizontal out of the source, diagonal across the middle,
-  // short horizontal into the destination. The diagonals visibly cross when
-  // `crossed` is true.
-  const topDest = crossed ? bottomY : topY;
-  const bottomDest = crossed ? topY : bottomY;
-  const xOut = W * 0.28;
-  const xIn = W * 0.72;
   return (
     <svg width={W} height={totalH} style={{ overflow: 'visible' }} className="shrink-0 block">
-      <polyline
-        points={`0,${topY} ${xOut},${topY} ${xIn},${topDest} ${W},${topDest}`}
-        fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
-      />
-      <polyline
-        points={`0,${bottomY} ${xOut},${bottomY} ${xIn},${bottomDest} ${W},${bottomDest}`}
-        fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
-      />
+      <line x1={0} y1={topY} x2={W} y2={topY} stroke={stroke} strokeWidth={2} />
+      <line x1={0} y1={bottomY} x2={W} y2={bottomY} stroke={stroke} strokeWidth={2} />
     </svg>
   );
 }
@@ -206,10 +202,6 @@ export default function BracketPage() {
   const [playIn, setPlayIn] = useState<Match[]>([]);
   const [semis, setSemis] = useState<Match[]>([]);
   const [finalMatch, setFinalMatch] = useState<Match | null>(null);
-  // True when the top Play-In match feeds the bottom Semifinal (FIBA cross).
-  // The Play-In cards keep the order from the sheet; the connector is what
-  // makes the cross visible.
-  const [playInCrossed, setPlayInCrossed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -253,11 +245,13 @@ export default function BracketPage() {
           const fD = readCell(finalDate) || '30/05/2026';
 
           // FIBA seeding for a 6-team bracket with byes for 1st and 2nd:
-          //   1° vs winner(4 vs 5)  → top half (semi 0)
-          //   2° vs winner(3 vs 6)  → bottom half (semi 1)
-          // Keep the Play-In cards in the order from the sheet (chronological);
-          // detect which pair is which using the standings, then expose a
-          // `playInCrossed` flag so the connector can route lines across.
+          //   1° vs winner(4 vs 5)
+          //   2° vs winner(3 vs 6)
+          // The Play-In stays in the sheet's chronological order. If the top
+          // Play-In is the {3,6} pair, it must feed the 2° — so we swap the
+          // visual order of the Semifinals (and the team order of the Final,
+          // to keep the top-semi → top-final alignment) and draw the connector
+          // as straight parallel lines.
           const seedOf = new Map<string, number>();
           (standings as string[][]).forEach((row, i) => {
             const name = (row?.[0] ?? '').toString().trim();
@@ -270,15 +264,14 @@ export default function BracketPage() {
           };
           const piTop = parseMatch(pi1, piD);
           const piBottom = parseMatch(pi2, piD);
-          // The {4,5} match (bestSeed = 4) feeds semi 0 (1°). The {3,6} match
-          // (bestSeed = 3) feeds semi 1 (2°). So if the top Play-In is {3,6},
-          // it feeds the bottom semi → connector must cross.
-          const playInCrossed = bestSeed(piTop) < bestSeed(piBottom);
+          const semiTop = parseMatch(s1, sD);
+          const semiBottom = parseMatch(s2, sD);
+          const finalData = parseMatch(fin, fD);
+          const needSwap = bestSeed(piTop) < bestSeed(piBottom);
 
           setPlayIn([piTop, piBottom]);
-          setPlayInCrossed(playInCrossed);
-          setSemis([parseMatch(s1, sD), parseMatch(s2, sD)]);
-          setFinalMatch(parseMatch(fin, fD));
+          setSemis(needSwap ? [semiBottom, semiTop] : [semiTop, semiBottom]);
+          setFinalMatch(needSwap ? swapMatchTeams(finalData) : finalData);
         } else {
           const [semiDate, finalDate, s1, s2, fin] = await Promise.all([
             fetchRange('L2'), fetchRange('L11'),
@@ -457,7 +450,6 @@ export default function BracketPage() {
                       topY={cardCenterY(0)}
                       bottomY={cardCenterY(1)}
                       totalH={colH(Math.max(playIn.length, 2))}
-                      crossed={playInCrossed}
                     />
                   </div>
                 </>
