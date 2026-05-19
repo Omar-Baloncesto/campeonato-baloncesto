@@ -205,17 +205,38 @@ export default function BracketPage() {
         setHasPlayIn(withPI);
 
         if (withPI) {
-          const [piDate, semiDate, finalDate, pi1, pi2, s1, s2, fin] = await Promise.all([
+          const [piDate, semiDate, finalDate, pi1, pi2, s1, s2, fin, standings] = await Promise.all([
             fetchRange('L2'), fetchRange('L11'), fetchRange('L20'),
             fetchRange('L4:R5'), fetchRange('L7:R8'),
             fetchRange('L13:R14'), fetchRange('L16:R17'),
             fetchRange('L22:R23'),
+            fetchRange('A2:A7'),
           ]);
           if (signal.aborted) return;
           const piD = readCell(piDate) || '16/05/2026';
           const sD = readCell(semiDate) || '23/05/2026';
           const fD = readCell(finalDate) || '30/05/2026';
-          setPlayIn([parseMatch(pi1, piD), parseMatch(pi2, piD)]);
+
+          // FIBA seeding for a 6-team bracket with byes for 1st and 2nd:
+          //   1° vs winner(4 vs 5)  → top half
+          //   2° vs winner(3 vs 6)  → bottom half
+          // The sheet may list the play-in pair in any order, so sort by the
+          // best-ranked team in each pair (descending) — the {4,5} match,
+          // whose best seed is 4, lands on top; the {3,6} match on bottom.
+          const seedOf = new Map<string, number>();
+          (standings as string[][]).forEach((row, i) => {
+            const name = (row?.[0] ?? '').toString().trim();
+            if (name) seedOf.set(name, i + 1);
+          });
+          const bestSeed = (m: Match): number => {
+            const s1 = seedOf.get(m.team1) ?? Number.POSITIVE_INFINITY;
+            const s2 = seedOf.get(m.team2) ?? Number.POSITIVE_INFINITY;
+            return Math.min(s1, s2);
+          };
+          const piMatches = [parseMatch(pi1, piD), parseMatch(pi2, piD)];
+          piMatches.sort((a, b) => bestSeed(b) - bestSeed(a));
+
+          setPlayIn(piMatches);
           setSemis([parseMatch(s1, sD), parseMatch(s2, sD)]);
           setFinalMatch(parseMatch(fin, fD));
         } else {
