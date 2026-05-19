@@ -126,42 +126,67 @@ function ColHeader({ label, color }: { label: string; color: string }) {
   );
 }
 
+const CONNECTOR_STROKE = 'var(--color-text-muted)';
+const CONNECTOR_WIDTH = 3;
+
 function ForkSVG({ topY, bottomY, totalH }: { topY: number; bottomY: number; totalH: number }) {
   const midY = (topY + bottomY) / 2;
-  const W = 60;
+  const W = 72;
+  const elbow = W * 0.55;
   return (
     <svg width={W} height={totalH} style={{ overflow: 'visible' }} className="shrink-0 block">
-      <line x1={0} y1={topY} x2={W / 2} y2={topY} stroke="var(--color-text-muted)" strokeWidth={2} />
-      <line x1={0} y1={bottomY} x2={W / 2} y2={bottomY} stroke="var(--color-text-muted)" strokeWidth={2} />
-      <line x1={W / 2} y1={topY} x2={W / 2} y2={bottomY} stroke="var(--color-text-muted)" strokeWidth={2} />
-      <line x1={W / 2} y1={midY} x2={W} y2={midY} stroke="var(--color-text-muted)" strokeWidth={2} />
+      <line x1={0} y1={topY} x2={elbow} y2={topY} stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round" />
+      <line x1={0} y1={bottomY} x2={elbow} y2={bottomY} stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round" />
+      <line x1={elbow} y1={topY} x2={elbow} y2={bottomY} stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round" />
+      <line x1={elbow} y1={midY} x2={W} y2={midY} stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round" />
     </svg>
   );
 }
 
-// Two parallel horizontal lines connecting a pair of source cards to a pair
-// of destination cards (top ↔ top, bottom ↔ bottom). The Play-In → Semifinal
-// FIBA cross is handled by swapping the order of the semifinals at load time,
-// not by crossing the connector — keeps the visual clean.
+// Two parallel horizontal connectors between a pair of source cards and a
+// pair of destination cards (top ↔ top, bottom ↔ bottom). Each connector
+// is a short horizontal line with a small vertical "tick" at both ends so
+// it reads as a bracket arm rather than a floating line. The FIBA cross
+// is handled by swapping the order of the semifinals at load time, not
+// by crossing the connector.
 function PairConnectorSVG({
   topY, bottomY, totalH,
 }: {
   topY: number; bottomY: number; totalH: number;
 }) {
-  const W = 60;
-  const stroke = 'var(--color-text-muted)';
+  const W = 72;
+  const tick = 10;
+  const arm = (y: number) => (
+    <>
+      <line
+        x1={CONNECTOR_WIDTH / 2} y1={y - tick / 2}
+        x2={CONNECTOR_WIDTH / 2} y2={y + tick / 2}
+        stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round"
+      />
+      <line
+        x1={0} y1={y} x2={W} y2={y}
+        stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round"
+      />
+      <line
+        x1={W - CONNECTOR_WIDTH / 2} y1={y - tick / 2}
+        x2={W - CONNECTOR_WIDTH / 2} y2={y + tick / 2}
+        stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round"
+      />
+    </>
+  );
   return (
     <svg width={W} height={totalH} style={{ overflow: 'visible' }} className="shrink-0 block">
-      <line x1={0} y1={topY} x2={W} y2={topY} stroke={stroke} strokeWidth={2} />
-      <line x1={0} y1={bottomY} x2={W} y2={bottomY} stroke={stroke} strokeWidth={2} />
+      {arm(topY)}
+      {arm(bottomY)}
     </svg>
   );
 }
 
 function LineSVG({ h }: { h: number }) {
+  const W = 72;
   return (
-    <svg width={60} height={h} style={{ overflow: 'visible' }} className="shrink-0 block">
-      <line x1={0} y1={h / 2} x2={60} y2={h / 2} stroke="var(--color-text-muted)" strokeWidth={2} />
+    <svg width={W} height={h} style={{ overflow: 'visible' }} className="shrink-0 block">
+      <line x1={0} y1={h / 2} x2={W} y2={h / 2} stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round" />
     </svg>
   );
 }
@@ -193,7 +218,11 @@ function ChampionBox({ name }: { name: string | null }) {
   );
 }
 
-const CARD_H = 134;
+// Real rendered height of MatchCard: outer border (2) + padding (28) + date
+// label (~23) + headers row (~22) + 2 TeamRows (52 each + 8 gap) = ~195.
+// Keeping this in sync with the card is what places the connectors at the
+// vertical center of each card.
+const CARD_H = 195;
 const CARD_GAP = 32;
 
 export default function BracketPage() {
