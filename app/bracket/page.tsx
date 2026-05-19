@@ -143,41 +143,53 @@ function ForkSVG({ topY, bottomY, totalH }: { topY: number; bottomY: number; tot
   );
 }
 
-// Two parallel horizontal connectors between a pair of source cards and a
-// pair of destination cards (top ↔ top, bottom ↔ bottom). Each connector
-// is a short horizontal line with a small vertical "tick" at both ends so
-// it reads as a bracket arm rather than a floating line. The FIBA cross
-// is handled by swapping the order of the semifinals at load time, not
-// by crossing the connector.
+// Internal layout landmarks of MatchCard, measured from the top of the card:
+//   TEAM_GAP_Y  = vertical center of the gap between the two team rows
+//                 (the "joint" between the two playing teams)
+//   TEAM2_Y     = vertical center of the second team row, which is where
+//                 the Semifinal cards show "POR DEFINIR" until the Play-In
+//                 winner is decided.
+const TEAM_GAP_Y = 124;
+const TEAM2_Y = 154;
+
+// Arrow connectors that depart from the middle of each Play-In match
+// (between the two playing teams) and land on the "POR DEFINIR" slot of
+// its matching Semifinal — making it visually clear that one of those two
+// teams advances to that slot. The FIBA cross is handled by swapping the
+// visual order of the Semifinals at load time, not by the arrows.
 function PairConnectorSVG({
-  topY, bottomY, totalH,
+  cardCount, totalH,
 }: {
-  topY: number; bottomY: number; totalH: number;
+  cardCount: number; totalH: number;
 }) {
-  const W = 72;
-  const tick = 10;
-  const arm = (y: number) => (
-    <>
-      <line
-        x1={CONNECTOR_WIDTH / 2} y1={y - tick / 2}
-        x2={CONNECTOR_WIDTH / 2} y2={y + tick / 2}
-        stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round"
-      />
-      <line
-        x1={0} y1={y} x2={W} y2={y}
-        stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round"
-      />
-      <line
-        x1={W - CONNECTOR_WIDTH / 2} y1={y - tick / 2}
-        x2={W - CONNECTOR_WIDTH / 2} y2={y + tick / 2}
-        stroke={CONNECTOR_STROKE} strokeWidth={CONNECTOR_WIDTH} strokeLinecap="round"
-      />
-    </>
-  );
+  const W = 100;
   return (
     <svg width={W} height={totalH} style={{ overflow: 'visible' }} className="shrink-0 block">
-      {arm(topY)}
-      {arm(bottomY)}
+      <defs>
+        <marker
+          id="playInArrow"
+          viewBox="0 0 10 10"
+          refX="9" refY="5"
+          markerWidth="7" markerHeight="7"
+          orient="auto"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={CONNECTOR_STROKE} />
+        </marker>
+      </defs>
+      {Array.from({ length: cardCount }, (_, i) => {
+        const base = i * (CARD_H + CARD_GAP);
+        return (
+          <line
+            key={i}
+            x1={0} y1={base + TEAM_GAP_Y}
+            x2={W} y2={base + TEAM2_Y}
+            stroke={CONNECTOR_STROKE}
+            strokeWidth={CONNECTOR_WIDTH}
+            strokeLinecap="round"
+            markerEnd="url(#playInArrow)"
+          />
+        );
+      })}
     </svg>
   );
 }
@@ -476,8 +488,7 @@ export default function BracketPage() {
                   </div>
                   <div className="flex items-start shrink-0" style={{ paddingTop: HDR_H }}>
                     <PairConnectorSVG
-                      topY={cardCenterY(0)}
-                      bottomY={cardCenterY(1)}
+                      cardCount={Math.max(playIn.length, 2)}
                       totalH={colH(Math.max(playIn.length, 2))}
                     />
                   </div>
