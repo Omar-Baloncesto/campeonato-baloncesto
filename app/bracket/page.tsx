@@ -28,14 +28,6 @@ function parseMatch(rows: string[][], date: string): Match {
   };
 }
 
-function swapMatchTeams(m: Match): Match {
-  return {
-    date: m.date,
-    team1: m.team2, q1_1: m.q1_2, q2_1: m.q2_2, q3_1: m.q3_2, q4_1: m.q4_2, ta_1: m.ta_2, total1: m.total2,
-    team2: m.team1, q1_2: m.q1_1, q2_2: m.q2_1, q3_2: m.q3_1, q4_2: m.q4_1, ta_2: m.ta_1, total2: m.total1,
-  };
-}
-
 function StatCell({ val, width = 38 }: { val: string; width?: number }) {
   return (
     <div
@@ -273,46 +265,24 @@ export default function BracketPage() {
         setHasPlayIn(withPI);
 
         if (withPI) {
-          const [piDate, semiDate, finalDate, pi1, pi2, s1, s2, fin, standings] = await Promise.all([
+          const [piDate, semiDate, finalDate, pi1, pi2, s1, s2, fin] = await Promise.all([
             fetchRange('L2'), fetchRange('L11'), fetchRange('L20'),
             fetchRange('L4:R5'), fetchRange('L7:R8'),
             fetchRange('L13:R14'), fetchRange('L16:R17'),
             fetchRange('L22:R23'),
-            fetchRange('A2:A7'),
           ]);
           if (signal.aborted) return;
           const piD = readCell(piDate) || '16/05/2026';
           const sD = readCell(semiDate) || '23/05/2026';
           const fD = readCell(finalDate) || '30/05/2026';
 
-          // FIBA seeding for a 6-team bracket with byes for 1st and 2nd:
-          //   1° vs winner(4 vs 5)
-          //   2° vs winner(3 vs 6)
-          // The Play-In stays in the sheet's chronological order. If the top
-          // Play-In is the {3,6} pair, it must feed the 2° — so we swap the
-          // visual order of the Semifinals (and the team order of the Final,
-          // to keep the top-semi → top-final alignment) and draw the connector
-          // as straight parallel lines.
-          const seedOf = new Map<string, number>();
-          (standings as string[][]).forEach((row, i) => {
-            const name = (row?.[0] ?? '').toString().trim();
-            if (name) seedOf.set(name, i + 1);
-          });
-          const bestSeed = (m: Match): number => {
-            const a = seedOf.get(m.team1) ?? Number.POSITIVE_INFINITY;
-            const b = seedOf.get(m.team2) ?? Number.POSITIVE_INFINITY;
-            return Math.min(a, b);
-          };
-          const piTop = parseMatch(pi1, piD);
-          const piBottom = parseMatch(pi2, piD);
-          const semiTop = parseMatch(s1, sD);
-          const semiBottom = parseMatch(s2, sD);
-          const finalData = parseMatch(fin, fD);
-          const needSwap = bestSeed(piTop) < bestSeed(piBottom);
-
-          setPlayIn([piTop, piBottom]);
-          setSemis(needSwap ? [semiBottom, semiTop] : [semiTop, semiBottom]);
-          setFinalMatch(needSwap ? swapMatchTeams(finalData) : finalData);
+          // The sheet is the source of truth for the visual order — the Apps
+          // Script `ConformarSemifinalDesdePlayIn` writes the semifinals in
+          // FIBA cross order (top semi = whoever faces the top Play-In's
+          // winner). Render exactly what's in the sheet, no swapping.
+          setPlayIn([parseMatch(pi1, piD), parseMatch(pi2, piD)]);
+          setSemis([parseMatch(s1, sD), parseMatch(s2, sD)]);
+          setFinalMatch(parseMatch(fin, fD));
         } else {
           const [semiDate, finalDate, s1, s2, fin] = await Promise.all([
             fetchRange('L2'), fetchRange('L11'),
