@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getTeamColorRaw, TEAM_BY_NAME } from '../lib/constants';
+import { getTeamColorRaw, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
@@ -43,6 +43,10 @@ function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
   name: string; q1: string; q2: string; q3: string; q4: string; ta: string; total: number; isWinner: boolean;
 }) {
   const rawColor = getTeamColorRaw(name);
+  const white = !!name && isWhiteTeam(name);
+  // White-team brand color is invisible on light backgrounds; fall back to
+  // the theme's primary text color so the winning score still stands out.
+  const winnerTextColor = white ? 'var(--color-text-primary)' : rawColor;
   const empty = !name;
   return (
     <div
@@ -65,7 +69,7 @@ function TeamRow({ name, q1, q2, q3, q4, ta, total, isWinner }: {
       <StatCell val={ta} width={42} />
       <div
         className={`w-14 flex items-center justify-center text-[22px] font-black shrink-0 border-l border-border-light font-mono ${isWinner ? 'score-glow' : 'text-text-muted'}`}
-        style={{ color: isWinner ? rawColor : undefined }}
+        style={{ color: isWinner ? winnerTextColor : undefined }}
       >
         {total}
       </div>
