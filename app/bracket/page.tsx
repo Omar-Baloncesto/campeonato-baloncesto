@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { getTeamColorRaw, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import ExportButton from '../components/ExportButton';
@@ -211,7 +212,18 @@ function ChampionBox({ name }: { name: string | null }) {
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%,rgba(255,215,0,0.16) 0%,transparent 70%)' }}
       />
-      <div className="text-4xl mb-2.5" role="img" aria-label="trofeo">🏆</div>
+      {name ? (
+        <div className="relative w-full aspect-[3/4] mb-3 rounded-lg overflow-hidden">
+          <Image
+            src="/champion-celebration.jpg"
+            alt="Celebración del campeón"
+            fill
+            className="object-cover"
+          />
+        </div>
+      ) : (
+        <div className="text-4xl mb-2.5" role="img" aria-label="trofeo">🏆</div>
+      )}
       <div className="text-[10px] tracking-[0.24em] text-text-muted uppercase mb-3 font-bold">
         Campeón
       </div>
