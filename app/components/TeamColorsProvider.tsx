@@ -14,10 +14,27 @@ export function useTeamColorsVersion(): number {
   return useContext(TeamColorsContext);
 }
 
+/** Código de color hex válido: #RGB o #RRGGBB. */
+const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
 /**
- * Carga una vez los colores de la hoja EQUIPOS (columna F) y los registra en
- * constants, para que getTeamColor / isWhiteTeam los resuelvan por nombre en
- * todas las páginas (Fixture, Posiciones, Bracket, ...).
+ * Devuelve el color del equipo a partir de su fila en EQUIPOS: toma el PRIMER
+ * código hex de la fila (columna del nombre en adelante). Así funciona sin
+ * importar en qué columna esté el hex, y evita quedarse con el nombre del color
+ * en español (p. ej. "Blanco"), que no es un color válido para la web.
+ */
+function colorFromRow(row: string[]): string | undefined {
+  for (let i = 2; i < row.length; i++) {
+    const cell = String(row[i] ?? '').trim();
+    if (HEX.test(cell)) return cell;
+  }
+  return undefined;
+}
+
+/**
+ * Carga una vez los colores de la hoja EQUIPOS y los registra en constants,
+ * para que getTeamColor / isWhiteTeam los resuelvan por nombre en todas las
+ * páginas (Fixture, Posiciones, Bracket, ...).
  */
 export default function TeamColorsProvider({
   children,
@@ -36,7 +53,11 @@ export default function TeamColorsProvider({
         if (data?.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows = data.data.slice(1).filter((r: string[]) => r[1]);
           registerTeamColors(
-            rows.map((r: string[]) => ({ id: r[0], name: r[1], color: r[5] }))
+            rows.map((r: string[]) => ({
+              id: r[0],
+              name: r[1],
+              color: colorFromRow(r),
+            }))
           );
           setVersion((v) => v + 1);
         }
