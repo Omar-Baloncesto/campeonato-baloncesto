@@ -170,6 +170,29 @@ export const NAV_ITEMS = [
   { label: 'Bracket',              href: '/bracket',                icon: '🏆' },
 ];
 
+/**
+ * Fotos de los equipos alojadas en Google Drive (carpeta "Fotos Equipos
+ * Baloncesto"), por id de equipo. Se muestran directamente desde Drive, así
+ * que los archivos deben estar compartidos como "Cualquier persona con el
+ * enlace". Al cambiar de torneo se actualizan estos ids.
+ */
+export const TEAM_PHOTO_DRIVE_IDS: Record<string, string> = {
+  '1': '1uO9e6J-9d7BrHUP3Qv2NCEWxq5UILfuT', // REAL MADRID
+  '2': '18qQdrfu-rTDsnZEQRu1Nbu9PiH46yUxI', // OLYMPIACOS
+  '3': '1GXFSXCtnMYkhaITPc_7LyD4NNXerNk_8', // FC BARCELONA
+  '4': '1UMe9tWlhRFTR5yrZjXs9RY7kwGEJrgUm', // PANATHINAIKOS
+  '5': '1oginn23od7ER3Asn8JvjTI3KR_XU5PH6', // VIRTUS BOLOGNA
+  '6': '152LSb5d3Q4L2gB7JFN1cll7As8lxYkQd', // ANADOLU EFES
+};
+
+/** URL pública de la foto del equipo (miniatura de Drive), o null si no hay. */
+export function getTeamPhotoUrl(id: string): string | null {
+  const fileId = TEAM_PHOTO_DRIVE_IDS[String(id).trim()];
+  return fileId
+    ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`
+    : null;
+}
+
 export const APP_CONFIG = {
   title: 'CAMPEONATO BALONCESTO',
   subtitle: 'CÚCUTA · PRIMER SEMESTRE 2026',
