@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
+import { useTeams } from '../components/TeamColorsProvider';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
@@ -54,14 +55,6 @@ async function fetchSheetRows(sheet: string, range: string): Promise<string[][]>
 
 const FECHAS_LABELS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10'];
 
-const EQUIPOS_NOMBRES = [
-  'Miami Heat',
-  'Brooklyn Nets',
-  'Boston Celtics',
-  'Oklahoma City Thunder',
-  'Los Angeles Lakers',
-  'Toronto Raptors',
-];
 
 interface JugadorDetalle {
   nombre: string;
@@ -198,11 +191,9 @@ export default function EstadisticaJugadores() {
           }
         });
 
-        const result: EquipoData[] = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
-          const titleIdx = teamTitleIndices[teamIdx];
-          if (titleIdx == null) {
-            return { nombre, jugadores: [] };
-          }
+        // El nombre del equipo se toma de la hoja EQUIPOS por índice (ver
+        // equiposView); aquí solo separamos los bloques de jugadores.
+        const result: EquipoData[] = teamTitleIndices.map((titleIdx, teamIdx) => {
           // Read all rows from after this title to the next team's title
           const nextTitle = teamTitleIndices[teamIdx + 1] ?? rows.length;
           const blockRows = rows.slice(titleIdx + 1, nextTitle);
@@ -226,7 +217,7 @@ export default function EstadisticaJugadores() {
               sumaP3:   parseNum(r[33]),
               subtotal: parseNum(r[34]),
             }));
-          return { nombre, jugadores };
+          return { nombre: '', jugadores };
         });
         setEquipos(result);
         setLastUpdated(new Date());
@@ -243,7 +234,17 @@ export default function EstadisticaJugadores() {
   }, []);
 
   const C = makeColors(isLight);
-  const eq = equipos[equipoActivo];
+  // Nombres/colores de los equipos desde la hoja EQUIPOS, por índice.
+  const teams = useTeams();
+  const equiposView = useMemo(
+    () =>
+      equipos.map((e, i) => ({
+        ...e,
+        nombre: teams[i]?.name || `Equipo ${i + 1}`,
+      })),
+    [equipos, teams],
+  );
+  const eq = equiposView[equipoActivo];
 
   // Flatten the active team into simple rows the table exporters can consume.
   // Columns: Jugador | P1 F1..F10 | ΣP1 | P2 F1..F10 | ΣP2 | P3 F1..F10 | ΣP3 | Subtotal
@@ -338,7 +339,7 @@ export default function EstadisticaJugadores() {
 
       <div className="px-4 md:px-6 py-4">
         <FilterPills
-          items={equipos.map((e, i) => ({
+          items={equiposView.map((e, i) => ({
             key: String(i),
             label: e.nombre,
             color: getTeamColor(e.nombre),
