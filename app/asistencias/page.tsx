@@ -1,5 +1,6 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTeams } from '../components/TeamColorsProvider';
 import { getTeamColor, isWhiteTeam } from '../lib/constants';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
@@ -24,14 +25,6 @@ interface Equipo {
   jugadores: Jugador[];
 }
 
-const EQUIPOS_NOMBRES = [
-  'Miami Heat',
-  'Brooklyn Nets',
-  'Boston Celtics',
-  'Oklahoma City Thunder',
-  'Los Angeles Lakers',
-  'Toronto Raptors',
-];
 
 export default function Asistencias() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
@@ -89,9 +82,9 @@ export default function Asistencias() {
               titleIndices.push(i);
             }
           });
-          const result = EQUIPOS_NOMBRES.map((nombre, teamIdx) => {
-            const titleIdx = titleIndices[teamIdx];
-            if (titleIdx == null) return { nombre, color: '', jugadores: [] };
+          // El nombre/color de cada equipo se toma de la hoja EQUIPOS por
+          // índice (ver equiposView); aquí solo separamos los bloques.
+          const result = titleIndices.map((titleIdx, teamIdx) => {
             const nextTitle = titleIndices[teamIdx + 1] ?? rows.length;
             const blockRows = rows.slice(titleIdx + 1, nextTitle);
             const jugadores = blockRows
@@ -109,7 +102,7 @@ export default function Asistencias() {
                 fraccion: r[13] || '0/0',
                 porcentaje: r[14] || '0%',
               }));
-            return { nombre, color: '', jugadores };
+            return { nombre: '', color: '', jugadores };
           });
           setEquipos(result);
         }
@@ -126,7 +119,17 @@ export default function Asistencias() {
     return () => { abortRef.current?.abort(); };
   }, [fetchData]);
 
-  const eq = equipos[equipoActivo];
+  // Nombres/colores de los equipos desde la hoja EQUIPOS, por índice.
+  const teams = useTeams();
+  const equiposView = useMemo(
+    () =>
+      equipos.map((e, i) => ({
+        ...e,
+        nombre: teams[i]?.name || `Equipo ${i + 1}`,
+      })),
+    [equipos, teams],
+  );
+  const eq = equiposView[equipoActivo];
   const color = eq ? getTeamColor(eq.nombre) : '#888';
 
   // Convert the attendance "0/1" strings into the same ✓/✗ glyphs the table
@@ -212,7 +215,7 @@ export default function Asistencias() {
 
       <div className="px-4 md:px-6 py-4">
         <FilterPills
-          items={equipos.map((e, i) => ({
+          items={equiposView.map((e, i) => ({
             key: String(i),
             label: e.nombre,
             color: getTeamColor(e.nombre),
