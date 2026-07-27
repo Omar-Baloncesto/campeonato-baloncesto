@@ -1,167 +1,247 @@
 /**
- * Generador de FIXTURE para Google Sheets — equivalente a la macro de Excel
- * "CrearFixture", pero manteniendo las 12 columnas que lee la web
- * (ID_Partido, FechaNumero, ...), para no romper /fixture ni /predicciones.
+ * Generador de FIXTURE (Google Apps Script).
  *
- * Replica del Excel:
- *   - Pide los 6 equipos y su color por nombre (mismos RGB).
- *   - Orden EXACTO de los 15 partidos (5 fechas x 3).
- *   - Ida y vuelta (la vuelta invierte local/visitante, +5 semanas).
- *   - Encabezado azul, letra blanca, negrita cursiva.
- *   - Texto blanco sobre fondos negro / gris / morado.
- *   - Horas 16:30 / 17:45 / 19:00 y una fecha por semana.
- *   - Diferencia automática (=MarcadorLocal - MarcadorVisitante).
- *   - Bordes y centrado en toda la tabla.
+ * Lee equipos y colores desde la hoja "EQUIPOS" (columna B = nombre,
+ * columna F = color) y escribe el fixture en la hoja "FIXTURE" con las 12
+ * columnas que lee la web (/fixture, /predicciones).
  *
- * Ejecutar con la hoja abierta (usa cuadros de diálogo).
+ * El orden de los 15 partidos y el lado local/visitante son IDÉNTICOS a la
+ * macro de Excel "CrearFixture". Ese orden vive en el arreglo `orden`:
+ *   índices base 0 (equipo 1 = 0 ... equipo 6 = 5), cada par [local, visitante],
+ *   agrupado en 5 fechas de 3 partidos. La segunda ronda invierte los lados.
  */
-function crearFixture() {
-  const ui = SpreadsheetApp.getUi();
+function generarFixture() {
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const equiposSheet = ss.getSheetByName("EQUIPOS");
+  const partidosSheet = ss.getSheetByName("FIXTURE");
 
-  // Colores por nombre — mismos valores RGB que el Excel.
-  const mapaColores = {
-    amarillo: '#FFFF00',
-    azul: '#87CEEB',
-    blanco: '#FFFFFF',
-    negro: '#000000',
-    verde: '#00FF00',
-    rojo: '#FF0000',
-    naranja: '#FFA500',
-    morado: '#800080',
-    gris: '#808080',
-    fucsia: '#FF00FF',
-  };
-  // Fondos oscuros que llevan texto blanco (igual que el Excel).
-  const fondoOscuro = { '#000000': true, '#808080': true, '#800080': true };
+  partidosSheet.clear();
 
-  // ---- 1) Nombres y colores de los 6 equipos ----
-  const equipos = [];
-  const colores = {}; // nombreEquipo -> hex
-  for (let i = 1; i <= 6; i++) {
-    let r = ui.prompt('Equipos', 'Ingrese el nombre del equipo ' + i, ui.ButtonSet.OK_CANCEL);
-    if (r.getSelectedButton() !== ui.Button.OK) return;
-    const nombre = r.getResponseText().trim();
-    equipos.push(nombre);
+  // ===== MAPA DE COLORES =====
+  const datosEquipos = equiposSheet.getRange("B2:F").getValues();
 
-    r = ui.prompt(
-      'Color del equipo',
-      'Color para "' + nombre + '" (Amarillo, Azul, Blanco, Negro, Verde, Rojo, Naranja, Morado, Gris, Fucsia)',
-      ui.ButtonSet.OK_CANCEL
-    );
-    if (r.getSelectedButton() !== ui.Button.OK) return;
-    const nombreColor = r.getResponseText().trim().toLowerCase();
-    colores[nombre] = mapaColores[nombreColor] || '#FFFFFF';
+  let colores = {};
+  datosEquipos.forEach(fila => {
+    const nombre = String(fila[0]).trim();
+    const color = String(fila[4]).trim();
+
+    if (nombre && color) {
+      colores[nombre] = color;
+    }
+  });
+
+  // ===== LISTA DE EQUIPOS =====
+  const equipos = equiposSheet.getRange("B2:B").getValues()
+    .flat()
+    .map(e => String(e).trim())
+    .filter(e => e != "");
+
+  if (equipos.length !== 6) {
+    SpreadsheetApp.getUi().alert("⚠️ Esta versión está diseñada para 6 equipos.");
+    return;
   }
 
-  // ---- 2) Fecha de inicio (dd/mm/aaaa) ----
-  let r = ui.prompt('Fecha de inicio', 'Ingrese la fecha de inicio (dd/mm/aaaa):', ui.ButtonSet.OK_CANCEL);
-  if (r.getSelectedButton() !== ui.Button.OK) return;
-  const partes = r.getResponseText().trim().split(/[\/\-.]/);
-  const fechaInicio = new Date(
-    parseInt(partes[2], 10),
-    parseInt(partes[1], 10) - 1,
-    parseInt(partes[0], 10)
+  // ===== PEDIR FECHA DE INICIO =====
+  const ui = SpreadsheetApp.getUi();
+
+  let respuesta = ui.prompt(
+    "Fecha de inicio del campeonato",
+    "Ingrese la fecha en formato DD/MM/AAAA (Ej: 25/03/2026):",
+    ui.ButtonSet.OK_CANCEL
   );
 
-  // ---- 3) Orden EXACTO del Excel (base 0). [local, visitante] ----
+  if (respuesta.getSelectedButton() !== ui.Button.OK) {
+    ui.alert("Operación cancelada");
+    return;
+  }
+
+  let textoFecha = respuesta.getResponseText().trim();
+  let partes = textoFecha.split("/");
+
+  if (partes.length !== 3) {
+    ui.alert("Formato inválido. Usa DD/MM/AAAA");
+    return;
+  }
+
+  let dia = parseInt(partes[0], 10);
+  let mes = parseInt(partes[1], 10) - 1;
+  let anio = parseInt(partes[2], 10);
+
+  let fechaInicio = new Date(anio, mes, dia);
+
+  if (isNaN(fechaInicio.getTime())) {
+    ui.alert("Fecha inválida");
+    return;
+  }
+
+  // ===== FIXTURE EXACTO COMO EL EXCEL =====
+  // [local, visitante] base 0 (equipo 1 = 0 ... equipo 6 = 5).
+  let partidos = [];
+
   const orden = [
-    [0, 5], [1, 4], [2, 3], // Fecha 1: 1-6, 2-5, 3-4
-    [1, 3], [0, 4], [2, 5], // Fecha 2: 2-4, 1-5, 3-6
-    [4, 2], [5, 3], [0, 1], // Fecha 3: 5-3, 6-4, 1-2
-    [3, 0], [1, 2], [4, 5], // Fecha 4: 4-1, 2-3, 5-6
-    [3, 4], [0, 2], [5, 1], // Fecha 5: 4-5, 1-3, 6-2
+    [0,5],[1,4],[2,3],   // Fecha 1: 1-6, 2-5, 3-4
+    [1,3],[0,4],[2,5],   // Fecha 2: 2-4, 1-5, 3-6
+    [4,2],[5,3],[0,1],   // Fecha 3: 5-3, 6-4, 1-2
+    [3,0],[1,2],[4,5],   // Fecha 4: 4-1, 2-3, 5-6
+    [3,4],[0,2],[5,1]    // Fecha 5: 4-5, 1-3, 6-2
   ];
-  const horas = ['16:30', '17:45', '19:00'];
-  const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
 
-  // ---- 4) Construir filas: ida + vuelta ----
-  const filas = [];
-  const nRonda = orden.length;
+  for (let i = 0; i < orden.length; i++) {
 
-  // Ida (fechas 1..5)
-  for (let i = 0; i < nRonda; i++) {
-    const fechaNum = Math.floor(i / 3) + 1;
-    const fecha = new Date(fechaInicio.getTime() + (fechaNum - 1) * MS_SEMANA);
-    filas.push([
-      'P-' + (i + 1), fechaNum,
-      equipos[orden[i][0]], 'vs', equipos[orden[i][1]],
-      fecha, horas[i % 3], '', '', '', '', '',
+    let local = equipos[orden[i][0]];
+    let visitante = equipos[orden[i][1]];
+
+    let fechaNum = Math.floor(i / 3) + 1;
+
+    let fecha = new Date(fechaInicio.getTime() + (fechaNum - 1) * 7 * 24 * 60 * 60 * 1000);
+
+    let hora = (i % 3 === 0) ? "16:30" :
+               (i % 3 === 1) ? "17:45" : "19:00";
+
+    // Cada fila tiene 12 elementos.
+    // Columnas A-J: como antes. Columnas K y L: vacías (se llenan al marcar W.O.)
+    partidos.push([
+      "P-" + (i + 1),
+      fechaNum,
+      local,
+      "vs",
+      visitante,
+      fecha,
+      hora,
+      "", "", "",
+      "", ""    // K (W.O.) y L (Equipo Ausente)
     ]);
   }
-  // Vuelta (fechas 6..10, local/visitante invertidos)
-  for (let i = 0; i < nRonda; i++) {
-    const fechaNum = Math.floor(i / 3) + 6;
-    const fecha = new Date(fechaInicio.getTime() + (fechaNum - 1) * MS_SEMANA);
-    filas.push([
-      'P-' + (nRonda + i + 1), fechaNum,
-      equipos[orden[i][1]], 'vs', equipos[orden[i][0]],
-      fecha, horas[i % 3], '', '', '', '', '',
-    ]);
-  }
 
-  // ---- 5) Crear / limpiar la hoja FIXTURE ----
-  let hoja = ss.getSheetByName('FIXTURE');
-  if (!hoja) hoja = ss.insertSheet('FIXTURE');
-  else hoja.clear();
+  // ===== SEGUNDA RONDA (invierte local y visitante, +5 semanas) =====
+  const segunda = partidos.map((p, index) => {
 
-  const encabezado = [
-    'ID_Partido', 'FechaNumero', 'Local', 'vs', 'Visitante', 'Fecha', 'Hora',
-    'MarcadorLocal', 'MarcadorVisitante', 'Diferencia', 'W.O.', 'Equipo Ausente',
-  ];
-  const totalCols = encabezado.length;
-  const totalFilas = filas.length + 1;
+    let fechaNum = p[1] + 5;
 
-  // La hora se guarda como texto ("16:30") para que la web la lea tal cual.
-  hoja.getRange(2, 7, filas.length, 1).setNumberFormat('@');
+    return [
+      "P-" + (partidos.length + index + 1),
+      fechaNum,
+      p[4],
+      "vs",
+      p[2],
+      new Date(p[5].getTime() + 5 * 7 * 24 * 60 * 60 * 1000),
+      p[6],
+      "", "", "",
+      "", ""    // K y L vacías
+    ];
+  });
 
-  hoja.getRange(1, 1, 1, totalCols).setValues([encabezado]);
-  hoja.getRange(2, 1, filas.length, totalCols).setValues(filas);
+  const total = partidos.concat(segunda);
 
-  // ---- 6) Encabezado: azul, letra blanca, negrita cursiva ----
-  hoja.getRange(1, 1, 1, totalCols)
-    .setBackground('#0066CC')
-    .setFontColor('#FFFFFF')
-    .setFontWeight('bold')
-    .setFontStyle('italic')
-    .setFontSize(12)
-    .setWrap(true);
+  // ===== ENCABEZADOS =====
+  partidosSheet.appendRow([
+    "ID_Partido","FechaNumero","Local","vs","Visitante",
+    "Fecha","Hora","MarcadorLocal","MarcadorVisitante","Diferencia",
+    "W.O.","Equipo Ausente"
+  ]);
 
-  // ---- 7) Anchos de columna ----
-  const anchos = [90, 100, 180, 40, 180, 110, 80, 120, 140, 100, 60, 200];
-  anchos.forEach((w, idx) => hoja.setColumnWidth(idx + 1, w));
+  // ===== FORMATO ENCABEZADOS =====
+  const ultimaColumna = partidosSheet.getLastColumn();
 
-  // ---- 8) Colorear equipos (Local = col 3, Visitante = col 5) ----
-  for (let f = 0; f < filas.length; f++) {
-    const fila = f + 2;
-    const cLocal = colores[filas[f][2]];
-    const cVis = colores[filas[f][4]];
-    if (cLocal) {
-      hoja.getRange(fila, 3)
-        .setBackground(cLocal)
-        .setFontColor(fondoOscuro[cLocal] ? '#FFFFFF' : '#000000')
-        .setFontWeight('bold')
-        .setFontStyle('italic');
-    }
-    if (cVis) {
-      hoja.getRange(fila, 5)
-        .setBackground(cVis)
-        .setFontColor(fondoOscuro[cVis] ? '#FFFFFF' : '#000000')
-        .setFontWeight('bold')
-        .setFontStyle('italic');
-    }
-  }
+  const rangoTitulos = partidosSheet.getRange(1, 1, 1, ultimaColumna);
 
-  // ---- 9) Diferencia automática (=H - I) ----
-  const formulas = [];
-  for (let f = 2; f <= totalFilas; f++) formulas.push(['=H' + f + '-I' + f]);
-  hoja.getRange(2, 10, formulas.length, 1).setFormulas(formulas);
-
-  // ---- 10) Centrado, formato de fecha y bordes ----
-  hoja.getRange(1, 1, totalFilas, totalCols)
-    .setHorizontalAlignment('center')
-    .setVerticalAlignment('middle')
+  rangoTitulos
+    .setBackground("#D9EAF7")
+    .setFontWeight("bold")
+    .setFontStyle("italic")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle")
     .setBorder(true, true, true, true, true, true);
 
-  hoja.getRange(2, 6, filas.length, 1).setNumberFormat('dd/mm/yyyy');
+  // ===== INSERTAR DATOS =====
+  partidosSheet.getRange(2,1,total.length,total[0].length).setValues(total);
+
+  // ===== ANCHO DE COLUMNAS =====
+  partidosSheet.setColumnWidth(1, 100);
+  partidosSheet.setColumnWidth(2, 110);
+  partidosSheet.setColumnWidth(3, 180);
+  partidosSheet.setColumnWidth(4, 50);
+  partidosSheet.setColumnWidth(5, 180);
+  partidosSheet.setColumnWidth(6, 110);
+  partidosSheet.setColumnWidth(7, 90);
+  partidosSheet.setColumnWidth(8, 120);
+  partidosSheet.setColumnWidth(9, 140);
+  partidosSheet.setColumnWidth(10, 100);
+  partidosSheet.setColumnWidth(11, 80);   // W.O.
+  partidosSheet.setColumnWidth(12, 200);  // Equipo Ausente
+
+  // ===== BORDES =====
+  const totalFilas = total.length + 1;
+  const totalColumnas = total[0].length;
+
+  partidosSheet.getRange(1, 1, totalFilas, totalColumnas)
+    .setBorder(true,true,true,true,true,true);
+
+  // ===== CENTRAR COLUMNAS =====
+  const columnasCentrar = [1,2,4,6,7,8,9,10,11,12];
+
+  columnasCentrar.forEach(col => {
+    partidosSheet.getRange(1, col, totalFilas, 1)
+      .setHorizontalAlignment("center")
+      .setVerticalAlignment("middle");
+  });
+
+  // ===== DIFERENCIA AUTOMÁTICA =====
+  for (let i = 2; i <= totalFilas; i++) {
+    partidosSheet.getRange("J" + i)
+      .setFormula(`=H${i}-I${i}`);
+  }
+
+  // ===== COLORES AUTOMÁTICOS =====
+  for (let i = 0; i < total.length; i++) {
+
+    let fila = i + 2;
+
+    let local = String(total[i][2]).trim();
+    let visitante = String(total[i][4]).trim();
+
+    let colorLocal = colores[local];
+    let colorVisitante = colores[visitante];
+
+    if (colorLocal) {
+      let textoLocal = getColorTexto(colorLocal);
+
+      partidosSheet.getRange(fila, 3)
+        .setBackground(colorLocal)
+        .setFontColor(textoLocal)
+        .setFontWeight("bold");
+    }
+
+    if (colorVisitante) {
+      let textoVisitante = getColorTexto(colorVisitante);
+
+      partidosSheet.getRange(fila, 5)
+        .setBackground(colorVisitante)
+        .setFontColor(textoVisitante)
+        .setFontWeight("bold");
+    }
+  }
+}
+
+/**
+ * Devuelve "#FFFFFF" (texto blanco) para fondos oscuros y "#000000" (texto
+ * negro) para fondos claros, calculando la luminancia del color de fondo.
+ * Acepta colores en formato "#RRGGBB".
+ */
+function getColorTexto(colorFondo) {
+  let hex = String(colorFondo).replace("#", "").trim();
+  if (hex.length === 3) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  }
+  if (hex.length !== 6) return "#000000";
+
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Luminancia percibida (0 = oscuro, 255 = claro).
+  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b);
+
+  return luminancia < 140 ? "#FFFFFF" : "#000000";
 }
