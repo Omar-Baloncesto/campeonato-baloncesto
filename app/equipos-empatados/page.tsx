@@ -1,5 +1,6 @@
 'use client';
-import { getTeamColor, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
+import { getTeamColor, teamSwatch, isKnownTeamName } from '../lib/constants';
+import { useTeamColorsVersion } from '../components/TeamColorsProvider';
 import LoadingState, { ErrorState, EmptyState } from '../components/LoadingState';
 import DataFreshness from '../components/DataFreshness';
 import ExportButton from '../components/ExportButton';
@@ -61,9 +62,11 @@ function parseEquiposEmpatados(rows: string[][]): SheetTabla {
   };
 }
 
-const isTeamName = (value: string): boolean => !!TEAM_BY_NAME[value?.trim()];
+const isTeamName = (value: string): boolean => isKnownTeamName(value);
 
 export default function EquiposEmpatados() {
+  // Re-render cuando cargan los equipos de la hoja (para colorear/detectar).
+  useTeamColorsVersion();
   const { data, loading, error, lastUpdated, refetch } = useSheetData(
     'EquiposEmpatados',
     parseEquiposEmpatados,
@@ -181,11 +184,7 @@ export default function EquiposEmpatados() {
                                     <span className="inline-flex items-center gap-2">
                                       <span
                                         className="w-2.5 h-2.5 rounded-full shrink-0"
-                                        style={{
-                                          background: isWhiteTeam(team)
-                                            ? '#CCCCCC'
-                                            : getTeamColor(team),
-                                        }}
+                                        style={teamSwatch(team)}
                                       />
                                       <span className="font-medium">{team}</span>
                                     </span>

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { getTeamColor, isWhiteTeam } from '../lib/constants';
+import { getTeamColor, teamSwatch } from '../lib/constants';
 import LoadingState, { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
@@ -225,11 +225,13 @@ function TeamColorBar({ name }: { name: string }) {
   // Suscribe la barra a los colores cargados desde la hoja EQUIPOS: cuando
   // terminan de cargar, la versión cambia y la barra se repinta.
   useTeamColorsVersion();
+  const sw = teamSwatch(name);
   return (
     <div
       className="w-1 h-6 rounded-full shrink-0"
       style={{
-        background: isWhiteTeam(name) ? '#FFFFFF' : getTeamColor(name),
+        background: sw.background,
+        border: sw.border,
         boxShadow: `0 0 6px ${getTeamColor(name)}40`,
       }}
     />

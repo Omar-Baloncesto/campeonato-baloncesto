@@ -48,6 +48,94 @@ function sheetColorOf(nameOrId: string): string | undefined {
   return sheetColors[nameOrId] || sheetColors[normName(nameOrId)];
 }
 
+/** Código de color hex válido: #RGB o #RRGGBB. */
+const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/**
+ * Devuelve el PRIMER código hex de una fila de EQUIPOS (de la col. C en
+ * adelante). Así el color funciona sin importar en qué columna esté y evita
+ * quedarse con el nombre del color en español (p. ej. "Blanco").
+ */
+export function firstHexInRow(row: string[]): string | undefined {
+  for (let i = 2; i < row.length; i++) {
+    const cell = String(row[i] ?? '').trim();
+    if (HEX_RE.test(cell)) return cell;
+  }
+  return undefined;
+}
+
+export interface SheetTeam {
+  id: string;
+  name: string;
+  color: string;
+}
+
+/**
+ * Equipos del campeonato actual, cargados desde la hoja EQUIPOS. Sustituyen a
+ * TEAMS para nombres/colores en las páginas, de modo que al crear un
+ * campeonato nuevo (equipos y colores distintos) todo cambie automáticamente.
+ */
+const sheetTeams: SheetTeam[] = [];
+const sheetNameById: Record<string, string> = {};
+const sheetNameSet = new Set<string>();
+
+export function registerTeams(
+  teams: { id?: string; name?: string; color?: string }[]
+): void {
+  sheetTeams.length = 0;
+  for (const k of Object.keys(sheetNameById)) delete sheetNameById[k];
+  sheetNameSet.clear();
+
+  teams.forEach(({ id, name, color }) => {
+    const c = (color || '').trim();
+    const idStr = id != null ? String(id).trim() : '';
+    const nm = (name || '').trim();
+    if (c) {
+      if (idStr) sheetColors[idStr] = c;
+      if (nm) sheetColors[normName(nm)] = c;
+    }
+    if (idStr && nm) sheetNameById[idStr] = nm;
+    if (nm) sheetNameSet.add(normName(nm));
+    if (idStr || nm) sheetTeams.push({ id: idStr, name: nm, color: c });
+  });
+}
+
+/** Nombre del equipo (de la hoja) por su id; undefined si no está. */
+export function getTeamName(id: string): string | undefined {
+  return sheetNameById[String(id).trim()];
+}
+
+/** Lista de equipos del campeonato actual (de la hoja EQUIPOS). */
+export function getSheetTeams(): SheetTeam[] {
+  return sheetTeams;
+}
+
+/** True si el texto es un nombre de equipo conocido (hoja o fijo). */
+export function isKnownTeamName(name: string): boolean {
+  const n = (name || '').trim();
+  if (!n) return false;
+  return sheetNameSet.has(normName(n)) || !!TEAM_BY_NAME[n];
+}
+
+/**
+ * Estilo para un "swatch" de color (punto/barra) del equipo. El blanco se
+ * muestra BLANCO con borde gris para que sea visible sobre fondos claros.
+ * Acepta nombre o id de equipo, o directamente un color hex.
+ */
+export function teamSwatch(nameOrId: string): {
+  background: string;
+  border: string;
+} {
+  const hex = HEX_RE.test((nameOrId || '').trim())
+    ? nameOrId.trim()
+    : getTeamColorRaw(nameOrId);
+  const white = /^#(?:fff|ffffff)$/i.test(hex);
+  return {
+    background: white ? '#FFFFFF' : hex,
+    border: white ? '1px solid #B0B0B0' : 'none',
+  };
+}
+
 export function getTeamColor(nameOrId: string): string {
   const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
   if (team) return team.safeColor;

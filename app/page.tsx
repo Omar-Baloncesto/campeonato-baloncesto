@@ -7,7 +7,7 @@ import bostonCelticsPhoto from '../public/teams/boston-celtics.jpg';
 import oklahomaCityThunderPhoto from '../public/teams/oklahoma-city-thunder.jpg';
 import losAngelesLakersPhoto from '../public/teams/los-angeles-lakers.jpg';
 import torontoRaptorsPhoto from '../public/teams/toronto-raptors.jpg';
-import { TEAMS } from './lib/constants';
+import { TEAMS, firstHexInRow } from './lib/constants';
 import LoadingState, { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
 import ExportButton from './components/ExportButton';
@@ -75,7 +75,7 @@ export default function Dashboard() {
         if (eqData.success && Array.isArray(eqData.data) && eqData.data.length > 1) {
           const rows = eqData.data.slice(1).filter((r: string[]) => r[1]);
           setEquipos(rows.map((r: string[]) => ({
-            id: r[0], nombre: r[1], hexColor: r[5] || '#888888',
+            id: r[0], nombre: r[1], hexColor: firstHexInRow(r) || '#888888',
           })));
           rows.forEach((r: string[]) => { teamNames[r[0]] = r[1]; });
         }
@@ -138,7 +138,12 @@ export default function Dashboard() {
     return () => { abortRef.current?.abort(); };
   }, [fetchData]);
 
-  const badgeColor = (eq: Equipo) => TEAMS[eq.id]?.safeColor || eq.hexColor;
+  // Color desde la hoja EQUIPOS. El blanco se muestra BLANCO con borde gris
+  // (ver el borde en el punto); para el PDF se usa gris claro por visibilidad.
+  const safeColor = (hex: string) =>
+    (hex || '').toUpperCase() === '#FFFFFF' ? '#CCCCCC' : hex || '#888888';
+  const badgeColor = (eq: Equipo) => eq.hexColor || '#888888';
+  const isWhiteHex = (hex: string) => (hex || '').toUpperCase() === '#FFFFFF';
 
   const stats = useMemo(() => ([
     { value: '6', label: 'Equipos', icon: '🏀' },
@@ -172,7 +177,7 @@ export default function Dashboard() {
       rows: equiposConStats.map(({ eq, st, ppgOff, ppgDef, ratio, winPct }) => ({
         nombre: eq.nombre,
         photoSrc: TEAMS[eq.id]?.photo ?? null,
-        color: TEAMS[eq.id]?.safeColor || eq.hexColor,
+        color: safeColor(eq.hexColor),
         puesto: st?.puesto,
         puntos: st?.puntos,
         pj: st?.pj,
@@ -267,6 +272,7 @@ export default function Dashboard() {
                         className="w-3 h-8 rounded-full shrink-0"
                         style={{
                           background: color,
+                          border: isWhiteHex(color) ? '1px solid #B0B0B0' : 'none',
                           boxShadow: `0 0 8px ${color}40`,
                         }}
                       />

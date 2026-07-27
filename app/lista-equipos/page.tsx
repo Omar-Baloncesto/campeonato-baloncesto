@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getTeamColor, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
+import { getTeamColor, teamSwatch, isKnownTeamName } from '../lib/constants';
+import { useTeamColorsVersion } from '../components/TeamColorsProvider';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import ExportButton from '../components/ExportButton';
@@ -22,7 +23,7 @@ interface Fecha {
   partidos: Partido[];
 }
 
-const esEquipo = (nombre: string) => !!TEAM_BY_NAME[nombre?.trim()];
+const esEquipo = (nombre: string) => isKnownTeamName(nombre);
 
 const pairKey = (a: string, b: string) =>
   [a.trim().toLowerCase(), b.trim().toLowerCase()].sort().join('||');
@@ -47,6 +48,8 @@ const parseFecha = (s: string): number => {
 };
 
 export default function ListaEquipos() {
+  // Re-render cuando cargan los equipos de la hoja (para colorear/detectar).
+  useTeamColorsVersion();
   const [fechas, setFechas] = useState<Fecha[]>([]);
   const [fechaActiva, setFechaActiva] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -314,9 +317,7 @@ export default function ListaEquipos() {
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full shrink-0"
-                                  style={{
-                                    background: isWhiteTeam(team.name) ? '#CCCCCC' : getTeamColor(team.name),
-                                  }}
+                                  style={teamSwatch(team.name)}
                                 />
                                 <span className="text-xs font-medium truncate">{team.name}</span>
                               </div>

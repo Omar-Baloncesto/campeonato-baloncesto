@@ -168,6 +168,7 @@ export default function Posiciones() {
                             className="w-1 h-8 rounded-full shrink-0"
                             style={{
                               background: white ? '#FFFFFF' : color,
+                              border: white ? '1px solid #B0B0B0' : 'none',
                               boxShadow: isTop3 ? `0 0 8px ${color}40` : 'none',
                             }}
                           />

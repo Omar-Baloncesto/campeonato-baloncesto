@@ -1,47 +1,37 @@
 'use client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { registerTeamColors } from '../lib/constants';
+import { registerTeams, firstHexInRow, type SheetTeam } from '../lib/constants';
 
-/**
- * Versión que se incrementa cuando terminan de cargarse los colores de la
- * hoja EQUIPOS. Los componentes que pintan colores (barras del Fixture, etc.)
- * leen esta versión con `useTeamColorsVersion()` para volver a renderizarse
- * en cuanto los colores están disponibles.
- */
-const TeamColorsContext = createContext(0);
+interface TeamsState {
+  /** Se incrementa cuando terminan de cargarse los equipos de EQUIPOS. */
+  version: number;
+  /** Equipos del campeonato actual (id, nombre, color) desde la hoja. */
+  teams: SheetTeam[];
+}
 
+const TeamsContext = createContext<TeamsState>({ version: 0, teams: [] });
+
+/** Versión reactiva: úsala para repintar cuando cargan nombres/colores. */
 export function useTeamColorsVersion(): number {
-  return useContext(TeamColorsContext);
+  return useContext(TeamsContext).version;
 }
 
-/** Código de color hex válido: #RGB o #RRGGBB. */
-const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-
-/**
- * Devuelve el color del equipo a partir de su fila en EQUIPOS: toma el PRIMER
- * código hex de la fila (columna del nombre en adelante). Así funciona sin
- * importar en qué columna esté el hex, y evita quedarse con el nombre del color
- * en español (p. ej. "Blanco"), que no es un color válido para la web.
- */
-function colorFromRow(row: string[]): string | undefined {
-  for (let i = 2; i < row.length; i++) {
-    const cell = String(row[i] ?? '').trim();
-    if (HEX.test(cell)) return cell;
-  }
-  return undefined;
+/** Equipos del campeonato actual (id, nombre, color) desde la hoja EQUIPOS. */
+export function useTeams(): SheetTeam[] {
+  return useContext(TeamsContext).teams;
 }
 
 /**
- * Carga una vez los colores de la hoja EQUIPOS y los registra en constants,
- * para que getTeamColor / isWhiteTeam los resuelvan por nombre en todas las
- * páginas (Fixture, Posiciones, Bracket, ...).
+ * Carga una vez los equipos de la hoja EQUIPOS (nombre + color) y los registra
+ * en constants, para que getTeamColor / getTeamName / getSheetTeams los
+ * resuelvan en todas las páginas. Al crear un campeonato nuevo, cambian solos.
  */
 export default function TeamColorsProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [version, setVersion] = useState(0);
+  const [state, setState] = useState<TeamsState>({ version: 0, teams: [] });
 
   useEffect(() => {
     let cancelled = false;
@@ -51,19 +41,20 @@ export default function TeamColorsProvider({
       .then((data) => {
         if (cancelled) return;
         if (data?.success && Array.isArray(data.data) && data.data.length > 1) {
-          const rows = data.data.slice(1).filter((r: string[]) => r[1]);
-          registerTeamColors(
-            rows.map((r: string[]) => ({
-              id: r[0],
-              name: r[1],
-              color: colorFromRow(r),
-            }))
-          );
-          setVersion((v) => v + 1);
+          const teams: SheetTeam[] = data.data
+            .slice(1)
+            .filter((r: string[]) => r[1])
+            .map((r: string[]) => ({
+              id: String(r[0] ?? '').trim(),
+              name: String(r[1] ?? '').trim(),
+              color: firstHexInRow(r) || '#888888',
+            }));
+          registerTeams(teams);
+          setState((s) => ({ version: s.version + 1, teams }));
         }
       })
       .catch(() => {
-        /* si falla, se conservan los colores por defecto */
+        /* si falla, se conservan los valores por defecto */
       });
 
     return () => {
@@ -72,8 +63,6 @@ export default function TeamColorsProvider({
   }, []);
 
   return (
-    <TeamColorsContext.Provider value={version}>
-      {children}
-    </TeamColorsContext.Provider>
+    <TeamsContext.Provider value={state}>{children}</TeamsContext.Provider>
   );
 }
