@@ -1,6 +1,6 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { TEAMS } from '../lib/constants';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTeams } from '../components/TeamColorsProvider';
 import { ErrorState } from '../components/LoadingState';
 import FilterPills from '../components/FilterPills';
 import DataFreshness from '../components/DataFreshness';
@@ -53,6 +53,20 @@ export default function Jugadores() {
   const [loadingStats, setLoadingStats] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const statsAbortRef = useRef<AbortController | null>(null);
+
+  // Equipos (nombre + color) desde la hoja EQUIPOS, indexados por id.
+  const teams = useTeams();
+  const byId = useMemo(
+    () => Object.fromEntries(teams.map((t) => [t.id, t])),
+    [teams],
+  );
+  const teamName = (id: string) => byId[id]?.name || `Equipo ${id}`;
+  const teamIsWhite = (id: string) =>
+    (byId[id]?.color || '').toUpperCase() === '#FFFFFF';
+  // Para TEXTO/acentos el blanco se muestra como gris (legible sobre fondo
+  // claro). El swatch del avatar sí se pinta blanco con borde gris.
+  const teamColor = (id: string) =>
+    teamIsWhite(id) ? '#8A8A8A' : byId[id]?.color || '#888888';
 
   const fetchData = useCallback(() => {
     abortRef.current?.abort();
@@ -192,21 +206,21 @@ export default function Jugadores() {
 
   const filterItems = [
     { key: 'Todos', label: 'Todos', color: '#F5B800' },
-    ...Object.entries(TEAMS).map(([id, t]) => ({
-      key: id, label: t.name, color: t.safeColor,
+    ...teams.map((t) => ({
+      key: t.id, label: t.name, color: t.color || '#888888',
     })),
   ];
 
   const exportColumns = [
     { header: '#',        cell: (j: Jugador) => j.numero || '',                                  align: 'center' as const, width: 10 },
     { header: 'Jugador',  cell: (j: Jugador) => j.nombre,                                         align: 'left'   as const, width: 34 },
-    { header: 'Equipo',   cell: (j: Jugador) => TEAMS[j.equipoId]?.name || `Equipo ${j.equipoId}`, align: 'left'   as const, width: 26 },
+    { header: 'Equipo',   cell: (j: Jugador) => teamName(j.equipoId),                             align: 'left'   as const, width: 26 },
     { header: 'Posición', cell: (j: Jugador) => j.posicion || '',                                 align: 'left'   as const, width: 18 },
   ];
 
   const equipoLabel = equipoFiltro === 'Todos'
     ? 'Todos los equipos'
-    : (TEAMS[equipoFiltro]?.name || `Equipo ${equipoFiltro}`);
+    : teamName(equipoFiltro);
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
     // Fetch points + attendance once and map each filtered player to its
@@ -265,7 +279,7 @@ export default function Jugadores() {
       filename: buildFilename(
         equipoFiltro === 'Todos'
           ? 'jugadores'
-          : `jugadores-${TEAMS[equipoFiltro]?.name || equipoFiltro}`,
+          : `jugadores-${teamName(equipoFiltro)}`,
       ),
       jugadores: filtrados.map((j) => {
         const key = j.nombre.trim();
@@ -275,8 +289,8 @@ export default function Jugadores() {
         return {
           nombre: j.nombre,
           numero: j.numero,
-          equipo: TEAMS[j.equipoId]?.name || `Equipo ${j.equipoId}`,
-          equipoColor: TEAMS[j.equipoId]?.safeColor || '#888888',
+          equipo: teamName(j.equipoId),
+          equipoColor: teamColor(j.equipoId),
           posicion: j.posicion,
           totalPuntos: summary?.totalPuntos ?? 0,
           asistencias: summary?.asistencias ?? 0,
@@ -357,9 +371,8 @@ export default function Jugadores() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
             {filtrados.map(j => {
-              const team = TEAMS[j.equipoId];
-              const color = team?.safeColor || '#888';
-              const isWhite = team?.color === '#FFFFFF';
+              const color = teamColor(j.equipoId);
+              const isWhite = teamIsWhite(j.equipoId);
               const isExpanded = expanded === j.id;
               const st = statsCache[j.id];
               const isLoading = loadingStats === j.id;
@@ -378,8 +391,9 @@ export default function Jugadores() {
                     <div
                       className="w-14 h-14 rounded-full flex flex-col items-center justify-center shrink-0 transition-transform group-hover:scale-105 select-none"
                       style={{
-                        background: isWhite ? '#cccccc' : color,
-                        color: '#ffffff',
+                        background: isWhite ? '#FFFFFF' : color,
+                        border: isWhite ? '2px solid #B0B0B0' : 'none',
+                        color: isWhite ? '#333333' : '#ffffff',
                         boxShadow: `0 2px 10px ${color}40`,
                       }}
                     >
@@ -388,7 +402,7 @@ export default function Jugadores() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-tight truncate">{j.nombre}</div>
-                      <div className="text-[11px] mt-1 font-medium" style={{ color }}>{team?.name || `Equipo ${j.equipoId}`}</div>
+                      <div className="text-[11px] mt-1 font-medium" style={{ color }}>{teamName(j.equipoId)}</div>
                       <div className="text-[10px] text-text-muted/70 mt-0.5">{j.posicion}</div>
                     </div>
                     <svg

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { getTeamColorRaw, isWhiteTeam, TEAM_BY_NAME } from '../lib/constants';
+import { getTeamColorRaw, isWhiteTeam } from '../lib/constants';
+import { useTeams } from '../components/TeamColorsProvider';
 import LoadingState, { EmptyState } from '../components/LoadingState';
 import ExportButton from '../components/ExportButton';
 import { buildFilename } from '../lib/export';
@@ -246,6 +247,8 @@ const CARD_H = 195;
 const CARD_GAP = 32;
 
 export default function BracketPage() {
+  // Equipos de la hoja (para la leyenda y para repintar los colores al cargar).
+  const teams = useTeams();
   const [loading, setLoading] = useState(true);
   const [hasPlayIn, setHasPlayIn] = useState(false);
   const [playIn, setPlayIn] = useState<Match[]>([]);
@@ -514,16 +517,16 @@ export default function BracketPage() {
 
           {/* Legend */}
           <div className="flex flex-wrap justify-center gap-5 py-8 md:py-14">
-            {Object.entries(TEAM_BY_NAME).map(([name, team]) => (
-              <div key={name} className="flex items-center gap-2 text-[13px] text-text-muted tracking-wider">
+            {teams.map((team) => (
+              <div key={team.id || team.name} className="flex items-center gap-2 text-[13px] text-text-muted tracking-wider">
                 <div
                   className="w-3 h-3 rounded-sm shrink-0"
                   style={{
                     background: team.color,
-                    border: team.color === '#FFFFFF' ? '1px solid #445' : 'none',
+                    border: (team.color || '').toUpperCase() === '#FFFFFF' ? '1px solid #B0B0B0' : 'none',
                   }}
                 />
-                {name}
+                {team.name}
               </div>
             ))}
           </div>
