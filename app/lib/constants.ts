@@ -20,19 +20,51 @@ export const TEAM_BY_NAME: Record<string, TeamConfig> = Object.fromEntries(
   Object.values(TEAMS).map(t => [t.name, t])
 );
 
+/**
+ * Colores cargados en tiempo de ejecución desde la hoja EQUIPOS (columna F).
+ * Se indexan por id de equipo y por nombre normalizado, para que las páginas
+ * (Fixture, Posiciones, Bracket, etc.) resuelvan el color de los equipos que
+ * use el campeonato actual — no solo los que están fijos en TEAMS.
+ *
+ * Los equipos fijos en TEAMS tienen prioridad (para no cambiar semestres
+ * anteriores); si un equipo no está ahí, se usa el color de la hoja.
+ */
+const sheetColors: Record<string, string> = {};
+
+const normName = (s: string): string => s.trim().toLowerCase();
+
+export function registerTeamColors(
+  teams: { id?: string; name?: string; color?: string }[]
+): void {
+  teams.forEach(({ id, name, color }) => {
+    const c = (color || '').trim();
+    if (!c) return;
+    if (id) sheetColors[String(id).trim()] = c;
+    if (name) sheetColors[normName(name)] = c;
+  });
+}
+
+function sheetColorOf(nameOrId: string): string | undefined {
+  return sheetColors[nameOrId] || sheetColors[normName(nameOrId)];
+}
+
 export function getTeamColor(nameOrId: string): string {
   const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
-  return team?.safeColor || '#888888';
+  if (team) return team.safeColor;
+  return sheetColorOf(nameOrId) || '#888888';
 }
 
 export function getTeamColorRaw(nameOrId: string): string {
   const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
-  return team?.color || '#888888';
+  if (team) return team.color;
+  return sheetColorOf(nameOrId) || '#888888';
 }
 
 export function isWhiteTeam(nameOrId: string): boolean {
   const team = TEAMS[nameOrId] || TEAM_BY_NAME[nameOrId];
-  return team?.color === '#FFFFFF';
+  if (team) return team.color === '#FFFFFF';
+  const c = sheetColorOf(nameOrId);
+  return !!c && /^#?(?:fff|ffffff)$/i.test(c.trim());
 }
 
 export const NAV_ITEMS = [

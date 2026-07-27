@@ -10,6 +10,7 @@ import { exportFixturePdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
 import { useSheetData } from '../lib/useSheetData';
 import { parseFixtureRows, isJugado, type Partido } from '../lib/fixture';
+import { useTeamColorsVersion } from '../components/TeamColorsProvider';
 
 export default function Fixture() {
   const { data, loading, error, lastUpdated, refetch } =
@@ -221,6 +222,9 @@ function DefaultBanner({ kind, equipoAusente }: { kind: 'wo' | 'retiro'; equipoA
 }
 
 function TeamColorBar({ name }: { name: string }) {
+  // Suscribe la barra a los colores cargados desde la hoja EQUIPOS: cuando
+  // terminan de cargar, la versión cambia y la barra se repinta.
+  useTeamColorsVersion();
   return (
     <div
       className="w-1 h-6 rounded-full shrink-0"

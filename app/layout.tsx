@@ -9,6 +9,7 @@ import ThemeProvider from "./components/ThemeProvider";
 import ToastProvider from "./components/ToastProvider";
 import ConnectionStatus from "./components/ConnectionStatus";
 import VisitTracker from "./components/VisitTracker";
+import TeamColorsProvider from "./components/TeamColorsProvider";
 import { SITE_URL } from "./lib/constants";
 
 const geistSans = localFont({
@@ -64,6 +65,7 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <ToastProvider>
+            <TeamColorsProvider>
             <ConnectionStatus />
             <VisitTracker />
             <Header />
@@ -85,6 +87,7 @@ export default function RootLayout({
             </footer>
             <MobileNav />
             <ScrollToTop />
+            </TeamColorsProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>
