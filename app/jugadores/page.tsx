@@ -17,6 +17,21 @@ function getInitials(nombre: string): string {
   return nombre.slice(0, 2).toUpperCase();
 }
 
+/**
+ * Color de texto legible sobre un fondo hex: blanco sobre fondos oscuros
+ * (negro, rojo, azul...) y casi negro sobre fondos claros (blanco, amarillo).
+ */
+function textOn(hex: string): string {
+  const h = (hex || '').replace('#', '').trim();
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  if (full.length !== 6) return '#FFFFFF';
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  return lum < 140 ? '#FFFFFF' : '#111111';
+}
+
 interface Jugador {
   id: string;
   nombre: string;
@@ -373,6 +388,10 @@ export default function Jugadores() {
             {filtrados.map(j => {
               const color = teamColor(j.equipoId);
               const isWhite = teamIsWhite(j.equipoId);
+              // Fondo real del avatar (blanco = blanco) y color de texto legible
+              // sobre ese fondo (iniciales y número), con contraste automático.
+              const avatarBg = isWhite ? '#FFFFFF' : byId[j.equipoId]?.color || '#888888';
+              const avatarText = textOn(avatarBg);
               const isExpanded = expanded === j.id;
               const st = statsCache[j.id];
               const isLoading = loadingStats === j.id;
@@ -391,14 +410,14 @@ export default function Jugadores() {
                     <div
                       className="w-14 h-14 rounded-full flex flex-col items-center justify-center shrink-0 transition-transform group-hover:scale-105 select-none"
                       style={{
-                        background: isWhite ? '#FFFFFF' : color,
+                        background: avatarBg,
                         border: isWhite ? '2px solid #B0B0B0' : 'none',
-                        color: isWhite ? '#333333' : '#ffffff',
+                        color: avatarText,
                         boxShadow: `0 2px 10px ${color}40`,
                       }}
                     >
                       <span className="text-base font-bold leading-none">{getInitials(j.nombre)}</span>
-                      {j.numero && <span className="text-[11px] font-black leading-none mt-1" style={{ color: '#000000' }}>#{j.numero}</span>}
+                      {j.numero && <span className="text-[11px] font-black leading-none mt-1" style={{ color: avatarText }}>#{j.numero}</span>}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium leading-tight truncate">{j.nombre}</div>
