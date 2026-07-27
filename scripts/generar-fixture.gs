@@ -1,19 +1,18 @@
 /**
- * Generador de FIXTURE (Google Apps Script)
- * ------------------------------------------
- * Crea el fixture EXACTAMENTE en el mismo orden que la macro de Excel.
- *
+ * Orden del FIXTURE (Google Apps Script) — idéntico a la macro de Excel.
+ * ---------------------------------------------------------------------
  * La diferencia entre el Excel y el Google Sheets NO estaba en los equipos,
  * sino en el ORDEN de los partidos y en quién juega de local/visitante.
- * Todo eso vive en el arreglo `orden` de abajo.
+ * Todo eso vive en el arreglo `orden`.
  *
  * `orden` usa índices base 0:  equipo 1 = 0, equipo 2 = 1, ... equipo 6 = 5.
  * Cada par [local, visitante] respeta el lado local/visitante del Excel.
  * Está agrupado en 5 fechas de 3 partidos cada una.
+ *
+ * Pega este arreglo en tu Script en reemplazo del `orden` anterior. El resto
+ * de tu generador (segunda ronda, horas, colores, bordes) no cambia.
  */
 
-// Orden idéntico al del Excel (5 fechas x 3 partidos).
-// [local, visitante] en base 0 (equipo1=0 ... equipo6=5).
 const orden = [
   [0, 5], [1, 4], [2, 3], // Fecha 1: 1-6, 2-5, 3-4
   [1, 3], [0, 4], [2, 5], // Fecha 2: 2-4, 1-5, 3-6
