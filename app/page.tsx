@@ -7,7 +7,7 @@ import bostonCelticsPhoto from '../public/teams/boston-celtics.jpg';
 import oklahomaCityThunderPhoto from '../public/teams/oklahoma-city-thunder.jpg';
 import losAngelesLakersPhoto from '../public/teams/los-angeles-lakers.jpg';
 import torontoRaptorsPhoto from '../public/teams/toronto-raptors.jpg';
-import { TEAMS, firstHexInRow } from './lib/constants';
+import { TEAMS, firstHexInRow, getTeamPhotoUrl } from './lib/constants';
 import LoadingState, { ErrorState } from './components/LoadingState';
 import DataFreshness from './components/DataFreshness';
 import ExportButton from './components/ExportButton';
@@ -245,6 +245,9 @@ export default function Dashboard() {
             <div id="equipos-export-root" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 stagger-children">
               {equiposConStats.map(({ eq, idx, st, ppgOff, ppgDef, ratio, winPct }) => {
                 const color = badgeColor(eq);
+                // Preferimos la foto de Drive (torneo actual); si no hay, la
+                // imagen estática incluida en el proyecto.
+                const drivePhoto = getTeamPhotoUrl(eq.id);
                 const photo = TEAM_PHOTOS[eq.id];
                 const isExpanded = expandedTeam === eq.nombre;
                 const scorer = topScorers[eq.nombre];
@@ -255,7 +258,18 @@ export default function Dashboard() {
                     className="bg-bg-card rounded-xl border border-border-light glow-hover cursor-pointer group"
                     onClick={() => setExpandedTeam(prev => prev === eq.nombre ? null : eq.nombre)}
                   >
-                    {photo && (
+                    {drivePhoto ? (
+                      <div className="relative w-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={drivePhoto}
+                          alt={`Foto del equipo ${eq.nombre}`}
+                          loading={idx < 3 ? 'eager' : 'lazy'}
+                          className="w-full h-auto block rounded-t-xl"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-t-xl" />
+                      </div>
+                    ) : photo ? (
                       <div className="relative w-full">
                         <Image
                           src={photo}
@@ -266,7 +280,7 @@ export default function Dashboard() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-t-xl" />
                       </div>
-                    )}
+                    ) : null}
                     <div className="p-4 flex items-center gap-3">
                       <div
                         className="w-3 h-8 rounded-full shrink-0"
