@@ -185,11 +185,18 @@ export const TEAM_PHOTO_DRIVE_IDS: Record<string, string> = {
   '6': '152LSb5d3Q4L2gB7JFN1cll7As8lxYkQd', // ANADOLU EFES
 };
 
+/**
+ * Se incrementa para forzar que la web/CDN de Google traigan la foto nueva
+ * cuando se reemplaza una imagen en Drive (rompe la caché). Súbelo en 1 cada
+ * vez que se cambien las fotos.
+ */
+const PHOTO_CACHE_VERSION = 2;
+
 /** URL pública de la foto del equipo (miniatura de Drive), o null si no hay. */
 export function getTeamPhotoUrl(id: string): string | null {
   const fileId = TEAM_PHOTO_DRIVE_IDS[String(id).trim()];
   return fileId
-    ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`
+    ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000&v=${PHOTO_CACHE_VERSION}`
     : null;
 }
 
