@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { appendVisitRow, readVisitRows } from '../../lib/sheets';
+import { recordVisit, readVisitRows } from '../../lib/sheets';
 import { verifyToken } from '../../lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
@@ -13,10 +13,10 @@ function todayISO(): string {
 
 export async function POST(request: Request) {
   const ua = (request.headers.get('user-agent') || '').slice(0, 200);
-  const now = new Date().toISOString();
+  const ref = (request.headers.get('referer') || '').slice(0, 200);
   const date = todayISO();
 
-  const result = await appendVisitRow([now, date, ua, '']);
+  const result = await recordVisit(date, ua, ref);
   if (!result.ok) {
     return NextResponse.json({ success: false, error: result.error }, { status: 200 });
   }
