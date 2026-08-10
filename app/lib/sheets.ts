@@ -118,6 +118,75 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
+function httpsRequestRaw(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<{ status: number; location?: string; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        path: parsed.pathname + parsed.search,
+        method,
+        headers,
+        agent: getAgent(),
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (c: Buffer) => { data += c; });
+        res.on('end', () => resolve({
+          status: res.statusCode || 0,
+          location: res.headers.location as string | undefined,
+          body: data,
+        }));
+      },
+    );
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+// Web App de Apps Script (en el mismo Google Sheets) que registra la visita
+// con los permisos del dueño. Evita necesitar una cuenta de servicio.
+const VISITS_WEBHOOK_URL =
+  'https://script.google.com/macros/s/AKfycbzq4PTXgKySht6UgpSz2ftVzlI9ZlULE5pnmMl1O8A8dHbdwG1LcyrVVuAWny3G6AEB/exec';
+const VISITS_TOKEN = 'v1s1tas-baloncesto-2026';
+
+/** Registra una visita llamando al Web App de Apps Script (server-side). */
+export async function recordVisit(
+  date: string,
+  ua: string,
+  ref: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const qs = new URLSearchParams({
+    token: VISITS_TOKEN,
+    date,
+    ua: (ua || '').slice(0, 200),
+    ref: ref || '',
+  });
+  let url = `${VISITS_WEBHOOK_URL}?${qs.toString()}`;
+  try {
+    // Apps Script responde con un 302 a googleusercontent.com; seguimos el
+    // redirect para confirmar la ejecución.
+    for (let i = 0; i < 5; i++) {
+      const res = await httpsRequestRaw(url, 'GET', {});
+      if (res.status >= 300 && res.status < 400 && res.location) {
+        url = res.location;
+        continue;
+      }
+      if (res.status >= 200 && res.status < 300) return { ok: true };
+      return { ok: false, error: `http_${res.status}` };
+    }
+    return { ok: false, error: 'too_many_redirects' };
+  } catch {
+    return { ok: false, error: 'request_failed' };
+  }
+}
+
 export async function appendVisitRow(values: string[]): Promise<{ ok: boolean; error?: string }> {
   const token = await getAccessToken();
   if (!token) return { ok: false, error: 'missing_service_account' };
