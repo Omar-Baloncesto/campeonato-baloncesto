@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s · Campeonato Baloncesto Cúcuta 2026",
   },
   description:
-    "Campeonato de Baloncesto de Cúcuta - Primer Semestre 2026. Posiciones, fixture, estadísticas, asistencias y bracket.",
+    "Campeonato de Baloncesto de Cúcuta - Segundo Semestre 2026. Posiciones, fixture, estadísticas, asistencias y bracket.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

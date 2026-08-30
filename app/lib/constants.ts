@@ -202,7 +202,7 @@ export function getTeamPhotoUrl(id: string): string | null {
 
 export const APP_CONFIG = {
   title: 'CAMPEONATO BALONCESTO',
-  subtitle: 'CÚCUTA · PRIMER SEMESTRE 2026',
+  subtitle: 'CÚCUTA · SEGUNDO SEMESTRE 2026',
   year: 2026,
 };
 
