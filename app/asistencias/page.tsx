@@ -57,6 +57,7 @@ export default function Asistencias() {
       .then(([data, fixtureData]) => {
         if (signal.aborted) return;
         // Extract dates and played status from FIXTURE via the shared parser
+        let fixtureJugadas: boolean[] | null = null;
         if (fixtureData.success && Array.isArray(fixtureData.data)) {
           const partidos = parseFixtureRows(fixtureData.data);
           const jornadaDates = new Map<string, string>();
@@ -71,7 +72,7 @@ export default function Asistencias() {
             if (isJugado(p)) jornadaPlayed.add(jornada);
           });
           setFechas(Array.from({ length: 10 }, (_, i) => jornadaDates.get(String(i + 1)) || ''));
-          setJugadas(Array.from({ length: 10 }, (_, i) => jornadaPlayed.has(String(i + 1))));
+          fixtureJugadas = Array.from({ length: 10 }, (_, i) => jornadaPlayed.has(String(i + 1)));
         }
 
         if (data.success && Array.isArray(data.data) && data.data.length > 1) {
@@ -82,6 +83,27 @@ export default function Asistencias() {
               titleIndices.push(i);
             }
           });
+
+          // Cada bloque de equipo lleva su propia fila de encabezado
+          // ("Jugador" + un "1" por cada fecha ya jugada). Esa fila es la que
+          // alimenta las columnas Asist./Fechas/Fracc./% de la hoja, así que es
+          // la que manda para pintar los ✓/✗: si se toma el FIXTURE, una fecha
+          // ya anotada en asistencias pero sin marcador todavía queda en blanco
+          // aunque sí cuente en el total. Se usa la unión de todos los bloques
+          // y solo se cae al FIXTURE si la hoja no trae ninguna marca.
+          const marcadas = Array<boolean>(10).fill(false);
+          let hayMarcas = false;
+          rows.forEach((r) => {
+            if ((r[0] || '').trim().toLowerCase() !== 'jugador') return;
+            for (let i = 0; i < 10; i++) {
+              if ((r[i + 1] || '').trim() === '1') {
+                marcadas[i] = true;
+                hayMarcas = true;
+              }
+            }
+          });
+          setJugadas(hayMarcas ? marcadas : (fixtureJugadas ?? Array(10).fill(false)));
+
           // El nombre/color de cada equipo se toma de la hoja EQUIPOS por
           // índice (ver equiposView); aquí solo separamos los bloques.
           const result = titleIndices.map((titleIdx, teamIdx) => {
@@ -105,6 +127,8 @@ export default function Asistencias() {
             return { nombre: '', color: '', jugadores };
           });
           setEquipos(result);
+        } else if (fixtureJugadas) {
+          setJugadas(fixtureJugadas);
         }
         setLoading(false);
       })
