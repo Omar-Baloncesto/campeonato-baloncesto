@@ -8,21 +8,27 @@
 //   1. Calcular Puntos por Cuarto        -> calcularPuntosPorCuarto()
 //   2. Pasar Puntos a ListaEquipos       -> pasarPuntosAListaEquipos()
 //   3. Pasar Puntos a EstadisticasJug.   -> _ppCargarEstadisticas()   [nuevo]
-//   4. Llevar Marcadores a FIXTURE       -> insertarMarcadores()
-//   5. Calcular TablaPosiciones          -> calcularTablaPosiciones()
-//   6. Equipos Empatados (FIBA)          -> crearHojaEquiposEmpatados()
-//   7. Ordenar Tabla Puntos Jugadores    -> OrdenaTablaPuntosJugadores()
+//   4. Asistencias desde la nómina       -> _ppCargarAsistencias()    [nuevo]
+//   5. Llevar Marcadores a FIXTURE       -> insertarMarcadores()
+//   6. Calcular TablaPosiciones          -> calcularTablaPosiciones()
+//   7. Equipos Empatados (FIBA)          -> crearHojaEquiposEmpatados()
+//   8. Ordenar Tabla Puntos Jugadores    -> OrdenaTablaPuntosJugadores()
 //
-// NO modifica ninguna función existente. Los pasos 1, 2, 4, 5, 6 y 7
+// NO modifica ninguna función existente. Los pasos 1, 2, 5, 6, 7 y 8
 // llaman tal cual a las funciones que ya están probadas y en uso; el
 // menú "🏀 Campeonato" sigue funcionando exactamente igual y queda
 // disponible como respaldo.
 //
-// El paso 3 es el único que necesitó una versión nueva, porque el
-// original (pasarPuntosAEstadisticasJugadores) SUMA sobre lo que ya
-// había —correr dos veces duplicaría los puntos— y además pide la
-// fecha por teclado. Esta versión deduce la fecha sola y reescribe en
-// vez de sumar, así que se puede repetir sin riesgo.
+// El paso 3 tiene versión nueva porque el original
+// (pasarPuntosAEstadisticasJugadores) SUMA sobre lo que ya había
+// —correr dos veces duplicaría los puntos— y además pide la fecha por
+// teclado. Esta versión deduce la fecha sola y reescribe en vez de
+// sumar, así que se puede repetir sin riesgo.
+//
+// El paso 4 llena AsistenciasJugadores leyendo la columna "en Juego"
+// (O) de las dos nóminas de la PLANILLA. Es OPCIONAL: si la nómina
+// está en blanco, ese paso se omite y las asistencias se siguen
+// marcando a mano como siempre.
 //
 // NADA de esto toca los scripts de creación del torneo.
 // ============================================================
@@ -38,6 +44,13 @@ const PP_FILA_INI   = 14;
 const PP_FILA_FIN   = 53;
 const PP_COLS_A     = [22, 26, 30, 34]; // V, Z, AD, AH
 const PP_COLS_B     = [25, 29, 33, 37]; // Y, AC, AG, AK
+
+// Nóminas: 12 jugadores por equipo
+const PP_NOMINA_A     = [16, 27]; // filas del Equipo A
+const PP_NOMINA_B     = [40, 51]; // filas del Equipo B
+const PP_COL_NOMBRE   = 3;  // C  (celda combinada C:M)
+const PP_COL_DORSAL   = 14; // N  N°
+const PP_COL_EN_JUEGO = 15; // O  "en Juego"
 
 // FIXTURE (índices base 0 sobre la fila leída)
 const PP_FIX_JORNADA = 1;  // B  FechaNumero
@@ -66,13 +79,17 @@ function ProcesarPartido() {
     return;
   }
 
+  const textoAsistencias = info.hayNomina
+    ? "Asistencias: " + info.nominaA.jugaron.length + " de " + info.equipoA +
+      " y " + info.nominaB.jugaron.length + " de " + info.equipoB
+    : "Asistencias: NO se tocan (la nómina está en blanco)";
+
   // ---------- CONFIRMACIÓN ----------
   const resp = ui.alert(
     "Confirmar partido",
     "FECHA " + info.jornada + "   (" + info.fechaTexto + ")\n\n" +
     info.equipoA + "   " + info.totalA + "  -  " + info.totalB + "   " + info.equipoB + "\n\n" +
-    "Se actualizarán: ListaEquipos, EstadisticasJugadores, FIXTURE,\n" +
-    "TablaPosiciones, EquiposEmpatados y PuntosJugadores.\n\n" +
+    textoAsistencias + "\n\n" +
     "¿Procesar este partido?",
     ui.ButtonSet.OK_CANCEL
   );
@@ -86,6 +103,11 @@ function ProcesarPartido() {
     calcularPuntosPorCuarto();          hechos.push("Puntos por cuarto");
     pasarPuntosAListaEquipos();         hechos.push("ListaEquipos");
     _ppCargarEstadisticas(ss, info);    hechos.push("EstadisticasJugadores");
+
+    if (info.hayNomina) {
+      _ppCargarAsistencias(ss, info);   hechos.push("AsistenciasJugadores");
+    }
+
     insertarMarcadores();               hechos.push("Marcadores → FIXTURE");
     calcularTablaPosiciones();          hechos.push("TablaPosiciones");
     crearHojaEquiposEmpatados();        hechos.push("EquiposEmpatados");
@@ -109,9 +131,10 @@ function ProcesarPartido() {
     "✅ Partido procesado",
     "FECHA " + info.jornada + "\n" +
     info.equipoA + "   " + info.totalA + "  -  " + info.totalB + "   " + info.equipoB + "\n\n" +
-    "Ya está actualizado en la web y en los celulares.\n\n" +
-    "Recuerda marcar las asistencias de esta fecha en la hoja\n" +
-    "AsistenciasJugadores (incluida la fila de encabezado).",
+    (info.hayNomina
+      ? "Asistencias marcadas automáticamente."
+      : "⚠️ Las asistencias NO se tocaron.\nMárcalas a mano en AsistenciasJugadores,\nincluida la fila de encabezado.") +
+    "\n\nYa está actualizado en la web y en los celulares.",
     ui.ButtonSet.OK
   );
 }
@@ -225,7 +248,44 @@ function _ppValidarPlanilla(ss) {
     );
   }
 
-  return { equipoA, equipoB, fecha, fechaTexto, jornada, totalA, totalB };
+  // ----- Nóminas / asistencias (opcional) -----
+  const nominaA = _ppLeerNomina(planilla, PP_NOMINA_A);
+  const nominaB = _ppLeerNomina(planilla, PP_NOMINA_B);
+
+  const hayNomina = nominaA.dorsales.length > 0 || nominaB.dorsales.length > 0;
+
+  if (hayNomina) {
+
+    if (!nominaA.dorsales.length || !nominaB.dorsales.length) {
+      throw new Error(
+        "Solo una de las dos nóminas está llena.\n\n" +
+        equipoA + ": " + nominaA.dorsales.length + " jugadores\n" +
+        equipoB + ": " + nominaB.dorsales.length + " jugadores\n\n" +
+        "Llena las dos (botón 🧾 LLENAR NÓMINA) o deja las dos en blanco\n" +
+        "para marcar las asistencias a mano."
+      );
+    }
+
+    if (!nominaA.jugaron.length || !nominaB.jugaron.length) {
+      throw new Error(
+        "Hay nómina pero nadie está marcado en la columna \"en Juego\" (O).\n\n" +
+        equipoA + ": " + nominaA.jugaron.length + " marcados\n" +
+        equipoB + ": " + nominaB.jugaron.length + " marcados\n\n" +
+        "Marca con 1 (o X) a los que jugaron. Si prefieres no usar esta\n" +
+        "función, borra los dorsales de la nómina y quedan a mano."
+      );
+    }
+
+    // Quien anotó puntos tuvo que haber jugado: cruce de control que
+    // detecta marcas olvidadas o nóminas viejas del partido anterior.
+    _ppCruzarAnotadores(nominaA, _ppLeerEventos(planilla, PP_COLS_A), equipoA);
+    _ppCruzarAnotadores(nominaB, _ppLeerEventos(planilla, PP_COLS_B), equipoB);
+  }
+
+  return {
+    equipoA, equipoB, fecha, fechaTexto, jornada,
+    totalA, totalB, nominaA, nominaB, hayNomina
+  };
 }
 
 
@@ -254,6 +314,64 @@ function _ppValidarAcumulado(arr, etiqueta, rango) {
 
 
 // ============================================================
+// NÓMINA: lectura de las columnas N (dorsal) y O ("en Juego")
+// ============================================================
+function _ppLeerNomina(planilla, rango) {
+
+  const filas = rango[1] - rango[0] + 1;
+  const datos = planilla.getRange(rango[0], PP_COL_DORSAL, filas, 2).getValues();
+
+  const dorsales = [];
+  const jugaron  = [];
+
+  datos.forEach(d => {
+    const dorsal = String(d[0] === null || d[0] === undefined ? "" : d[0]).trim();
+    if (!dorsal) return;
+    dorsales.push(dorsal);
+    if (_ppEsMarca(d[1])) jugaron.push(dorsal);
+  });
+
+  return { dorsales, jugaron };
+}
+
+
+// Acepta varias formas de marcar: casilla de verificación, 1, X, SI...
+function _ppEsMarca(v) {
+  if (v === true) return true;
+  const s = String(v === null || v === undefined ? "" : v).trim().toUpperCase();
+  if (!s) return false;
+  return ["1", "X", "SI", "SÍ", "S", "V", "TRUE", "VERDADERO", "✓"].indexOf(s) >= 0;
+}
+
+
+// Todo el que anotó puntos tuvo que estar en juego. Si alguien anotó
+// y no está marcado, o la nómina quedó del partido anterior, aquí se
+// detecta antes de escribir asistencias equivocadas.
+function _ppCruzarAnotadores(nomina, eventos, nombreEquipo) {
+
+  const marcados = {};
+  nomina.jugaron.forEach(d => { marcados[d] = true; });
+
+  const faltan = {};
+  eventos.forEach(ev => {
+    const d = String(ev.numero).trim();
+    if (!marcados[d]) faltan[d] = true;
+  });
+
+  const lista = Object.keys(faltan);
+
+  if (lista.length) {
+    throw new Error(
+      "En " + nombreEquipo + " hay dorsales que anotaron puntos pero no\n" +
+      "están marcados como \"en Juego\": " + lista.join(", ") + ".\n\n" +
+      "Puede ser una marca olvidada, o que la nómina haya quedado del\n" +
+      "partido anterior. Usa el botón 🧾 LLENAR NÓMINA y vuelve a marcar."
+    );
+  }
+}
+
+
+// ============================================================
 // PASO 3 (versión automática e idempotente)
 //
 // Diferencias con pasarPuntosAEstadisticasJugadores():
@@ -264,16 +382,30 @@ function _ppValidarAcumulado(arr, etiqueta, rango) {
 // ============================================================
 function _ppCargarEstadisticas(ss, info) {
 
-  const planilla       = ss.getSheetByName("PLANILLA");
-  const estad          = ss.getSheetByName("EstadisticasJugadores");
+  const planilla = ss.getSheetByName("PLANILLA");
+  const estad    = ss.getSheetByName("EstadisticasJugadores");
+
+  if (!estad) throw new Error("No se encontró la hoja 'EstadisticasJugadores'.");
+
+  const ref = _ppMapaJugadores(ss, info);
+
+  const eventosA = _ppLeerEventos(planilla, PP_COLS_A);
+  const eventosB = _ppLeerEventos(planilla, PP_COLS_B);
+
+  _ppEscribirEstadisticas(estad, ref.mapa, ref.idA, eventosA, info.equipoA, info.jornada);
+  _ppEscribirEstadisticas(estad, ref.mapa, ref.idB, eventosB, info.equipoB, info.jornada);
+}
+
+
+// Devuelve { idA, idB, mapa } donde mapa["idEquipo_dorsal"] = nombre.
+function _ppMapaJugadores(ss, info) {
+
   const jugadoresSheet = ss.getSheetByName("JUGADORES");
   const equiposSheet   = ss.getSheetByName("EQUIPOS");
 
-  if (!estad)          throw new Error("No se encontró la hoja 'EstadisticasJugadores'.");
   if (!jugadoresSheet) throw new Error("No se encontró la hoja 'JUGADORES'.");
   if (!equiposSheet)   throw new Error("No se encontró la hoja 'EQUIPOS'.");
 
-  // ----- ID de cada equipo -----
   const dataEquipos = equiposSheet.getRange("A2:B" + equiposSheet.getLastRow()).getValues();
 
   let idA = null, idB = null;
@@ -285,18 +417,12 @@ function _ppCargarEstadisticas(ss, info) {
   if (idA === null) throw new Error("El equipo '" + info.equipoA + "' no está en la hoja EQUIPOS.");
   if (idB === null) throw new Error("El equipo '" + info.equipoB + "' no está en la hoja EQUIPOS.");
 
-  // ----- Mapa  idEquipo_dorsal -> nombre jugador -----
   const jugadores = jugadoresSheet.getRange("A2:D" + jugadoresSheet.getLastRow()).getValues();
 
   const mapa = {};
   jugadores.forEach(j => { mapa[j[2] + "_" + j[3]] = j[1]; });
 
-  // ----- Leer y escribir -----
-  const eventosA = _ppLeerEventos(planilla, PP_COLS_A);
-  const eventosB = _ppLeerEventos(planilla, PP_COLS_B);
-
-  _ppEscribirEstadisticas(estad, mapa, idA, eventosA, info.equipoA, info.jornada);
-  _ppEscribirEstadisticas(estad, mapa, idB, eventosB, info.equipoB, info.jornada);
+  return { idA, idB, mapa };
 }
 
 
@@ -352,16 +478,7 @@ function _ppLeerEventos(planilla, cols) {
 // por eso se puede repetir sin duplicar.
 function _ppEscribirEstadisticas(estad, mapa, equipoID, eventos, nombreEquipo, jornada) {
 
-  const data = estad.getDataRange().getValues();
-
-  let filaEquipo = -1;
-  for (let i = 0; i < data.length; i++) {
-    if (String(data[i][0]).includes(nombreEquipo)) { filaEquipo = i + 1; break; }
-  }
-
-  if (filaEquipo === -1) {
-    throw new Error("No se encontró el bloque del equipo '" + nombreEquipo + "' en EstadisticasJugadores.");
-  }
+  const filaEquipo = _ppBuscarBloque(estad, nombreEquipo, "EstadisticasJugadores");
 
   const encabezados = estad.getRange(filaEquipo + 2, 1, 1, 200).getValues()[0];
 
@@ -402,26 +519,229 @@ function _ppEscribirEstadisticas(estad, mapa, equipoID, eventos, nombreEquipo, j
     );
   }
 
-  // Escribir las 12 filas de una sola pasada por columna
+  const nombres = estad.getRange(filaEquipo + 3, 1, 12, 1).getValues();
+
   for (const tipo of [1, 2, 3]) {
 
-    const col = colDe[tipo];
     const valores = [];
 
     for (let i = 0; i < 12; i++) {
-      const nombre = String(estad.getRange(filaEquipo + 3 + i, 1).getValue()).trim();
+      const nombre = String(nombres[i][0]).trim();
       const t = totales[nombre];
       valores.push([t ? t[tipo] : 0]);
     }
 
-    estad.getRange(filaEquipo + 3, col, 12, 1).setValues(valores);
+    estad.getRange(filaEquipo + 3, colDe[tipo], 12, 1).setValues(valores);
   }
+}
+
+
+// ============================================================
+// PASO 4 — ASISTENCIAS desde la columna "en Juego" de la PLANILLA
+//
+// Escribe 1/0 para los 12 jugadores del equipo en la columna de esa
+// fecha, y pone un 1 en la fila de encabezado ("Jugador"), que es la
+// que alimenta las columnas Asistencia / Fechas / Fracción / % y la
+// que lee la web para pintar los ✓ / ✗.
+//
+// Solo toca la columna de ESTA fecha y de ESTOS dos equipos: las
+// demás fechas y los demás equipos quedan intactos. Reescribe, así
+// que repetirlo no acumula.
+// ============================================================
+function _ppCargarAsistencias(ss, info) {
+
+  const ws = ss.getSheetByName("AsistenciasJugadores");
+  if (!ws) throw new Error("No se encontró la hoja 'AsistenciasJugadores'.");
+
+  const ref = _ppMapaJugadores(ss, info);
+
+  const nombresA = _ppNombresQueJugaron(ref.mapa, ref.idA, info.nominaA, info.equipoA);
+  const nombresB = _ppNombresQueJugaron(ref.mapa, ref.idB, info.nominaB, info.equipoB);
+
+  _ppEscribirAsistencias(ws, nombresA, info.equipoA, info.jornada);
+  _ppEscribirAsistencias(ws, nombresB, info.equipoB, info.jornada);
+}
+
+
+// Convierte los dorsales marcados en nombres de jugador, validando
+// que todos pertenezcan a ese equipo.
+function _ppNombresQueJugaron(mapa, equipoID, nomina, nombreEquipo) {
+
+  const nombres = [];
+  const ajenos  = [];
+
+  nomina.jugaron.forEach(dorsal => {
+    const nombre = mapa[equipoID + "_" + dorsal];
+    if (nombre) nombres.push(nombre);
+    else ajenos.push(dorsal);
+  });
+
+  if (ajenos.length) {
+    throw new Error(
+      "En la nómina de " + nombreEquipo + " hay dorsales marcados que no\n" +
+      "pertenecen a ese equipo según la hoja JUGADORES: " + ajenos.join(", ") + ".\n\n" +
+      "Lo más probable es que la nómina haya quedado del partido anterior.\n" +
+      "Usa el botón 🧾 LLENAR NÓMINA y vuelve a marcar."
+    );
+  }
+
+  return nombres;
+}
+
+
+function _ppEscribirAsistencias(ws, nombresJugaron, nombreEquipo, jornada) {
+
+  const filaTitulo = _ppBuscarBloque(ws, nombreEquipo, "AsistenciasJugadores");
+
+  // Estructura de cada bloque (ver CrearAsistenciasJugadores):
+  //   filaTitulo     -> "Equipo: XXX"
+  //   filaTitulo + 1 -> fila de fechas
+  //   filaTitulo + 2 -> fila "Jugador"  (marca de fechas jugadas)
+  //   filaTitulo + 3 -> primer jugador (12 filas)
+  const filaEncabezado = filaTitulo + 2;
+  const filaPrimero    = filaTitulo + 3;
+
+  // Columna B = fecha 1 ... columna K = fecha 10
+  const col = 1 + Number(jornada);
+
+  const jugo = {};
+  nombresJugaron.forEach(n => { jugo[_ppNorm(n)] = true; });
+
+  const nombres = ws.getRange(filaPrimero, 1, 12, 1).getValues();
+
+  const valores = [];
+  for (let i = 0; i < 12; i++) {
+    const nombre = String(nombres[i][0]).trim();
+    valores.push([(nombre && jugo[_ppNorm(nombre)]) ? 1 : 0]);
+  }
+
+  ws.getRange(filaPrimero, col, 12, 1).setValues(valores);
+
+  // Marca la fecha como jugada (lo que cuenta "Fechas" y el %)
+  ws.getRange(filaEncabezado, col).setValue(1);
+}
+
+
+// ============================================================
+// 🧾 LLENAR NÓMINA — botón auxiliar, opcional pero recomendado
+//
+// Trae los 12 jugadores de cada equipo desde la hoja JUGADORES y los
+// escribe en las dos nóminas de la PLANILLA (nombre y dorsal), y deja
+// la columna "en Juego" EN BLANCO para que solo marques quién jugó.
+//
+// Es lo que evita el error más peligroso: que queden las marcas del
+// partido anterior y se registren asistencias que no fueron.
+// ============================================================
+function LlenarNomina() {
+
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const planilla = ss.getSheetByName("PLANILLA");
+
+  if (!planilla) { ui.alert("No se encontró la hoja 'PLANILLA'."); return; }
+
+  const equipoA = planilla.getRange(PP_CELDA_EQUIPO_A).getDisplayValue().trim();
+  const equipoB = planilla.getRange(PP_CELDA_EQUIPO_B).getDisplayValue().trim();
+
+  if (!equipoA || !equipoB) {
+    ui.alert(
+      "⚠️ Faltan los equipos",
+      "Escribe primero los nombres en " + PP_CELDA_EQUIPO_A + " y " +
+      PP_CELDA_EQUIPO_B + " de la PLANILLA.",
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+
+  const resp = ui.alert(
+    "Llenar nóminas",
+    "Se van a cargar los jugadores de:\n\n" +
+    "  A: " + equipoA + "\n" +
+    "  B: " + equipoB + "\n\n" +
+    "Se borra lo que haya ahora en las dos nóminas,\n" +
+    "incluidas las marcas de \"en Juego\".\n\n¿Continuar?",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (resp !== ui.Button.OK) return;
+
+  try {
+    const ref = _ppMapaJugadores(ss, { equipoA, equipoB });
+    _ppEscribirNomina(ss, planilla, PP_NOMINA_A, ref.idA, equipoA);
+    _ppEscribirNomina(ss, planilla, PP_NOMINA_B, ref.idB, equipoB);
+    SpreadsheetApp.flush();
+  } catch (err) {
+    ui.alert("❌ No se pudo llenar la nómina", err.message, ui.ButtonSet.OK);
+    return;
+  }
+
+  ui.alert(
+    "✅ Nóminas cargadas",
+    "Ahora marca con 1 (o X) en la columna \"en Juego\" (O)\n" +
+    "a los jugadores que estuvieron en el partido.\n\n" +
+    "Después dale clic a ⚡ PROCESAR PARTIDO.",
+    ui.ButtonSet.OK
+  );
+}
+
+
+function _ppEscribirNomina(ss, planilla, rango, equipoID, nombreEquipo) {
+
+  const jugadoresSheet = ss.getSheetByName("JUGADORES");
+  const datos = jugadoresSheet.getRange("A2:D" + jugadoresSheet.getLastRow()).getValues();
+
+  const delEquipo = datos.filter(j => String(j[2]).trim() === String(equipoID).trim());
+
+  if (!delEquipo.length) {
+    throw new Error("En la hoja JUGADORES no hay jugadores del equipo " + nombreEquipo + ".");
+  }
+
+  if (delEquipo.length > 12) {
+    throw new Error(
+      nombreEquipo + " tiene " + delEquipo.length + " jugadores en la hoja JUGADORES,\n" +
+      "y en la planilla solo caben 12."
+    );
+  }
+
+  const filas = rango[1] - rango[0] + 1;
+
+  const nombres  = [];
+  const dorsales = [];
+  const enJuego  = [];
+
+  for (let i = 0; i < filas; i++) {
+    nombres.push([i < delEquipo.length ? delEquipo[i][1] : ""]);
+    dorsales.push([i < delEquipo.length ? delEquipo[i][3] : ""]);
+    enJuego.push([""]);
+  }
+
+  planilla.getRange(rango[0], PP_COL_NOMBRE,   filas, 1).setValues(nombres);
+  planilla.getRange(rango[0], PP_COL_DORSAL,   filas, 1).setValues(dorsales);
+  planilla.getRange(rango[0], PP_COL_EN_JUEGO, filas, 1).setValues(enJuego);
+}
+
+
+// ============================================================
+// UTILIDADES
+// ============================================================
+
+// Busca la fila del título "Equipo: XXX" dentro de una hoja por bloques.
+function _ppBuscarBloque(ws, nombreEquipo, nombreHoja) {
+
+  const data = ws.getDataRange().getValues();
+  const buscado = _ppNorm(nombreEquipo);
+
+  for (let i = 0; i < data.length; i++) {
+    if (_ppNorm(data[i][0]).indexOf(buscado) >= 0) return i + 1;
+  }
+
+  throw new Error("No se encontró el bloque del equipo '" + nombreEquipo + "' en " + nombreHoja + ".");
 }
 
 
 // Normaliza nombres para comparar (sin tildes, sin dobles espacios).
 function _ppNorm(v) {
-  return String(v == null ? "" : v)
+  return String(v === null || v === undefined ? "" : v)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
