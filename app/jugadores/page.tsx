@@ -9,7 +9,7 @@ import SearchInput from '../components/SearchInput';
 import { buildFilename } from '../lib/export';
 import { exportJugadoresPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
-import { normalizeText } from '../lib/utils';
+import { buildAsistenciasMap, calcPromedio, normalizeText, parseSheetNumber } from '../lib/utils';
 
 function getInitials(nombre: string): string {
   const parts = nombre.trim().split(/\s+/);
@@ -156,9 +156,8 @@ export default function Jugadores() {
           (r: string[]) => r[7] && r[7].trim() === j.nombre.trim()
         );
         if (statsRow) {
-          stats.totalPuntos = parseFloat(statsRow[8]) || 0;
-          stats.asistencias = parseFloat(statsRow[9]) || 0;
-          stats.promedio = parseFloat(statsRow[10]) || 0;
+          stats.totalPuntos = parseSheetNumber(statsRow[8]);
+          stats.asistencias = parseSheetNumber(statsRow[9]);
         }
 
         // Scan every row for the per-player p1/p2/p3 breakdown instead of
@@ -202,7 +201,11 @@ export default function Jugadores() {
           stats.totalFechas = parseInt(playerRow[12], 10) || 0;
           stats.porcentaje = playerRow[14] || '0%';
         }
+        // Real attendance wins over the ranking copy in PuntosJugadores.
+        const asist = buildAsistenciasMap(rows).get(j.nombre.trim());
+        if (asist !== undefined) stats.asistencias = asist;
       }
+      stats.promedio = calcPromedio(stats.totalPuntos, stats.asistencias);
 
       setStatsCache(prev => ({ ...prev, [j.id]: stats }));
     } catch (e) {
@@ -248,15 +251,20 @@ export default function Jugadores() {
     const ptsRows: string[][] = ptsRes.success && Array.isArray(ptsRes.data) ? ptsRes.data : [];
     const attRows: string[][] = attRes.success && Array.isArray(attRes.data) ? attRes.data : [];
 
+    // Attendance from AsistenciasJugadores; promedio recomputed from it.
+    const asistMap = buildAsistenciasMap(attRows);
+
     // Build a lookup: nombre trimmed → summary stats (totalPuntos/asist/promedio).
     const summaryByName = new Map<string, { totalPuntos: number; asistencias: number; promedio: number }>();
     ptsRows.slice(1).forEach((r) => {
       const n = (r[7] || '').trim();
       if (!n || n === 'NOMBRE JUGADOR') return;
+      const totalPuntos = parseSheetNumber(r[8]);
+      const asistencias = asistMap.get(n) ?? parseSheetNumber(r[9]);
       summaryByName.set(n, {
-        totalPuntos: parseFloat(r[8]) || 0,
-        asistencias: parseFloat(r[9]) || 0,
-        promedio: parseFloat(r[10]) || 0,
+        totalPuntos,
+        asistencias,
+        promedio: calcPromedio(totalPuntos, asistencias),
       });
     });
 
