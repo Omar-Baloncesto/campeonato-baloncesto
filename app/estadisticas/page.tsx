@@ -8,7 +8,7 @@ import SearchInput from '../components/SearchInput';
 import { buildFilename } from '../lib/export';
 import { exportEstadisticasPdf } from '../lib/export-pdf';
 import { exportTableXlsx } from '../lib/export-excel';
-import { normalizeText } from '../lib/utils';
+import { buildAsistenciasMap, calcPromedio, formatPromedio, normalizeText, parseSheetNumber } from '../lib/utils';
 
 interface Jugador {
   nombre: string;
@@ -41,18 +41,34 @@ export default function Estadisticas() {
 
     setLoading(true);
     setError(false);
-    fetch('/api/sheets?sheet=PuntosJugadores', { signal })
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      fetch('/api/sheets?sheet=PuntosJugadores', { signal }).then(r => r.json()),
+      fetch('/api/sheets?sheet=AsistenciasJugadores', { signal }).then(r => r.json()),
+    ])
+      .then(([data, attData]) => {
         if (signal.aborted) return;
+        const asistMap = attData.success && Array.isArray(attData.data)
+          ? buildAsistenciasMap(attData.data)
+          : new Map<string, number>();
         if (data.success && Array.isArray(data.data) && data.data.length > 1) {
           const rows = data.data.slice(1).filter((r: string[]) => {
             const name = r[7]?.toString().trim();
             return name && name !== 'NOMBRE JUGADOR' && name.toUpperCase() !== 'JUGADOR';
           });
-          setJugadores(rows.map((r: string[]) => ({
-            nombre: r[7]?.toString().trim() ?? '', totalPuntos: r[8] || '0', asistencias: r[9] || '0', promedio: r[10] || '0',
-          })));
+          // Attendance comes from AsistenciasJugadores and the average is
+          // recomputed here, so a stale ranking row in the sheet can't show
+          // a wrong promedio (e.g. 20 pts in 1 game shown as 10,0).
+          setJugadores(rows.map((r: string[]) => {
+            const nombre = r[7]?.toString().trim() ?? '';
+            const total = parseSheetNumber(r[8]);
+            const asist = asistMap.get(nombre) ?? parseSheetNumber(r[9]);
+            return {
+              nombre,
+              totalPuntos: String(total),
+              asistencias: String(asist),
+              promedio: formatPromedio(calcPromedio(total, asist)),
+            };
+          }));
           // Calculate maximos from raw player rows (cols 0-4: nombre, p1, p2, p3, total)
           // Player rows are identified by having a name in r[0] and a numeric value in r[1]
           const playerDataRows = (data.data as string[][]).filter(r => {
@@ -94,7 +110,7 @@ export default function Estadisticas() {
     const norm = normalizeText(searchTerm);
     return [...jugadores]
       .filter((j) => j.nombre && (!searchTerm || normalizeText(j.nombre).includes(norm)))
-      .sort((a, b) => parseFloat(b[orden]) - parseFloat(a[orden]));
+      .sort((a, b) => parseSheetNumber(b[orden]) - parseSheetNumber(a[orden]));
   }, [jugadores, orden, searchTerm]);
 
   const medalClass = (i: number) =>
@@ -108,7 +124,7 @@ export default function Estadisticas() {
     { header: 'Jugador',    cell: (r: Ranked) => r.nombre,                      align: 'left'   as const, width: 40 },
     { header: 'Puntos',     cell: (r: Ranked) => Number(r.totalPuntos) || 0,    align: 'center' as const, width: 18 },
     { header: 'Asistencias',cell: (r: Ranked) => Number(r.asistencias) || 0,    align: 'center' as const, width: 22 },
-    { header: 'Promedio',   cell: (r: Ranked) => Number(r.promedio) || 0,       align: 'center' as const, width: 18 },
+    { header: 'Promedio',   cell: (r: Ranked) => Math.round(parseSheetNumber(r.promedio) * 10) / 10,       align: 'center' as const, width: 18 },
   ];
 
   const handleExportPdf = async (destination: "download" | "whatsapp" | "share") => {
